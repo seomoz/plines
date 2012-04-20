@@ -1,3 +1,4 @@
+require_relative '../config/setup_load_paths'
 require 'rspec/fire'
 
 RSpec.configure do |config|

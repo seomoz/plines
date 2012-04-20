@@ -1,2 +1,3 @@
 #!/usr/bin/env rake
-require "bundler/gem_tasks"
+require_relative 'config/setup_load_paths'
+require 'qless/tasks'
