@@ -4,13 +4,11 @@ require File.expand_path('../lib/plines/version', __FILE__)
 Gem::Specification.new do |gem|
   gem.authors       = ["Myron Marston"]
   gem.email         = ["myron.marston@gmail.com"]
-  gem.description   = %q{TODO: Write a gem description}
-  gem.summary       = %q{TODO: Write a gem summary}
+  gem.description   = %q{Builds the Moz shard creation pipeline from individually defined steps.}
+  gem.summary       = %q{Moz shard creation pipeline builder.}
   gem.homepage      = ""
 
-  gem.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
-  gem.files         = `git ls-files`.split("\n")
-  gem.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
+  gem.files         = %w(README.md LICENSE Gemfile Rakefile) + Dir.glob("lib/**/*.rb")
   gem.name          = "plines"
   gem.require_paths = ["lib"]
   gem.version       = Plines::VERSION
