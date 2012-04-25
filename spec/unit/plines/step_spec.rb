@@ -49,10 +49,31 @@ module Plines
       end
     end
 
+    describe "#step_instances_for" do
+      it 'returns just 1 instance w/ the given data by default' do
+        step_class(:A)
+        instances = A.step_instances_for("a")
+        instances.map(&:klass).should eq([A])
+        instances.map(&:data).should eq(["a"])
+      end
+
+      it 'returns one instance per array entry returned by the fan_out block' do
+        step_class(:A) do
+          fan_out do |data|
+            [data + 1, data + 2]
+          end
+        end
+
+        instances = A.step_instances_for(3)
+        instances.map(&:klass).should eq([A, A])
+        instances.map(&:data).should eq([4, 5])
+      end
+    end
+
     describe "#dependencies_for" do
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        StepFoo.dependencies_for(:data).should eq([])
+        StepFoo.dependencies_for(:data).to_a.should eq([])
       end
     end
 
@@ -73,7 +94,7 @@ module Plines
       step_class(:StepA)
       step_class(:StepB)
 
-      it "adds static dependencies when given a class name" do
+      it "adds dependencies based on the given class name" do
         step_class(:StepC) do
           depends_on :StepA, :StepB
         end
@@ -95,16 +116,32 @@ module Plines
         dependencies.map(&:klass).should eq([MySteps::A])
       end
 
-      it "adds a dynamic dependency when given a block" do
-        step_class(:StepC) do
-          depends_on do |data|
-            [1, 2].map { |i| StepInstance.new(StepA, data + i) }
+      context 'when depending on a fan_out step' do
+        step_class(:StepA) do
+          fan_out do |data|
+            [data + 1, data + 2, data + 3]
           end
         end
 
-        dependencies = StepC.dependencies_for(17)
-        dependencies.map(&:klass).should eq([StepA, StepA])
-        dependencies.map(&:data).should eq([18, 19])
+        it "depends on all of the step instances of the named type when it fans out into multiple instances" do
+          step_class(:StepC) do
+            depends_on :StepA
+          end
+
+          dependencies = StepC.dependencies_for(17)
+          dependencies.map(&:klass).should eq([StepA, StepA, StepA])
+          dependencies.map(&:data).should eq([18, 19, 20])
+        end
+
+        it "depends on the the subset of instances for which the block returns true when given a block" do
+          step_class(:StepC) do
+            depends_on(:StepA, &:even?)
+          end
+
+          dependencies = StepC.dependencies_for(17)
+          dependencies.map(&:klass).should eq([StepA, StepA])
+          dependencies.map(&:data).should eq([18, 20])
+        end
       end
     end
   end

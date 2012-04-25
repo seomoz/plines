@@ -28,31 +28,41 @@ module Plines
 
     def self.included(klass)
       klass.extend ClassMethods
+      klass.fan_out { |d| [d] } # default to one step instance
       Plines::Step.all_classes << klass
     end
 
     # The class-level Plines step macros.
     module ClassMethods
-      def dependency_declarations
-        @dependency_declarations ||= []
+      def depends_on(*klasses, &block)
+        klasses.each do |klass|
+          dependency_filters[klass] = (block || Proc.new { true })
+        end
       end
 
-      def depends_on(*args, &block)
-        args.each do |klass_name|
-          depends_on do |data|
-            StepInstance.new(module_namespace.const_get(klass_name), data)
-          end
-        end
-
-        dependency_declarations << block if block
+      def fan_out(&block)
+        @fan_out_block = block
       end
 
       def dependencies_for(job_data)
-        dependency_declarations.flat_map { |dd| dd[job_data] }
+        Enumerator.new do |yielder|
+          dependency_filters.each do |klass, filter|
+            klass = module_namespace.const_get(klass)
+            klass.step_instances_for(job_data).each do |step_instance|
+              yielder.yield step_instance if filter[step_instance.data]
+            end
+          end
+        end
       end
 
       def has_no_dependencies?
-        dependency_declarations.none?
+        dependency_filters.none?
+      end
+
+      def step_instances_for(job_data)
+        @fan_out_block.call(job_data).map do |step_instance_data|
+          StepInstance.new(self, step_instance_data)
+        end
       end
 
     private
@@ -61,6 +71,10 @@ module Plines
         namespaces = name.split('::')
         namespaces.pop # ignore the last one
         namespaces.inject(Object) { |ns, mod| ns.const_get(mod) }
+      end
+
+      def dependency_filters
+        @dependency_filters ||= {}
       end
     end
   end
