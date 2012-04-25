@@ -18,7 +18,7 @@ module Plines
 
     def self.build_for(job_data)
       new do |graph|
-        Plines::Step.all.each do |step_klass|
+        Plines::Step.all_classes.each do |step_klass|
           step = graph.step_for(step_klass, job_data)
           step_klass.dependencies_for(job_data).each do |dep|
             step.add_dependency(graph.step_for(dep.klass, dep.data))

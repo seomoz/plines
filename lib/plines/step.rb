@@ -22,13 +22,13 @@ module Plines
   # This is the module that should be included in any class that
   # is intended to be a Plines step.
   module Step
-    def self.all
-      @all ||= []
+    def self.all_classes
+      @all_classes ||= []
     end
 
     def self.included(klass)
       klass.extend ClassMethods
-      Plines::Step.all << klass
+      Plines::Step.all_classes << klass
     end
 
     # The class-level Plines step macros.

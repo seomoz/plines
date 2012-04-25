@@ -40,12 +40,12 @@ module Plines
   end
 
   describe Step do
-    describe ".all" do
+    describe ".all_classes" do
       step_class(:StepA)
       step_class(:StepB)
 
-      it 'includes all classes that includes the Plines::Step module' do
-        Plines::Step.all.should eq([StepA, StepB])
+      it 'includes all classes that include the Plines::Step module' do
+        Plines::Step.all_classes.should eq([StepA, StepB])
       end
     end
 
