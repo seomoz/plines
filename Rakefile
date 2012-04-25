@@ -38,3 +38,14 @@ Cane::RakeTask.new(:quality) do |cane|
 end
 
 task default: [:spec, :quality]
+
+namespace :cruise do
+  task :copy_artifacts do
+    if ENV['CC_BUILD_ARTIFACTS']
+      FileUtils.cp_r 'coverage', File.join(ENV['CC_BUILD_ARTIFACTS'], "coverage")
+    end
+  end
+end
+
+desc "Run cruise build"
+task cruise: [:spec, "cruise:copy_artifacts", :quality]

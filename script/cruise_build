@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+source $HOME/.rvm/scripts/rvm
+
+# Kill the whole script on error
+set -e
+
+rvm use 1.9.3@plines --create
+
+bundle install --without os_x
+
+bundle exec rake cruise --trace
