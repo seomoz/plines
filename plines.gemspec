@@ -17,4 +17,7 @@ Gem::Specification.new do |gem|
   gem.add_development_dependency 'rspec-fire', '~> 0.4'
   gem.add_development_dependency 'rake', '~> 0.9.2.2'
   gem.add_development_dependency 'debugger', '~> 1.1.1'
+  gem.add_development_dependency 'simplecov', '~> 0.6.2'
+  gem.add_development_dependency 'cane', '~> 1.3.0'
 end
+
