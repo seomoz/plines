@@ -17,8 +17,8 @@ Project.configure do |project|
   # Ping source control for new revisions every 5 minutes (default: 30 seconds)
   # project.scheduler.polling_interval = 5.minutes
 
-  project.campfire_notifier.account = 'seomoz'
-  project.campfire_notifier.token   = '31283b97da099c10ca3bb57529d5a242a2f233a1'
-  project.campfire_notifier.room    = 'Tools'
-  project.campfire_notifier.ssl     = true
+  #project.campfire_notifier.account = 'seomoz'
+  #project.campfire_notifier.token   = '31283b97da099c10ca3bb57529d5a242a2f233a1'
+  #project.campfire_notifier.room    = 'Tools'
+  #project.campfire_notifier.ssl     = true
 end
