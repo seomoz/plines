@@ -1,6 +1,7 @@
 require 'plines'
 
 module Plines
+  # Responsible for enqueing Qless jobs based on the given dependency graph.
   class JobEnqueuer
     def initialize(dependency_graph)
       @dependency_graph = dependency_graph
@@ -17,7 +18,10 @@ module Plines
     end
 
     def enqueue_job_for(step)
-      Plines.default_queue.put(step.klass, step.data, depends: dependency_jids_for(step))
+      Plines.default_queue.put \
+        step.klass,
+        step.data,
+        depends: dependency_jids_for(step)
     end
 
     def dependency_jids_for(step)

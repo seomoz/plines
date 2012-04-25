@@ -1,6 +1,7 @@
 require 'plines/dependency_graph'
 
 module Plines
+  # An instance of a Step: a step class paired with some data for the job.
   StepInstance = Struct.new(:klass, :data) do
     attr_reader :dependencies, :dependees
 
@@ -18,20 +19,11 @@ module Plines
     end
   end
 
+  # This is the module that should be included in any class that
+  # is intended to be a Plines step.
   module Step
     def self.all
       @all ||= []
-    end
-
-    def self.to_dependency_graph(job_data)
-      DependencyGraph.new do |graph|
-        all.each do |step_klass|
-          step = graph.step_for(step_klass, job_data)
-          step_klass.dependencies_for(job_data).each do |dep|
-            step.add_dependency(graph.step_for(dep.klass, dep.data))
-          end
-        end
-      end
     end
 
     def self.included(klass)
@@ -39,6 +31,7 @@ module Plines
       Plines::Step.all << klass
     end
 
+    # The class-level Plines step macros.
     module ClassMethods
       def dependency_declarations
         @dependency_declarations ||= []

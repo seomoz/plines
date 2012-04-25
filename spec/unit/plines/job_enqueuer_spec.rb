@@ -5,7 +5,7 @@ module Plines
   describe JobEnqueuer, :redis do
     step_class(:A) { depends_on :B }
     step_class(:B)
-    let(:graph) { graph = Plines::Step.to_dependency_graph(a: 1, b:2) }
+    let(:graph) { DependencyGraph.build_for(a: 1, b:2) }
     let(:enqueuer) { JobEnqueuer.new(graph) }
 
     it 'enqueues jobs that have no dependencies with no dependencies' do

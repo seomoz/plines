@@ -16,7 +16,7 @@ module Plines
   end
 
   def start_processing(data = {})
-    graph = Plines::Step.to_dependency_graph(data)
+    graph = DependencyGraph.build_for(data)
     JobEnqueuer.new(graph).enqueue_jobs
   end
 end
