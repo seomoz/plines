@@ -47,6 +47,7 @@ RSpec.configure do |config|
   config.include PlinesSpecHelpers
   config.extend PlinesSpecHelpers::ClassMethods
   config.before(:each) do
+    Plines.instance_variable_set(:@configuration, nil)
     if defined?(Plines::Step)
       Plines::Step.all_classes.clear
     end

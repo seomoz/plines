@@ -28,6 +28,35 @@ describe Plines do
     end
   end
 
+  describe ".configuration" do
+    it "returns a memoized Plines::Configuration instance" do
+      Plines.configuration.should be_a(Plines::Configuration)
+      Plines.configuration.should be(Plines.configuration)
+    end
+  end
+
+  describe ".configure" do
+    it "yields the configuration object" do
+      yielded = nil
+      Plines.configure { |c| yielded = c }
+      yielded.should be(Plines.configuration)
+    end
+  end
+
+  describe ".redis" do
+    it "returns the qless redis" do
+      Plines.redis.should be(Plines.qless.redis)
+    end
+  end
+
+  describe ".job_batch_for" do
+    it 'returns a job batch using the configured key' do
+      Plines.configuration.batch_group_key { |data| data["a"] }
+      batch = Plines.job_batch_for("a" => "foo")
+      batch.batch_key.should eq("foo")
+    end
+  end
+
   describe ".start_processing" do
     it 'builds the dependency graph and enqueues jobs' do
       graph_class = fire_replaced_class_double("Plines::DependencyGraph")
