@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+# Use redis 2.9.7 (that supports lua scripts)
+# which is running on port 6378 on cruise
+export REDIS_URL=redis://localhost:6378/3
+
 source $HOME/.rvm/scripts/rvm
 
 # Kill the whole script on error
