@@ -17,6 +17,52 @@ module Plines
       step.dependees << self
       self
     end
+
+    class << self
+      # Prevent users of this class from constructing a new instance directly;
+      # Instead, they should use #build.
+      #
+      # Note: I tried to override #new (w/ a `super` call) but it didn't work...
+      # I think it was overriding Struct.new rather than StepInstance.new
+      # or something.
+      private :new
+
+      # Ensures all "identical" instances (same klass and data)
+      # created within the block are in fact the same object.
+      # This is important when constructing the dependency graph,
+      # so that all the dependency/dependee relationships point to
+      # the right objects (rather than duplicate objects).
+      def accumulate_instances
+        self.repository = Hash.new { |h,k| h[k] = new(*k) }
+
+        begin
+          yield
+          return repository.values
+        ensure
+          self.repository = nil
+        end
+      end
+
+      def build(*args, &block)
+        repository[args, &block]
+      end
+
+    private
+
+      def repository=(value)
+        Thread.current[:plines_step_instance_repository] = value
+      end
+
+      NullRepository = Class.new do
+        def self.[](args, &block)
+          StepInstance.send(:new, *args, &block)
+        end
+      end
+
+      def repository
+        Thread.current[:plines_step_instance_repository] || NullRepository
+      end
+    end
   end
 
   # This is the module that should be included in any class that
@@ -61,7 +107,7 @@ module Plines
 
       def step_instances_for(job_data)
         @fan_out_block.call(job_data).map do |step_instance_data|
-          StepInstance.new(self, step_instance_data)
+          StepInstance.build(self, step_instance_data)
         end
       end
 

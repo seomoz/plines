@@ -34,7 +34,7 @@ describe Plines do
       enqueuer_class = fire_replaced_class_double("Plines::JobEnqueuer")
       enqueuer = fire_double("Plines::JobEnqueuer")
 
-      graph_class.should_receive(:build_for).with("job" => "data") { :the_graph }
+      graph_class.should_receive(:new).with("job" => "data") { :the_graph }
       enqueuer_class.should_receive(:new).with(:the_graph) { enqueuer }
       enqueuer.should_receive(:enqueue_jobs)
 
