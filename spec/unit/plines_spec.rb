@@ -28,24 +28,17 @@ describe Plines do
     end
   end
 
-  describe ".start_processing", :redis do
-    step_class(:Step1)
-    step_class(:Step2)
+  describe ".start_processing" do
+    it 'builds the dependency graph and enqueues jobs' do
+      pstep = fire_replaced_class_double("Plines::Step")
+      enqueuer_class = fire_replaced_class_double("Plines::JobEnqueuer")
+      enqueuer = fire_double("Plines::JobEnqueuer")
 
-    before { Plines.default_queue.peek.should be_nil }
+      pstep.should_receive(:to_dependency_graph).with("job" => "data") { :the_graph }
+      enqueuer_class.should_receive(:new).with(:the_graph) { enqueuer }
+      enqueuer.should_receive(:enqueue_jobs)
 
-    it "enqueues all steps that have no declared dependencies" do
-      Plines.start_processing
-      enqueued_waiting_job_klass_names(2).should =~ %w[ Step1 Step2 ]
-    end
-
-    it "enqueues dependent jobs as dependencies", :pending do
-      step_class(:DependsOnStep1) do
-        depends_on :Step1
-      end
-
-      Plines.start_processing
-      enqueued_waiting_job_klass_names(3).should_not include("DependsOnStep1")
+      Plines.start_processing("job" => "data")
     end
   end
 end

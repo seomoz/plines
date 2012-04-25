@@ -1,5 +1,6 @@
 require "plines/version"
 require 'plines/step'
+require 'plines/job_enqueuer'
 require 'qless'
 
 module Plines
@@ -15,9 +16,8 @@ module Plines
   end
 
   def start_processing(data = {})
-    Plines::Step.all.each do |klass|
-      default_queue.put(klass, {})
-    end
+    graph = Plines::Step.to_dependency_graph(data)
+    JobEnqueuer.new(graph).enqueue_jobs
   end
 end
 
