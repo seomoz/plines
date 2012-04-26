@@ -4,11 +4,11 @@ require 'plines'
 module Plines
   describe DependencyGraph do
     describe ".new" do
-      let(:graph) { DependencyGraph.new(10) }
+      let(:graph) { DependencyGraph.new(a: 10) }
 
       let(:steps_by) do
         Hash.new do |h, (klass, data)|
-          h[[klass, data]] = graph.steps.find { |s| s.klass == klass && s.data == data }
+          h[[klass, data]] = graph.steps.find { |s| s.klass == klass && s.data[:a] == data }
         end
       end
 
@@ -23,7 +23,7 @@ module Plines
         step_class(:C) do
           depends_on :E, :F
           fan_out do |data|
-            [data + 1, data + 2]
+            [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
           end
         end
 
@@ -31,7 +31,7 @@ module Plines
 
         step_class(:F) do
           fan_out do |data|
-            [data * 1, data * 2]
+            [ { a: data[:a] * 1 }, { a: data[:a] * 2 } ]
           end
         end
 

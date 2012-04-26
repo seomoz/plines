@@ -5,6 +5,7 @@ module Plines
 
     def initialize(*args)
       super
+      raise ArgumentError.new, "data must be a hash" unless data.is_a?(Hash)
       @dependencies = Set.new
       @dependees = Set.new
       yield self if block_given?
