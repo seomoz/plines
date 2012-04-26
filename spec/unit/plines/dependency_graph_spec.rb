@@ -3,7 +3,7 @@ require 'plines'
 
 module Plines
   describe DependencyGraph do
-    describe ".build_from" do
+    describe ".new" do
       step_class(:A) { depends_on :B, :C, :D }
       step_class(:B) { depends_on :E }
 
