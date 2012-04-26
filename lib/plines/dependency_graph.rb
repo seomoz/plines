@@ -40,7 +40,9 @@ module Plines
       @visited_steps << step
 
       if current_stack.include?(step)
-        raise CircularDependencyError, "Your graph appears to have a circular dependency: #{current_stack.inspect}"
+        raise CircularDependencyError,
+          "Your graph appears to have a circular dependency: " +
+          current_stack.inspect
       end
 
       step.dependencies.each do |dep|
