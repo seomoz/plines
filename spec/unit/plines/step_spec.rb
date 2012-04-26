@@ -109,14 +109,14 @@ module Plines
       end
 
       describe "#perform" do
-        it "creates an instance and calls #perform, with the job data available as an instance method" do
-          jdata = nil
+        it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
+          foo = nil
           step_class(:A) do
-            define_method(:perform) { jdata = job_data }
+            define_method(:perform) { foo = job_data.foo }
           end
 
-          A.perform(stub(data: { "job" => "data" }))
-          jdata.should eq("job" => "data")
+          A.perform(stub(data: { "foo" => "bar" }))
+          foo.should eq("bar")
         end
       end
     end

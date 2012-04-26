@@ -56,7 +56,7 @@ describe Plines, :redis do
       fan_out { |data| data[:drinks].map { |d| { drink: d } } }
 
       def perform
-        MakeThanksgivingDinner.add_poured_drink job_data["drink"]
+        MakeThanksgivingDinner.add_poured_drink job_data.drink
         MakeThanksgivingDinner.add_performed_step :pour_drinks
       end
     end

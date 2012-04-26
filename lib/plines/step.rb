@@ -1,5 +1,6 @@
 require 'plines/dependency_graph'
 require 'plines/job'
+require 'plines/dynamic_struct'
 
 module Plines
   # This is the module that should be included in any class that
@@ -55,7 +56,7 @@ module Plines
       end
 
       def perform(qless_job)
-        new(qless_job.data).perform
+        new(DynamicStruct.new(qless_job.data)).perform
       end
 
     private
