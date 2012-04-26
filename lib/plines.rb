@@ -3,7 +3,6 @@ require 'plines/configuration'
 require 'plines/step'
 require 'plines/job_enqueuer'
 require 'plines/job_batch'
-require 'plines/job_performer'
 require 'qless'
 
 module Plines

@@ -13,8 +13,8 @@ module Plines
       enqueuer.enqueue_jobs
 
       jobs = Plines.default_queue.peek(2)
-      jobs.map { |j| j.klass.to_s }.should =~ %w[ Plines::JobPerformer ]
-      jobs.map(&:data).should eq([{ "klass" => "B", "data" => { "a" => 1, "b" => 2 } }])
+      jobs.map { |j| j.klass.to_s }.should =~ %w[ B ]
+      jobs.map(&:data).should eq([{ "a" => 1, "b" => 2 }])
     end
 
     it 'sets up job dependencies correctly' do
@@ -24,8 +24,8 @@ module Plines
       job.complete
 
       jobs = Plines.default_queue.peek(2)
-      jobs.map { |j| j.klass.to_s }.should =~ %w[ Plines::JobPerformer ]
-      jobs.map(&:data).should eq([{ "klass" => "A", "data" => { "a" => 1, "b" => 2 } }])
+      jobs.map { |j| j.klass.to_s }.should =~ %w[ A ]
+      jobs.map(&:data).should eq([{ "a" => 1, "b" => 2 }])
     end
 
     it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do

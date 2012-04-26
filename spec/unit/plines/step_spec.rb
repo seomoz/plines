@@ -107,6 +107,18 @@ module Plines
           dependencies.map(&:data).should eq([18, 20])
         end
       end
+
+      describe "#perform" do
+        it "creates an instance and calls #perform, with the job data available as an instance method" do
+          jdata = nil
+          step_class(:A) do
+            define_method(:perform) { jdata = job_data }
+          end
+
+          A.perform(stub(data: { "job" => "data" }))
+          jdata.should eq("job" => "data")
+        end
+      end
     end
   end
 end

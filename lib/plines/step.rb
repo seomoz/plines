@@ -54,6 +54,10 @@ module Plines
         end
       end
 
+      def perform(qless_job)
+        new(qless_job.data).perform
+      end
+
     private
 
       def module_namespace
