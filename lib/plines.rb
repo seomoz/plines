@@ -29,7 +29,7 @@ module Plines
     qless.redis
   end
 
-  def start_processing(batch_data = {})
+  def enqueue_jobs_for(batch_data = {})
     graph = DependencyGraph.new(batch_data)
     JobEnqueuer.new(graph).enqueue_jobs
   end

@@ -57,7 +57,7 @@ describe Plines do
     end
   end
 
-  describe ".start_processing" do
+  describe ".enqueue_jobs_for" do
     it 'builds the dependency graph and enqueues jobs' do
       graph_class = fire_replaced_class_double("Plines::DependencyGraph")
       enqueuer_class = fire_replaced_class_double("Plines::JobEnqueuer")
@@ -67,7 +67,7 @@ describe Plines do
       enqueuer_class.should_receive(:new).with(:the_graph) { enqueuer }
       enqueuer.should_receive(:enqueue_jobs)
 
-      Plines.start_processing("job" => "data")
+      Plines.enqueue_jobs_for("job" => "data")
     end
   end
 end
