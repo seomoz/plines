@@ -22,8 +22,8 @@ module Plines
 
     def enqueue_job_for(step)
       Plines.default_queue.put \
-        step.klass,
-        step.data,
+        Plines::JobPerformer,
+        { "klass" => step.klass, "data" => step.data },
         depends: dependency_jids_for(step)
     end
 

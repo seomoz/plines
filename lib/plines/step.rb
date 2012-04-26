@@ -15,6 +15,12 @@ module Plines
       Plines::Step.all_classes << klass
     end
 
+    attr_reader :job_data
+
+    def initialize(job_data)
+      @job_data = job_data
+    end
+
     # The class-level Plines step macros.
     module ClassMethods
       def depends_on(*klasses, &block)
