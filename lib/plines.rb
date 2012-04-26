@@ -31,8 +31,7 @@ module Plines
   end
 
   def enqueue_jobs_for(batch_data = {})
-    graph = DependencyGraph.new(batch_data)
-    JobEnqueuer.new(graph).enqueue_jobs
+    JobEnqueuer.new(batch_data).enqueue_jobs
   end
 
   def job_batch_for(batch_data)

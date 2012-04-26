@@ -58,13 +58,11 @@ describe Plines do
   end
 
   describe ".enqueue_jobs_for" do
-    it 'builds the dependency graph and enqueues jobs' do
-      graph_class = fire_replaced_class_double("Plines::DependencyGraph")
+    it 'enqueues jobs for the given batch data' do
       enqueuer_class = fire_replaced_class_double("Plines::JobEnqueuer")
       enqueuer = fire_double("Plines::JobEnqueuer")
 
-      graph_class.should_receive(:new).with("job" => "data") { :the_graph }
-      enqueuer_class.should_receive(:new).with(:the_graph) { enqueuer }
+      enqueuer_class.should_receive(:new).with("job" => "data") { enqueuer }
       enqueuer.should_receive(:enqueue_jobs)
 
       Plines.enqueue_jobs_for("job" => "data")
