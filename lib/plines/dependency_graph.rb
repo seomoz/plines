@@ -5,11 +5,11 @@ module Plines
   class DependencyGraph
     attr_reader :steps
 
-    def initialize(job_data)
+    def initialize(batch_data)
       @steps = StepInstance.accumulate_instances do
         Plines::Step.all_classes.each do |step_klass|
-          dependencies = step_klass.dependencies_for(job_data)
-          step_klass.step_instances_for(job_data).each do |step|
+          dependencies = step_klass.dependencies_for(batch_data)
+          step_klass.step_instances_for(batch_data).each do |step|
             dependencies.each do |dep|
               step.add_dependency(dep)
             end

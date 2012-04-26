@@ -90,11 +90,11 @@ module Plines
         @fan_out_block = block
       end
 
-      def dependencies_for(job_data)
+      def dependencies_for(batch_data)
         Enumerator.new do |yielder|
           dependency_filters.each do |klass, filter|
             klass = module_namespace.const_get(klass)
-            klass.step_instances_for(job_data).each do |step_instance|
+            klass.step_instances_for(batch_data).each do |step_instance|
               yielder.yield step_instance if filter[step_instance.data]
             end
           end
@@ -105,8 +105,8 @@ module Plines
         dependency_filters.none?
       end
 
-      def step_instances_for(job_data)
-        @fan_out_block.call(job_data).map do |step_instance_data|
+      def step_instances_for(batch_data)
+        @fan_out_block.call(batch_data).map do |step_instance_data|
           StepInstance.build(self, step_instance_data)
         end
       end
