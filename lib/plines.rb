@@ -3,6 +3,7 @@ require 'plines/configuration'
 require 'plines/step'
 require 'plines/job_enqueuer'
 require 'plines/job_batch'
+require 'plines/job_batch_list'
 require 'qless'
 
 module Plines
@@ -33,8 +34,8 @@ module Plines
     JobEnqueuer.new(batch_data).enqueue_jobs
   end
 
-  def job_batch_for(batch_data)
-    JobBatch.new(configuration.batch_list_key_for batch_data)
+  def most_recent_job_batch_for(batch_data)
+    JobBatchList.for(batch_data).most_recent_batch
   end
 end
 

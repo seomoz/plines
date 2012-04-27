@@ -4,13 +4,13 @@ module Plines
   # Responsible for enqueing Qless jobs based on the given dependency graph.
   class JobEnqueuer
     def initialize(batch_data)
-      @batch_key = Plines.configuration.batch_list_key_for(batch_data)
+      @batch_data = batch_data
       @dependency_graph = DependencyGraph.new(batch_data)
     end
 
     def enqueue_jobs
       @dependency_graph.steps.each { |step| jids[step] }
-      JobBatch.create(@batch_key, jids.values)
+      JobBatchList.for(@batch_data).create_new_batch(jids.values)
       self
     end
 

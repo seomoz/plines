@@ -107,8 +107,8 @@ describe Plines, :redis do
 
     Plines.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
-    Plines.job_batch_for(family: "Jones").should have(0).job_jids
-    Plines.job_batch_for(family: "Smith").should have(9).job_jids
+    Plines.most_recent_job_batch_for(family: "Jones").should be_nil
+    Plines.most_recent_job_batch_for(family: "Smith").should have(9).job_jids
 
     MakeThanksgivingDinner.performed_steps.should eq([])
     MakeThanksgivingDinner.poured_drinks.should eq([])

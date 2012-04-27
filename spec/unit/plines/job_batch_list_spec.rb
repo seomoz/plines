@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'plines/job_batch_list'
+require 'plines'
 
 module Plines
   describe JobBatchList, :redis do
@@ -47,6 +47,15 @@ module Plines
         bar.create_new_batch([])
 
         foo.most_recent_batch.should eq(b2)
+      end
+    end
+
+    describe ".for" do
+      it "returns the job batch list for the given batch data" do
+        Plines.configuration.batch_list_key { |d| d[:foo] }
+        jbl = JobBatchList.for(foo: "bar", bazz: "gar")
+        jbl.should be_a(JobBatchList)
+        jbl.id.should eq("bar")
       end
     end
   end

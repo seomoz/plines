@@ -31,7 +31,7 @@ module Plines
     it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do
       enqueuer.enqueue_jobs
 
-      batch = Plines.job_batch_for(a: 1, b: 2)
+      batch = JobBatchList.for(a: 1, b: 2).most_recent_batch
       a = Plines.default_queue.peek(1).first
       b_jid = a.dependents.first
       batch.job_jids.to_a.should =~ [a.jid, b_jid]

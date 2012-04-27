@@ -19,6 +19,11 @@ module Plines
       JobBatch.create(batch_id_for(last_batch_num.increment), jids)
     end
 
+    def self.for(batch_data)
+      id = Plines.configuration.batch_list_key_for(batch_data)
+      JobBatchList.new(id)
+    end
+
   private
 
     def batch_id_for(number)
