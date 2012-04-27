@@ -100,7 +100,9 @@ describe Plines, :redis do
     end
   end
 
-  it 'enqueues Qless jobs and runs them in the expected order' do
+  let(:smith_batch) { Plines.most_recent_job_batch_for(family: "Smith") }
+
+  def enqueue_jobs
     Plines.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
     end
@@ -108,13 +110,15 @@ describe Plines, :redis do
     Plines.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
     Plines.most_recent_job_batch_for(family: "Jones").should be_nil
-    smith_batch = Plines.most_recent_job_batch_for(family: "Smith")
     smith_batch.should have(9).job_jids
     smith_batch.should_not be_complete
 
     MakeThanksgivingDinner.performed_steps.should eq([])
     MakeThanksgivingDinner.poured_drinks.should eq([])
+  end
 
+  it 'enqueues Qless jobs and runs them in the expected order' do
+    enqueue_jobs
     worker.work(0)
 
     steps = MakeThanksgivingDinner.performed_steps
@@ -131,6 +135,25 @@ describe Plines, :redis do
     MakeThanksgivingDinner.poured_drinks.should =~ %w[ champaign water cider ]
 
     smith_batch.should be_complete
+  end
+
+  xit 'allows a job batch to be cancelled in midstream' do
+    enqueue_jobs
+
+    StuffTurkey.class_eval do
+      def perform
+        job_batch.cancel!
+      end
+    end
+
+    worker.work(0)
+
+    steps = MakeThanksgivingDinner.performed_steps
+    steps.should have_at_most(6).entries
+
+    Plines.default_queue.length.should eq(0)
+    Plines.qless.failed.should be_empty
+    smith_batch.should be_cancelled
   end
 end
 

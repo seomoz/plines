@@ -75,6 +75,15 @@ module Plines
         batch.should be_complete
       end
     end
+
+    describe "#cancel!" do
+      step_class(:Foo)
+      xit 'cancels all jobs' do
+        jid = Plines.default_queue.put(Foo, {})
+        batch = JobBatch.create("foo", [jid])
+        batch.cancel!
+      end
+    end
   end
 end
 

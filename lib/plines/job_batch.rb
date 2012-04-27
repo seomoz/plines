@@ -32,6 +32,19 @@ module Plines
     def complete?
       pending_job_jids.empty? && !completed_job_jids.empty?
     end
+
+=begin
+    def cancelled?
+      false
+    end
+
+    def cancel!
+      pending_job_jids.each do |jid|
+        job = Plines.qless.job(jid)
+        job.cancel
+      end
+    end
+=end
   end
 end
 
