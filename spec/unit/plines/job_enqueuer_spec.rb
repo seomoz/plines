@@ -7,7 +7,7 @@ module Plines
     step_class(:B)
     let(:enqueuer) { JobEnqueuer.new(a: 1, b: 2) }
 
-    before { Plines.configuration.batch_group_key { |data| data[:a] } }
+    before { Plines.configuration.batch_list_key { |data| data[:a] } }
 
     it 'enqueues jobs that have no dependencies with no dependencies' do
       enqueuer.enqueue_jobs
@@ -34,7 +34,7 @@ module Plines
       batch = Plines.job_batch_for(a: 1, b: 2)
       a = Plines.default_queue.peek(1).first
       b_jid = a.dependents.first
-      batch.job_jids.should =~ [a.jid, b_jid]
+      batch.job_jids.to_a.should =~ [a.jid, b_jid]
     end
   end
 end

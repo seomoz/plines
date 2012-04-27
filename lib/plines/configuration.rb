@@ -5,15 +5,15 @@ module Plines
     class Error < StandardError; end
 
     def initialize
-      batch_group_key { raise Error, "batch_group_key has not been configured" }
+      batch_list_key { raise Error, "batch_list_key has not been configured" }
     end
 
-    def batch_group_key(&block)
-      @batch_group_key_block = block
+    def batch_list_key(&block)
+      @batch_list_key_block = block
     end
 
-    def batch_group_for(batch_data)
-      @batch_group_key_block[batch_data]
+    def batch_list_key_for(batch_data)
+      @batch_list_key_block[batch_data]
     end
   end
 end

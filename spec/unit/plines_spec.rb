@@ -51,9 +51,9 @@ describe Plines do
 
   describe ".job_batch_for" do
     it 'returns a job batch using the configured key' do
-      Plines.configuration.batch_group_key { |data| data["a"] }
+      Plines.configuration.batch_list_key { |data| data["a"] }
       batch = Plines.job_batch_for("a" => "foo")
-      batch.batch_key.should eq("foo")
+      batch.id.should eq("foo")
     end
   end
 

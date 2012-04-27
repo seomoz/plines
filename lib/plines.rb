@@ -34,7 +34,7 @@ module Plines
   end
 
   def job_batch_for(batch_data)
-    JobBatch.new(configuration.batch_group_for batch_data)
+    JobBatch.new(configuration.batch_list_key_for batch_data)
   end
 end
 

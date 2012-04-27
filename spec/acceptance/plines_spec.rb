@@ -102,7 +102,7 @@ describe Plines, :redis do
 
   it 'enqueues Qless jobs and runs them in the expected order' do
     Plines.configure do |plines|
-      plines.batch_group_key { |d| d[:family] }
+      plines.batch_list_key { |d| d[:family] }
     end
 
     Plines.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
