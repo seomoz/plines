@@ -27,9 +27,52 @@ module Plines
     end
 
     describe "#job_jids" do
-      it "returns all job jids" do
+      it "returns all job jids, even when some have been completed" do
         batch = JobBatch.create("foo", %w[ a b c ])
         batch.job_jids.to_a.should =~ %w[ a b c ]
+        batch.mark_job_as_complete("a")
+        batch.job_jids.to_a.should =~ %w[ a b c ]
+      end
+    end
+
+    describe "#mark_job_as_complete" do
+      it "moves a jid from the pending to the complete set" do
+        batch = JobBatch.create("foo", %w[ a ])
+
+        batch.pending_job_jids.should include("a")
+        batch.complete_job_jids.should_not include("a")
+
+        batch.mark_job_as_complete("a")
+
+        batch.pending_job_jids.should_not include("a")
+        batch.complete_job_jids.should include("a")
+      end
+
+      it "raises an error if the given jid is not in the pending set" do
+        batch = JobBatch.create("foo", [])
+        batch.complete_job_jids.should_not include("a")
+        expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
+        batch.complete_job_jids.should_not include("a")
+      end
+    end
+
+    describe "#complete?" do
+      it 'returns false when there are no pending or completed jobs' do
+        batch = JobBatch.new("foo")
+        batch.should_not be_complete
+      end
+
+      it 'returns false when there are pending jobs and completed jobs' do
+        batch = JobBatch.new("foo")
+        batch.pending_job_jids << "a"
+        batch.complete_job_jids << "b"
+        batch.should_not be_complete
+      end
+
+      it 'returns true when there are only completed jobs' do
+        batch = JobBatch.new("foo")
+        batch.complete_job_jids << "b"
+        batch.should be_complete
       end
     end
   end

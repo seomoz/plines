@@ -16,9 +16,10 @@ module Plines
       Plines::Step.all_classes << klass
     end
 
-    attr_reader :job_data
+    attr_reader :job_data, :job_batch
 
-    def initialize(job_data)
+    def initialize(job_batch, job_data)
+      @job_batch = job_batch
       @job_data = job_data
     end
 
@@ -56,7 +57,14 @@ module Plines
       end
 
       def perform(qless_job)
-        new(DynamicStruct.new(qless_job.data)).perform
+        job_batch = JobBatch.new(qless_job.data.fetch("_job_batch_id"))
+        job_data = DynamicStruct.new(qless_job.data.reject do |k, v|
+          k == "_job_batch_id"
+        end)
+
+        new(job_batch, job_data).perform
+
+        job_batch.mark_job_as_complete(qless_job.jid)
       end
 
     private

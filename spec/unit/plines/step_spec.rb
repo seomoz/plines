@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'plines/step'
+require 'plines'
 require 'set'
 
 module Plines
@@ -108,15 +108,49 @@ module Plines
         end
       end
 
-      describe "#perform" do
+      describe "#perform", :redis do
+        let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
+        let(:job_batch) { JobBatch.new("abc:1") }
+
+        before { job_batch.pending_job_jids << qless_job.jid }
+
         it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
           foo = nil
           step_class(:A) do
-            define_method(:perform) { foo = job_data.foo }
+            define_method(:perform) do
+              foo = job_data.foo
+            end
           end
 
-          A.perform(stub(data: { "foo" => "bar" }))
+          A.perform(qless_job)
           foo.should eq("bar")
+        end
+
+        it "makes the job_batch available in the perform instance method" do
+          j_batch = data_hash = nil
+          step_class(:A) do
+            define_method(:perform) do
+              j_batch = self.job_batch
+              data_hash = job_data.to_hash
+            end
+          end
+
+          A.perform(qless_job)
+          j_batch.should eq(job_batch)
+          data_hash.should_not have_key("_job_batch_id")
+        end
+
+        it "marks the job as complete in the job batch" do
+          job_batch.pending_job_jids.should include(qless_job.jid)
+          job_batch.complete_job_jids.should_not include(qless_job.jid)
+
+          step_class(:A) do
+            def perform; end
+          end
+
+          A.perform(qless_job)
+          job_batch.pending_job_jids.should_not include(qless_job.jid)
+          job_batch.complete_job_jids.should include(qless_job.jid)
         end
       end
     end
