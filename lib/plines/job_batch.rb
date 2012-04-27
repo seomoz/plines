@@ -1,32 +1,23 @@
+require 'redis/objects'
+
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
   # based on the step dependency graph.
-  class JobBatch
-    attr_reader :batch_key
+  class JobBatch < Struct.new(:id)
+    include Redis::Objects
 
-    def initialize(batch_key, redis=Plines.redis, &block)
-      @batch_key = batch_key
-      @redis_root_key = "plines:job_batches:#{batch_key}"
-      @redis = redis
-      instance_eval(&block) if block_given?
-    end
+    set :pending_job_jids
 
-    def self.create(batch_key, jids, redis=Plines.redis)
-      new(batch_key, redis) do
+    def self.create(batch_key, jids)
+      new(batch_key).tap do |batch|
         jids.each do |jid|
-          redis.sadd redis_key_for("pending"), jid
+          batch.pending_job_jids << jid
         end
       end
     end
 
     def job_jids
-      @redis.smembers redis_key_for("pending")
-    end
-
-  private
-
-    def redis_key_for(state)
-      [@redis_root_key, state].join(':')
+      pending_job_jids
     end
   end
 end
