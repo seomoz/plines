@@ -7,7 +7,7 @@ module Plines
     include Redis::Objects
 
     set :pending_job_jids
-    set :complete_job_jids
+    set :completed_job_jids
 
     def self.create(batch_key, jids)
       new(batch_key).tap do |batch|
@@ -18,11 +18,11 @@ module Plines
     end
 
     def job_jids
-      pending_job_jids | complete_job_jids
+      pending_job_jids | completed_job_jids
     end
 
     def mark_job_as_complete(jid)
-      unless pending_job_jids.move(jid, complete_job_jids)
+      unless pending_job_jids.move(jid, completed_job_jids)
         raise ArgumentError,
           "Jid #{jid} cannot be marked as complete for " +
           "job batch #{id} since it is not pending"
@@ -30,7 +30,7 @@ module Plines
     end
 
     def complete?
-      pending_job_jids.empty? && !complete_job_jids.empty?
+      pending_job_jids.empty? && !completed_job_jids.empty?
     end
   end
 end

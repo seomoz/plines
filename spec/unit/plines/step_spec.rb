@@ -142,7 +142,7 @@ module Plines
 
         it "marks the job as complete in the job batch" do
           job_batch.pending_job_jids.should include(qless_job.jid)
-          job_batch.complete_job_jids.should_not include(qless_job.jid)
+          job_batch.completed_job_jids.should_not include(qless_job.jid)
 
           step_class(:A) do
             def perform; end
@@ -150,7 +150,7 @@ module Plines
 
           A.perform(qless_job)
           job_batch.pending_job_jids.should_not include(qless_job.jid)
-          job_batch.complete_job_jids.should include(qless_job.jid)
+          job_batch.completed_job_jids.should include(qless_job.jid)
         end
       end
     end
