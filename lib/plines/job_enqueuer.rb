@@ -21,7 +21,7 @@ module Plines
     end
 
     def enqueue_job_for(step)
-      Plines.default_queue.put \
+      step.qless_queue.put \
         step.klass,
         step.data.merge('_job_batch_id' => @job_batch.id),
         depends: dependency_jids_for(step)

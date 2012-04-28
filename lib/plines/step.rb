@@ -35,6 +35,14 @@ module Plines
         @fan_out_block = block
       end
 
+      def has_external_dependency(*external_deps)
+        external_dependencies.merge(external_deps)
+      end
+
+      def has_external_dependencies?
+        external_dependencies.any?
+      end
+
       def dependencies_for(batch_data)
         Enumerator.new do |yielder|
           dependency_filters.each do |klass, filter|
@@ -65,6 +73,10 @@ module Plines
         new(job_batch, job_data).perform
 
         job_batch.mark_job_as_complete(qless_job.jid)
+      end
+
+      def external_dependencies
+        @external_dependencies ||= Set.new
       end
 
     private

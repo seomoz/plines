@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'plines'
 require 'plines/step'
 
 module Plines
@@ -43,6 +44,29 @@ module Plines
 
     it 'does not allow consumers to construct instances using .new (since we need accumulation behavior and we cannot override .new)' do
       expect { Job.new(StepA, a: 3) }.to raise_error(NoMethodError)
+    end
+
+    describe "#exernal_dependencies" do
+      it "returns the step classes' external dependencies" do
+        step_class(:A) { has_external_dependency :foo, :bar }
+        step_class(:B)
+        Job.build(A, {}).external_dependencies.to_a.should =~ [:foo, :bar]
+        Job.build(B, {}).external_dependencies.should be_empty
+      end
+    end
+
+    describe '#qless_queue' do
+      step_class(:StepWithExtDep) do
+        has_external_dependency :foo
+      end
+
+      it 'returns the default plines queue for a job that has no external dependencies' do
+        Job.build(StepA, {}).qless_queue.should be(Plines.default_queue)
+      end
+
+      it 'returns the awaiting external dependency queue for a job that has external dependencies' do
+        Job.build(StepWithExtDep, {}).qless_queue.should be(Plines.awaiting_external_dependency_queue)
+      end
     end
 
     describe '.accumulate_instances' do

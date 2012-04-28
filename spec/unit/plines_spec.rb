@@ -28,6 +28,14 @@ describe Plines do
     end
   end
 
+  describe ".awaiting_external_dependency_queue" do
+    it "returns the 'awaiting_ext_dep' queue, memoized" do
+      Plines.awaiting_external_dependency_queue.should be_a(Qless::Queue)
+      Plines.awaiting_external_dependency_queue.should be(Plines.awaiting_external_dependency_queue)
+      Plines.awaiting_external_dependency_queue.name.should eq("awaiting_ext_dep")
+    end
+  end
+
   describe ".configuration" do
     it "returns a memoized Plines::Configuration instance" do
       Plines.configuration.should be_a(Plines::Configuration)

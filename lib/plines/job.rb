@@ -17,6 +17,16 @@ module Plines
       self
     end
 
+    def external_dependencies
+      klass.external_dependencies
+    end
+
+    def qless_queue
+      external_dependencies.any? ?
+        Plines.awaiting_external_dependency_queue :
+        Plines.default_queue
+    end
+
     class << self
       # Prevent users of this class from constructing a new instance directly;
       # Instead, they should use #build.
