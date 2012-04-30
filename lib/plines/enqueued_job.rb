@@ -34,7 +34,12 @@ module Plines
         pending_ext_deps.length
       end
 
-      if moved_count == 1 && remaining.zero?
+      if moved_count == 0
+        raise ArgumentError, "EnqueuedJob #{jid} does not have external " +
+                             "dependency #{name.inspect}"
+      end
+
+      if remaining.zero?
         job = Plines.qless.job(jid)
         job.move(Plines.default_queue.name) if job
       end

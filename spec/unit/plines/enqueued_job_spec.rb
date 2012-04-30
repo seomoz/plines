@@ -56,11 +56,11 @@ module Plines
         queue_for(jid).should eq(Plines.default_queue.name)
       end
 
-      it 'does nothing when the given dependency is not an external dependency of the job' do
+      it 'raises an error and does not move the job when called on a job that does not have the given dependency' do
         jid = Plines.qless.queue("other").put('Klass', {})
         EnqueuedJob.create(jid)
         ej = EnqueuedJob.new(jid)
-        ej.resolve_external_dependency(:bazz)
+        expect { ej.resolve_external_dependency(:bazz) }.to raise_error(ArgumentError)
         queue_for(jid).should eq("other")
       end
     end
