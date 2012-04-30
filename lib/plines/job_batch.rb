@@ -1,3 +1,4 @@
+require 'plines/enqueued_job'
 require 'redis/objects'
 
 module Plines
@@ -16,6 +17,11 @@ module Plines
           batch.pending_job_jids << jid
         end
       end
+    end
+
+    def add_job(jid, *external_dependencies)
+      pending_job_jids << jid
+      EnqueuedJob.create(jid, *external_dependencies)
     end
 
     def job_jids

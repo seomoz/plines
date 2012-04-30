@@ -26,6 +26,15 @@ module Plines
       end
     end
 
+    describe "#add_job" do
+      it 'adds a job and the external dependencies' do
+        batch = JobBatch.new("foo")
+        batch.add_job "abc", :bar, :bazz
+        Plines.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
+        EnqueuedJob.new("abc").pending_external_dependencies.should =~ [:bar, :bazz]
+      end
+    end
+
     describe "#job_jids" do
       it "returns all job jids, even when some have been completed" do
         batch = JobBatch.create("foo", %w[ a b c ])

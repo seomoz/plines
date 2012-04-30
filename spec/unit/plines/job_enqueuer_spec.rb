@@ -36,6 +36,8 @@ module Plines
       jobs = Plines.awaiting_external_dependency_queue.peek(2)
       jobs.map { |j| j.klass.to_s }.should eq(["C"])
       jobs.map(&:data).should eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
+
+      EnqueuedJob.new(jobs.first.jid).pending_external_dependencies.should eq([:foo])
     end
 
     it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do

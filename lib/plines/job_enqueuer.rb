@@ -10,7 +10,11 @@ module Plines
 
     def enqueue_jobs
       @dependency_graph.steps.each { |step| jids[step] }
-      jids.values.each { |jid| @job_batch.pending_job_jids << jid }
+
+      jids.each do |job, jid|
+        @job_batch.add_job(jid, *job.external_dependencies)
+      end
+
       self
     end
 
