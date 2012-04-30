@@ -151,7 +151,7 @@ describe Plines, :redis do
     worker.work(0)
 
     steps = MakeThanksgivingDinner.performed_steps
-    steps.should have_at_most(6).entries
+    steps.should have_at_most(7).entries
 
     Plines.default_queue.length.should eq(0)
     Plines.qless.failed.should be_empty
