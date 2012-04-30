@@ -8,6 +8,7 @@ module Plines
 
     set :pending_job_jids
     set :completed_job_jids
+    hash_key :meta
 
     def self.create(batch_key, jids)
       new(batch_key).tap do |batch|
@@ -33,18 +34,28 @@ module Plines
       pending_job_jids.empty? && !completed_job_jids.empty?
     end
 
-=begin
     def cancelled?
-      false
+      meta["cancelled"] == "1"
     end
 
     def cancel!
-      pending_job_jids.each do |jid|
-        job = Plines.qless.job(jid)
-        job.cancel
-      end
+      pending_job_jids.each { |jid| cancel_job(jid) }
+      meta["cancelled"] = "1"
     end
-=end
+
+  private
+
+    def cancel_job(jid)
+      # Cancelled jobs can no longer be fetched.
+      return unless job = Plines.qless.job(jid)
+
+      # Qless doesn't let you cancel a job that has dependents,
+      # so we must cancel them first, which will "undepend" the
+      # job automatically.
+      job.dependents.each { |dep_jid| cancel_job(dep_jid) }
+
+      job.cancel
+    end
   end
 end
 

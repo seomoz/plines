@@ -78,10 +78,19 @@ module Plines
 
     describe "#cancel!" do
       step_class(:Foo)
-      xit 'cancels all jobs' do
-        jid = Plines.default_queue.put(Foo, {})
-        batch = JobBatch.create("foo", [jid])
+      let(:jid)    { Plines.default_queue.put(Foo, {}) }
+      let!(:batch) { JobBatch.create("foo", [jid]) }
+
+      it 'cancels all qless jobs' do
+        Plines.default_queue.length.should be > 0
         batch.cancel!
+        Plines.default_queue.length.should eq(0)
+      end
+
+      it 'keeps track of whether or not cancellation has occurred' do
+        batch.should_not be_cancelled
+        batch.cancel!
+        batch.should be_cancelled
       end
     end
   end

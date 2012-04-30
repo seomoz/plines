@@ -137,7 +137,7 @@ describe Plines, :redis do
     smith_batch.should be_complete
   end
 
-  xit 'allows a job batch to be cancelled in midstream' do
+  it 'allows a job batch to be cancelled in midstream' do
     enqueue_jobs
 
     StuffTurkey.class_eval do
@@ -146,6 +146,8 @@ describe Plines, :redis do
       end
     end
 
+    Plines.default_queue.length.should eq(1)
+    smith_batch.should_not be_cancelled
     worker.work(0)
 
     steps = MakeThanksgivingDinner.performed_steps
