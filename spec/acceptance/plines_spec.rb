@@ -100,6 +100,25 @@ describe Plines, :redis do
     end
   end
 
+  RSpec::Matchers.define :have_no_failures do
+    match do |actual|
+      actual.failed.size == 0
+    end
+
+    failure_message_for_should do |actual|
+      "expected no failures but got " + failure_details_for(actual)
+    end
+
+    def failure_details_for(queue)
+      failed_jobs = queue.failed.keys.inject([]) { |failures, type| failures + actual.failed(type).fetch('jobs') }
+      details = failed_jobs.map do |j|
+        [j.failure.fetch('group'), j.failure.fetch('message')].join("\n")
+      end.join("\n" + '=' * 80)
+
+      "#{failed_jobs.size} failure(s): \n\n#{details}"
+    end
+  end
+
   let(:smith_batch) { Plines.most_recent_job_batch_for(family: "Smith") }
 
   def enqueue_jobs
@@ -150,11 +169,11 @@ describe Plines, :redis do
     smith_batch.should_not be_cancelled
     worker.work(0)
 
+    Plines.qless.should have_no_failures
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have_at_most(7).entries
 
     Plines.default_queue.length.should eq(0)
-    Plines.qless.failed.should be_empty
     smith_batch.should be_cancelled
   end
 end
