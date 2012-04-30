@@ -24,9 +24,18 @@ describe Plines, :redis do
         end
       end
 
-      class BrineTurkey
+      class PickupTurkey
         include Plines::Step
         depends_on :BuyGroceries
+
+        def perform
+          MakeThanksgivingDinner.add_performed_step :pickup_turkey
+        end
+      end
+
+      class BrineTurkey
+        include Plines::Step
+        depends_on :PickupTurkey
 
         def perform
           MakeThanksgivingDinner.add_performed_step :brine_turkey
@@ -133,7 +142,7 @@ describe Plines, :redis do
     Plines.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
     Plines.most_recent_job_batch_for(family: "Jones").should be_nil
-    smith_batch.should have(9).job_jids
+    smith_batch.should have(10).job_jids
     smith_batch.should_not be_complete
 
     MakeThanksgivingDinner.performed_steps.should eq([])
@@ -145,7 +154,7 @@ describe Plines, :redis do
     worker.work(0)
 
     steps = MakeThanksgivingDinner.performed_steps
-    steps.should have(9).entries
+    steps.should have(10).entries
 
     steps.first.should eq("buy_groceries") # should always be first
     steps.last.should eq("set_table") # should always be last
@@ -179,6 +188,23 @@ describe Plines, :redis do
 
     Plines.default_queue.length.should eq(0)
     smith_batch.should be_cancelled
+  end
+
+  it "supports external dependencies" do
+    MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call
+
+    enqueue_jobs
+    worker.work(0)
+
+    steps = MakeThanksgivingDinner.performed_steps
+    steps.should have(5).entries
+    steps.should_not include("pickup_turkey")
+
+    smith_batch.resolve_external_dependency :await_turkey_ready_call
+    worker.work(0)
+    steps = MakeThanksgivingDinner.performed_steps
+    steps.should have(10).entries
+    steps.should include("pickup_turkey")
   end
 end
 

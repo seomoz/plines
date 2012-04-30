@@ -22,6 +22,9 @@ module Plines
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
       EnqueuedJob.create(jid, *external_dependencies)
+      external_dependencies.each do |dep|
+        external_dependency_sets[dep] << jid
+      end
     end
 
     def job_jids
@@ -38,6 +41,12 @@ module Plines
 
     def complete?
       pending_job_jids.empty? && !completed_job_jids.empty?
+    end
+
+    def resolve_external_dependency(dep_name)
+      external_dependency_sets[dep_name].each do |jid|
+        EnqueuedJob.new(jid).resolve_external_dependency(dep_name)
+      end
     end
 
     def cancelled?
@@ -61,6 +70,13 @@ module Plines
       job.dependents.each { |dep_jid| cancel_job(dep_jid) }
 
       job.cancel
+    end
+
+    def external_dependency_sets
+      @external_dependency_sets ||= Hash.new do |hash, dep|
+        key = [self.class.redis_prefix, id, "ext_deps", dep].join(':')
+        hash[dep] = Redis::Set.new(key, self.class.redis)
+      end
     end
   end
 end

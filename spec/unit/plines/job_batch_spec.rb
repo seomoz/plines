@@ -85,6 +85,37 @@ module Plines
       end
     end
 
+    describe "#resolve_external_dependency" do
+      let!(:jida_job) { EnqueuedJob.new("jida") }
+      let!(:jidb_job) { EnqueuedJob.new("jidb") }
+
+      it "marks the dependency as resolved on all jobs that have it" do
+        batch = JobBatch.new("foo")
+        batch.add_job("jida", :foo)
+        batch.add_job("jidb", :foo)
+
+        jida_job.pending_external_dependencies.should include(:foo)
+        jidb_job.pending_external_dependencies.should include(:foo)
+
+        batch.resolve_external_dependency(:foo)
+
+        jida_job.pending_external_dependencies.should_not include(:foo)
+        jidb_job.pending_external_dependencies.should_not include(:foo)
+      end
+
+      it 'does not attempt to resolve the dependency on jobs that do not have it' do
+        batch = JobBatch.new("foo")
+        batch.add_job("jida", :foo)
+        batch.add_job("jidb")
+
+        EnqueuedJob.stub(:new).with("jida") { jida_job }
+        EnqueuedJob.stub(:new).with("jidb") { jidb_job }
+        jidb_job.should_not_receive(:resolve_external_dependency)
+
+        batch.resolve_external_dependency(:foo)
+      end
+    end
+
     describe "#cancel!" do
       step_class(:Foo)
       let(:jid)    { Plines.default_queue.put(Foo, {}) }
