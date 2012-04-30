@@ -36,13 +36,6 @@ module PlinesSpecHelpers
     def step_class(name, &block)
       before(:each) { step_class(name, &block) }
     end
-
-    def step_module(name, &block)
-      before(:each) do
-        mod = Module.new(&block)
-        stub_const(name.to_s, mod)
-      end
-    end
   end
 end
 

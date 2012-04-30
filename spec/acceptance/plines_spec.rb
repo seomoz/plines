@@ -3,89 +3,93 @@ require 'plines'
 require 'qless/worker'
 
 describe Plines, :redis do
-  step_module(:MakeThanksgivingDinner) do
-    extend self
+  before do
+    module ::MakeThanksgivingDinner
+      extend self
 
-    class BuyGroceries
-      include Plines::Step
+      class BuyGroceries
+        include Plines::Step
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :buy_groceries
+        def perform
+          MakeThanksgivingDinner.add_performed_step :buy_groceries
+        end
       end
-    end
 
-    class MakeStuffing
-      include Plines::Step
-      depends_on :BuyGroceries
+      class MakeStuffing
+        include Plines::Step
+        depends_on :BuyGroceries
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :make_stuffing
+        def perform
+          MakeThanksgivingDinner.add_performed_step :make_stuffing
+        end
       end
-    end
 
-    class BrineTurkey
-      include Plines::Step
-      depends_on :BuyGroceries
+      class BrineTurkey
+        include Plines::Step
+        depends_on :BuyGroceries
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :brine_turkey
+        def perform
+          MakeThanksgivingDinner.add_performed_step :brine_turkey
+        end
       end
-    end
 
-    class StuffTurkey
-      include Plines::Step
-      depends_on :MakeStuffing, :BrineTurkey
+      class StuffTurkey
+        include Plines::Step
+        depends_on :MakeStuffing, :BrineTurkey
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :stuff_turkey
+        def perform
+          MakeThanksgivingDinner.add_performed_step :stuff_turkey
+        end
       end
-    end
 
-    class BakeTurkey
-      include Plines::Step
-      depends_on :StuffTurkey
+      class BakeTurkey
+        include Plines::Step
+        depends_on :StuffTurkey
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :bake_turkey
+        def perform
+          MakeThanksgivingDinner.add_performed_step :bake_turkey
+        end
       end
-    end
 
-    class PourDrinks
-      include Plines::Step
-      depends_on :BuyGroceries
-      fan_out { |data| data[:drinks].map { |d| { drink: d } } }
+      class PourDrinks
+        include Plines::Step
+        depends_on :BuyGroceries
+        fan_out { |data| data[:drinks].map { |d| { drink: d } } }
 
-      def perform
-        MakeThanksgivingDinner.add_poured_drink job_data.drink
-        MakeThanksgivingDinner.add_performed_step :pour_drinks
+        def perform
+          MakeThanksgivingDinner.add_poured_drink job_data.drink
+          MakeThanksgivingDinner.add_performed_step :pour_drinks
+        end
       end
-    end
 
-    class SetTable
-      include Plines::Step
-      depends_on :PourDrinks, :BakeTurkey
+      class SetTable
+        include Plines::Step
+        depends_on :PourDrinks, :BakeTurkey
 
-      def perform
-        MakeThanksgivingDinner.add_performed_step :set_table
+        def perform
+          MakeThanksgivingDinner.add_performed_step :set_table
+        end
       end
-    end
 
-    def performed_steps
-      Plines.redis.lrange "make_thanksgiving_dinner:performed_steps", 0, -1
-    end
+      def performed_steps
+        Plines.redis.lrange "make_thanksgiving_dinner:performed_steps", 0, -1
+      end
 
-    def add_performed_step(step)
-      Plines.redis.rpush "make_thanksgiving_dinner:performed_steps", step.to_s
-    end
+      def add_performed_step(step)
+        Plines.redis.rpush "make_thanksgiving_dinner:performed_steps", step.to_s
+      end
 
-    def poured_drinks
-      Plines.redis.lrange "make_thanksgiving_dinner:poured_drinks", 0, -1
-    end
+      def poured_drinks
+        Plines.redis.lrange "make_thanksgiving_dinner:poured_drinks", 0, -1
+      end
 
-    def add_poured_drink(type)
-      Plines.redis.rpush "make_thanksgiving_dinner:poured_drinks", type.to_s
+      def add_poured_drink(type)
+        Plines.redis.rpush "make_thanksgiving_dinner:poured_drinks", type.to_s
+      end
     end
   end
+
+  after { Object.send(:remove_const, :MakeThanksgivingDinner) }
 
   let(:job_reserver) { Qless::JobReservers::Ordered.new([Plines.default_queue]) }
   let(:worker) { Qless::Worker.new(Plines.qless, job_reserver) }
@@ -159,7 +163,7 @@ describe Plines, :redis do
   it 'allows a job batch to be cancelled in midstream' do
     enqueue_jobs
 
-    StuffTurkey.class_eval do
+    MakeThanksgivingDinner::StuffTurkey.class_eval do
       def perform
         job_batch.cancel!
       end
