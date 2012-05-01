@@ -1,6 +1,9 @@
 require 'spec_helper'
-require 'plines'
-require 'set'
+require 'plines/step'
+require 'plines/pipeline'
+require 'plines/job_batch'
+require 'plines/dynamic_struct'
+require 'plines/job'
 
 module Plines
   describe Step do

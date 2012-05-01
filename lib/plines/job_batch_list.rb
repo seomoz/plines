@@ -1,5 +1,4 @@
 require 'redis/objects'
-require 'plines/job_batch'
 
 module Plines
   # Represents a list of job batches that are grouped by

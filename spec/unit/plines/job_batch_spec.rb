@@ -1,5 +1,7 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/pipeline'
+require 'plines/step'
+require 'plines/enqueued_job'
 require 'plines/job_batch'
 
 module Plines

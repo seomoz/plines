@@ -1,5 +1,8 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/job'
+require 'plines/dependency_graph'
+require 'plines/pipeline'
+require 'plines/step'
 
 module Plines
   describe DependencyGraph do

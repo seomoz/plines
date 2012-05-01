@@ -1,5 +1,6 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/job'
+require 'plines/pipeline'
 require 'plines/step'
 
 module Plines

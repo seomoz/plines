@@ -1,5 +1,11 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/pipeline'
+require 'plines/configuration'
+require 'plines/job_enqueuer'
+require 'plines/dependency_graph'
+require 'plines/job'
+require 'plines/job_batch_list'
+require 'plines/job_batch'
 
 module Plines
   describe Pipeline do

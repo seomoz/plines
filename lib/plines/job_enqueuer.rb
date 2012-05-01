@@ -1,5 +1,3 @@
-require 'plines'
-
 module Plines
   # Responsible for enqueing Qless jobs based on the given dependency graph.
   class JobEnqueuer

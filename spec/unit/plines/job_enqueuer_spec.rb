@@ -1,5 +1,12 @@
 require 'spec_helper'
+require 'plines/pipeline'
+require 'plines/step'
 require 'plines/job_enqueuer'
+require 'plines/enqueued_job'
+require 'plines/configuration'
+require 'plines/dependency_graph'
+require 'plines/job'
+require 'plines/job_batch'
 
 module Plines
   describe JobEnqueuer, :redis do

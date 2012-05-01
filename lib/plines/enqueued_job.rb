@@ -1,4 +1,4 @@
-require 'redis/objects'
+require 'plines/extensions/redis_objects'
 
 module Plines
   # Once a Plines::Job has been enqueued as a Qless job into redis,

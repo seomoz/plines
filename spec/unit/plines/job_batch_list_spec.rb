@@ -1,5 +1,7 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/pipeline'
+require 'plines/job_batch'
+require 'plines/job_batch_list'
 
 module Plines
   describe JobBatchList, :redis do

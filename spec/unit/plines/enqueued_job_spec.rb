@@ -1,5 +1,5 @@
 require 'spec_helper'
-require 'plines'
+require 'plines/enqueued_job'
 
 module Plines
   describe EnqueuedJob, :redis do

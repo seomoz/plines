@@ -1,3 +1,5 @@
+require 'qless'
+
 module Plines
   # This module should be extended onto a class or module in order
   # to make it a pipeline. Steps declared within that module will

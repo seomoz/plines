@@ -1,5 +1,4 @@
-require 'plines/enqueued_job'
-require 'redis/objects'
+require 'plines/extensions/redis_objects'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
