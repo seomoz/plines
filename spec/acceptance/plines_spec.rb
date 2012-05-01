@@ -206,5 +206,23 @@ describe Plines, :redis do
     steps.should have(10).entries
     steps.should include("pickup_turkey")
   end
+
+  it "supports middleware modules" do
+    MakeThanksgivingDinner::PickupTurkey.class_eval do
+      include Module.new {
+        def around_perform
+          MakeThanksgivingDinner.add_performed_step :before_pickup_turkey
+          super { yield }
+          MakeThanksgivingDinner.add_performed_step :after_pickup_turkey
+        end
+      }
+    end
+
+    enqueue_jobs
+    worker.work(0)
+
+    steps = MakeThanksgivingDinner.performed_steps
+    steps.grep(/pickup_turkey/).should eq(%w[ before_pickup_turkey pickup_turkey after_pickup_turkey ])
+  end
 end
 

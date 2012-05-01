@@ -23,6 +23,12 @@ module Plines
       @job_data = job_data
     end
 
+  private
+
+    def around_perform
+      yield
+    end
+
     # The class-level Plines step macros.
     module ClassMethods
       def depends_on(*klasses, &block)
@@ -70,7 +76,9 @@ module Plines
           k == "_job_batch_id"
         end)
 
-        new(job_batch, job_data).perform
+        new(job_batch, job_data).instance_eval do
+          around_perform { perform }
+        end
 
         job_batch.mark_job_as_complete(qless_job.jid)
       end

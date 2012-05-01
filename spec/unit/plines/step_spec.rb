@@ -164,6 +164,35 @@ module Plines
           job_batch.pending_job_jids.should_not include(qless_job.jid)
           job_batch.completed_job_jids.should include(qless_job.jid)
         end
+
+        it "supports #around_perform middleware modules" do
+          step_class(:A) do
+            def self.order
+              @order ||= []
+            end
+
+            include Module.new {
+              def around_perform
+                self.class.order << :before_1
+                super { yield }
+                self.class.order << :after_1
+              end
+            }
+
+            include Module.new {
+              def around_perform
+                self.class.order << :before_2
+                super { yield }
+                self.class.order << :after_2
+              end
+            }
+
+            define_method(:perform) { self.class.order << :perform }
+          end
+
+          A.perform(qless_job)
+          A.order.should eq([:before_2, :before_1, :perform, :after_1, :after_2])
+        end
       end
     end
   end
