@@ -23,28 +23,23 @@ module Plines
 
     describe "#create_new_batch" do
       it 'creates each new batch with a unique ascending id' do
-        foo.create_new_batch([]).id.should eq("foo:1")
-        bar.create_new_batch([]).id.should eq("bar:1")
-        foo.create_new_batch([]).id.should eq("foo:2")
-        bar.create_new_batch([]).id.should eq("bar:2")
-      end
-
-      it 'creates the batch with the given jids' do
-        batch = foo.create_new_batch(%w[ a b ])
-        batch.job_jids.to_a.should =~ %w[ a b ]
+        foo.create_new_batch.id.should eq("foo:1")
+        bar.create_new_batch.id.should eq("bar:1")
+        foo.create_new_batch.id.should eq("foo:2")
+        bar.create_new_batch.id.should eq("bar:2")
       end
     end
 
     describe "#most_recent_batch" do
       it 'returns nil if there are no batches for the given id' do
-        foo.create_new_batch([])
+        foo.create_new_batch
         bar.most_recent_batch.should be_nil
       end
 
       it 'returns the most recently created batch for the given id' do
-        b1 = foo.create_new_batch([])
-        b2 = foo.create_new_batch([])
-        bar.create_new_batch([])
+        b1 = foo.create_new_batch
+        b2 = foo.create_new_batch
+        bar.create_new_batch
 
         foo.most_recent_batch.should eq(b2)
       end

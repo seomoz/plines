@@ -19,13 +19,6 @@ module Plines
       set.map(&:object_id).should =~ [j1.object_id, j2.object_id]
     end
 
-    describe ".create" do
-      it "creates a redis set with all the given jids" do
-        batch = JobBatch.create("foo", %w[ a b c ])
-        Plines.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ a b c ]
-      end
-    end
-
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.new("foo")
@@ -37,7 +30,10 @@ module Plines
 
     describe "#job_jids" do
       it "returns all job jids, even when some have been completed" do
-        batch = JobBatch.create("foo", %w[ a b c ])
+        batch = JobBatch.new("foo") do |jb|
+          jb.add_job("a"); jb.add_job("b"); jb.add_job("c")
+        end
+
         batch.job_jids.to_a.should =~ %w[ a b c ]
         batch.mark_job_as_complete("a")
         batch.job_jids.to_a.should =~ %w[ a b c ]
@@ -46,7 +42,8 @@ module Plines
 
     describe "#mark_job_as_complete" do
       it "moves a jid from the pending to the complete set" do
-        batch = JobBatch.create("foo", %w[ a ])
+        batch = JobBatch.new("foo")
+        batch.add_job("a")
 
         batch.pending_job_jids.should include("a")
         batch.completed_job_jids.should_not include("a")
@@ -58,7 +55,7 @@ module Plines
       end
 
       it "raises an error if the given jid is not in the pending set" do
-        batch = JobBatch.create("foo", [])
+        batch = JobBatch.new("foo")
         batch.completed_job_jids.should_not include("a")
         expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
         batch.completed_job_jids.should_not include("a")
@@ -119,7 +116,7 @@ module Plines
     describe "#cancel!" do
       step_class(:Foo)
       let(:jid)    { Plines.default_queue.put(Foo, {}) }
-      let!(:batch) { JobBatch.create("foo", [jid]) }
+      let!(:batch) { JobBatch.new("foo") { |jb| jb.add_job(jid) } }
 
       it 'cancels all qless jobs' do
         Plines.default_queue.length.should be > 0

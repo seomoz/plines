@@ -11,12 +11,9 @@ module Plines
     set :completed_job_jids
     hash_key :meta
 
-    def self.create(batch_key, jids)
-      new(batch_key).tap do |batch|
-        jids.each do |jid|
-          batch.pending_job_jids << jid
-        end
-      end
+    def initialize(id)
+      super(id)
+      yield self if block_given?
     end
 
     def add_job(jid, *external_dependencies)

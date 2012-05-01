@@ -15,8 +15,8 @@ module Plines
       JobBatch.new(batch_id_for(batch_num))
     end
 
-    def create_new_batch(jids)
-      JobBatch.create(batch_id_for(last_batch_num.increment), jids)
+    def create_new_batch
+      JobBatch.new(batch_id_for(last_batch_num.increment))
     end
 
     def self.for(batch_data)

@@ -60,7 +60,7 @@ describe Plines do
   describe ".most_recent_job_batch_for", :redis do
     it 'returns a job batch using the configured key' do
       Plines.configuration.batch_list_key { |data| data["a"] }
-      Plines::JobBatchList.new("foo").create_new_batch([])
+      Plines::JobBatchList.new("foo").create_new_batch
       batch = Plines.most_recent_job_batch_for("a" => "foo")
       batch.should be_a(Plines::JobBatch)
       batch.id.should include("foo")
