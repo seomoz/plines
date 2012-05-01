@@ -51,10 +51,6 @@ module Plines
       end
     end
 
-    def has_no_dependencies?
-      dependency_filters.none?
-    end
-
     def jobs_for(batch_data)
       @fan_out_block.call(batch_data).map do |job_data|
         Job.build(self, job_data)

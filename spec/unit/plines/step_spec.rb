@@ -64,19 +64,6 @@ module Plines
       end
     end
 
-    describe "#has_no_dependencies?" do
-      step_class(:StepA)
-
-      it "returns true for steps that have no dependencies" do
-        P::StepA.should have_no_dependencies
-      end
-
-      it "returns false for steps that have dependencies" do
-        step_class(:StepC) { depends_on :StepA }
-        P::StepC.should_not have_no_dependencies
-      end
-    end
-
     describe "#has_external_dependencies?" do
       it "returns true for a step class that has external dependencies" do
         step_class(:StepA) { has_external_dependency :foo }
