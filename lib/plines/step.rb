@@ -48,21 +48,14 @@ module Plines
       Enumerator.new do |yielder|
         has_dependencies = false
 
-        dependency_filters.each do |klass, filter|
-          klass = pipeline.const_get(klass)
-          klass.jobs_for(batch_data).each do |job|
-            if filter[job.data]
-              has_dependencies = true
-              yielder.yield job
-            end
-          end
+        each_declared_dependency_job_for(batch_data) do |job|
+          has_dependencies = true
+          yielder.yield job
         end
 
-        if !has_dependencies && pipeline.root_dependency != self
-          pipeline.root_dependency.jobs_for(batch_data).each do |job|
-            yielder.yield job
-          end
-        end
+        each_root_dependency_job_for(batch_data) do |job|
+          yielder.yield job
+        end unless has_dependencies
       end
     end
 
@@ -107,6 +100,23 @@ module Plines
 
     def dependency_filters
       @dependency_filters ||= {}
+    end
+
+    def each_declared_dependency_job_for(batch_data)
+      dependency_filters.each do |klass, filter|
+        klass = pipeline.const_get(klass)
+        klass.jobs_for(batch_data).each do |job|
+          yield job if filter[job.data]
+        end
+      end
+    end
+
+    def each_root_dependency_job_for(batch_data)
+      return if pipeline.root_dependency == self
+
+      pipeline.root_dependency.jobs_for(batch_data).each do |job|
+        yield job
+      end
     end
 
     module InstanceMethods
