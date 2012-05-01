@@ -4,15 +4,15 @@ require 'redis/objects'
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
   # based on the step dependency graph.
-  class JobBatch < Struct.new(:id)
+  class JobBatch < Struct.new(:pipeline, :id)
     include Redis::Objects
 
     set :pending_job_jids
     set :completed_job_jids
     hash_key :meta
 
-    def initialize(id)
-      super(id)
+    def initialize(pipeline, id)
+      super(pipeline, id)
       yield self if block_given?
     end
 
@@ -42,7 +42,10 @@ module Plines
 
     def resolve_external_dependency(dep_name)
       external_dependency_sets[dep_name].each do |jid|
-        EnqueuedJob.new(jid).resolve_external_dependency(dep_name)
+        EnqueuedJob.new(jid).resolve_external_dependency(dep_name) do
+          job = pipeline.qless.job(jid)
+          job.move(pipeline.default_queue.name) if job
+        end
       end
     end
 
@@ -59,7 +62,7 @@ module Plines
 
     def cancel_job(jid)
       # Cancelled jobs can no longer be fetched.
-      return unless job = Plines.qless.job(jid)
+      return unless job = pipeline.qless.job(jid)
 
       # Qless doesn't let you cancel a job that has dependents,
       # so we must cancel them first, which will "undepend" the

@@ -39,10 +39,7 @@ module Plines
                              "dependency #{name.inspect}"
       end
 
-      if remaining.zero?
-        job = Plines.qless.job(jid)
-        job.move(Plines.default_queue.name) if job
-      end
+      yield if remaining.zero?
     end
 
   private

@@ -4,7 +4,7 @@ require 'plines'
 module Plines
   describe DependencyGraph do
     describe ".new" do
-      let(:graph) { DependencyGraph.new(a: 10) }
+      let(:graph) { DependencyGraph.new(P.step_classes, a: 10) }
 
       let(:steps_by) do
         Hash.new do |h, (klass, data)|
@@ -36,32 +36,32 @@ module Plines
         end
 
         graph.steps.should eq([
-          step(A),
-          step(B), step(C, 11), step(C, 12), step(D),
-          step(E), step(F, 10), step(F, 20)
+          step(P::A),
+          step(P::B), step(P::C, 11), step(P::C, 12), step(P::D),
+          step(P::E), step(P::F, 10), step(P::F, 20)
         ])
 
-        step(A).dependencies.to_a.should =~ [step(B), step(C, 11), step(C, 12), step(D)]
-        step(A).dependees.to_a.should =~ []
+        step(P::A).dependencies.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12), step(P::D)]
+        step(P::A).dependees.to_a.should =~ []
 
-        step(B).dependencies.to_a.should =~ [step(E)]
-        step(B).dependees.to_a.should =~ [step(A)]
+        step(P::B).dependencies.to_a.should =~ [step(P::E)]
+        step(P::B).dependees.to_a.should =~ [step(P::A)]
 
-        step(C, 11).dependencies.to_a.should =~ [step(E), step(F, 10), step(F, 20)]
-        step(C, 11).dependees.to_a.should =~ [step(A)]
-        step(C, 12).dependencies.to_a.should =~ [step(E), step(F, 10), step(F, 20)]
-        step(C, 12).dependees.to_a.should =~ [step(A)]
+        step(P::C, 11).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
+        step(P::C, 11).dependees.to_a.should =~ [step(P::A)]
+        step(P::C, 12).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
+        step(P::C, 12).dependees.to_a.should =~ [step(P::A)]
 
-        step(D).dependencies.to_a.should =~ []
-        step(D).dependees.to_a.should =~ [step(A)]
+        step(P::D).dependencies.to_a.should =~ []
+        step(P::D).dependees.to_a.should =~ [step(P::A)]
 
-        step(E).dependencies.to_a.should =~ []
-        step(E).dependees.to_a.should =~ [step(B), step(C, 11), step(C, 12)]
+        step(P::E).dependencies.to_a.should =~ []
+        step(P::E).dependees.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12)]
 
-        step(F, 10).dependencies.to_a.should =~ []
-        step(F, 10).dependees.to_a.should =~ [step(C, 11), step(C, 12)]
-        step(F, 20).dependencies.to_a.should =~ []
-        step(F, 20).dependees.to_a.should =~ [step(C, 11), step(C, 12)]
+        step(P::F, 10).dependencies.to_a.should =~ []
+        step(P::F, 10).dependees.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
+        step(P::F, 20).dependencies.to_a.should =~ []
+        step(P::F, 20).dependees.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
       end
 
       it 'detects direct circular dependencies' do

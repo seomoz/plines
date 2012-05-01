@@ -32,36 +32,33 @@ module Plines
     end
 
     describe "#resolve_external_dependency" do
-      def queue_for(jid)
-        Plines.qless.job(jid).queue
-      end
+      let(:jid) { "abc" }
 
       it 'marks the external dependency as being resolved' do
-        EnqueuedJob.create("abc", :foo, :bar)
-        ej = EnqueuedJob.new("abc")
+        EnqueuedJob.create(jid, :foo, :bar)
+        ej = EnqueuedJob.new(jid)
         ej.resolve_external_dependency(:bar)
         ej.pending_external_dependencies.should eq([:foo])
         ej.resolved_external_dependencies.should eq([:bar])
       end
 
-      it 'moves it into the main queue when all external dependencies are resolved' do
-        jid = Plines.awaiting_external_dependency_queue.put('Klass', {})
+      it 'yields when all external dependencies are resolved' do
         EnqueuedJob.create(jid, :foo, :bar)
         ej = EnqueuedJob.new(jid)
 
-        queue_for(jid).should eq(Plines.awaiting_external_dependency_queue.name)
-        ej.resolve_external_dependency(:bar)
-        queue_for(jid).should eq(Plines.awaiting_external_dependency_queue.name)
-        ej.resolve_external_dependency(:foo)
-        queue_for(jid).should eq(Plines.default_queue.name)
+        yielded = false
+        ej.resolve_external_dependency(:bar) { yielded = true }
+        yielded.should be_false
+        ej.resolve_external_dependency(:foo) { yielded = true }
+        yielded.should be_true
       end
 
-      it 'raises an error and does not move the job when called on a job that does not have the given dependency' do
-        jid = Plines.qless.queue("other").put('Klass', {})
+      it 'raises an error and does not yield' do
+        yielded = false
         EnqueuedJob.create(jid)
         ej = EnqueuedJob.new(jid)
-        expect { ej.resolve_external_dependency(:bazz) }.to raise_error(ArgumentError)
-        queue_for(jid).should eq("other")
+        expect { ej.resolve_external_dependency(:bazz) { yielded = true } }.to raise_error(ArgumentError)
+        yielded.should be_false
       end
     end
   end

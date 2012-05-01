@@ -21,10 +21,27 @@ RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
 end
 
 module PlinesSpecHelpers
+  def pipeline_module
+    @pipeline_module ||= begin
+      mod = Module.new do
+        def self.name; "P"; end
+        extend Plines::Pipeline
+      end
+
+      stub_const("P", mod)
+      mod
+    end
+  end
+
   def step_class(name, &block)
     block ||= Proc.new { }
-    klass = Class.new { include Plines::Step; module_eval(&block) }
-    stub_const(name.to_s, klass)
+    klass = Class.new
+    raise "const set twice: #{name}" if pipeline_module.const_defined?(name)
+    pipeline_module.const_set(name, klass)
+    klass.class_eval do
+      include Plines::Step
+      module_eval(&block)
+    end
   end
 
   def enqueued_waiting_job_klass_names(expected)
@@ -46,12 +63,6 @@ RSpec.configure do |config|
   config.include RSpec::Fire
   config.include PlinesSpecHelpers
   config.extend PlinesSpecHelpers::ClassMethods
-  config.before(:each) do
-    Plines.instance_variable_set(:@configuration, nil)
-    if defined?(Plines::Step)
-      Plines::Step.all_classes.clear
-    end
-  end
 end
 
 shared_context "redis", :redis do

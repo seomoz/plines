@@ -10,9 +10,9 @@ module Plines
     # Raised when a circular dependency is detected.
     class CircularDependencyError < StandardError; end
 
-    def initialize(batch_data)
+    def initialize(step_classes, batch_data)
       @steps = Job.accumulate_instances do
-        Plines::Step.all_classes.each do |step_klass|
+        step_classes.each do |step_klass|
           dependencies = step_klass.dependencies_for(batch_data)
           step_klass.jobs_for(batch_data).each do |step|
             dependencies.each do |dep|

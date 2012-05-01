@@ -5,9 +5,9 @@ require 'plines/job_batch'
 module Plines
   describe JobBatch, :redis do
     it 'is uniquely identified by the id' do
-      j1 = JobBatch.new("a")
-      j2 = JobBatch.new("b")
-      j3 = JobBatch.new("a")
+      j1 = JobBatch.new(pipeline_module, "a")
+      j2 = JobBatch.new(pipeline_module, "b")
+      j3 = JobBatch.new(pipeline_module, "a")
 
       j1.should eq(j3)
       j1.should eql(j3)
@@ -19,18 +19,23 @@ module Plines
       set.map(&:object_id).should =~ [j1.object_id, j2.object_id]
     end
 
+    it 'remembers what pipeline it is for' do
+      j1 = JobBatch.new(pipeline_module, "a")
+      j1.pipeline.should be(pipeline_module)
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job "abc", :bar, :bazz
-        Plines.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
+        pipeline_module.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
         EnqueuedJob.new("abc").pending_external_dependencies.should =~ [:bar, :bazz]
       end
     end
 
     describe "#job_jids" do
       it "returns all job jids, even when some have been completed" do
-        batch = JobBatch.new("foo") do |jb|
+        batch = JobBatch.new(pipeline_module, "foo") do |jb|
           jb.add_job("a"); jb.add_job("b"); jb.add_job("c")
         end
 
@@ -42,7 +47,7 @@ module Plines
 
     describe "#mark_job_as_complete" do
       it "moves a jid from the pending to the complete set" do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job("a")
 
         batch.pending_job_jids.should include("a")
@@ -55,7 +60,7 @@ module Plines
       end
 
       it "raises an error if the given jid is not in the pending set" do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.completed_job_jids.should_not include("a")
         expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
         batch.completed_job_jids.should_not include("a")
@@ -64,19 +69,19 @@ module Plines
 
     describe "#complete?" do
       it 'returns false when there are no pending or completed jobs' do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.should_not be_complete
       end
 
       it 'returns false when there are pending jobs and completed jobs' do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.pending_job_jids << "a"
         batch.completed_job_jids << "b"
         batch.should_not be_complete
       end
 
       it 'returns true when there are only completed jobs' do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.completed_job_jids << "b"
         batch.should be_complete
       end
@@ -87,7 +92,7 @@ module Plines
       let!(:jidb_job) { EnqueuedJob.new("jidb") }
 
       it "marks the dependency as resolved on all jobs that have it" do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job("jida", :foo)
         batch.add_job("jidb", :foo)
 
@@ -100,8 +105,23 @@ module Plines
         jidb_job.pending_external_dependencies.should_not include(:foo)
       end
 
+      def queue_for(jid)
+        pipeline_module.qless.job(jid).queue
+      end
+
+      it 'moves the job into the default queue' do
+        jid = pipeline_module.awaiting_external_dependency_queue.put('Klass', {})
+        batch = JobBatch.new(pipeline_module, "foo")
+        batch.add_job(jid, :foo, :bar)
+
+        batch.resolve_external_dependency(:foo)
+        queue_for(jid).should eq(pipeline_module.awaiting_external_dependency_queue.name)
+        batch.resolve_external_dependency(:bar)
+        queue_for(jid).should eq(pipeline_module.default_queue.name)
+      end
+
       it 'does not attempt to resolve the dependency on jobs that do not have it' do
-        batch = JobBatch.new("foo")
+        batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job("jida", :foo)
         batch.add_job("jidb")
 
@@ -115,13 +135,13 @@ module Plines
 
     describe "#cancel!" do
       step_class(:Foo)
-      let(:jid)    { Plines.default_queue.put(Foo, {}) }
-      let!(:batch) { JobBatch.new("foo") { |jb| jb.add_job(jid) } }
+      let(:jid)    { pipeline_module.default_queue.put(P::Foo, {}) }
+      let!(:batch) { JobBatch.new(pipeline_module, "foo") { |jb| jb.add_job(jid) } }
 
       it 'cancels all qless jobs' do
-        Plines.default_queue.length.should be > 0
+        pipeline_module.default_queue.length.should be > 0
         batch.cancel!
-        Plines.default_queue.length.should eq(0)
+        pipeline_module.default_queue.length.should eq(0)
       end
 
       it 'keeps track of whether or not cancellation has occurred' do

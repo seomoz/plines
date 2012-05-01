@@ -1,7 +1,11 @@
+require 'forwardable'
+
 module Plines
   # An instance of a Step: a step class paired with some data for the job.
   Job = Struct.new(:klass, :data) do
+    extend Forwardable
     attr_reader :dependencies, :dependees
+    def_delegators :klass, :qless_queue, :external_dependencies
 
     def initialize(*args)
       super
@@ -15,16 +19,6 @@ module Plines
       dependencies << step
       step.dependees << self
       self
-    end
-
-    def external_dependencies
-      klass.external_dependencies
-    end
-
-    def qless_queue
-      external_dependencies.any? ?
-        Plines.awaiting_external_dependency_queue :
-        Plines.default_queue
     end
 
     class << self

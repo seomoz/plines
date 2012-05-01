@@ -5,6 +5,7 @@ require 'qless/worker'
 describe Plines, :redis do
   before do
     module ::MakeThanksgivingDinner
+      extend Plines::Pipeline
       extend self
 
       class BuyGroceries
@@ -81,27 +82,27 @@ describe Plines, :redis do
       end
 
       def performed_steps
-        Plines.redis.lrange "make_thanksgiving_dinner:performed_steps", 0, -1
+        redis.lrange "make_thanksgiving_dinner:performed_steps", 0, -1
       end
 
       def add_performed_step(step)
-        Plines.redis.rpush "make_thanksgiving_dinner:performed_steps", step.to_s
+        redis.rpush "make_thanksgiving_dinner:performed_steps", step.to_s
       end
 
       def poured_drinks
-        Plines.redis.lrange "make_thanksgiving_dinner:poured_drinks", 0, -1
+        redis.lrange "make_thanksgiving_dinner:poured_drinks", 0, -1
       end
 
       def add_poured_drink(type)
-        Plines.redis.rpush "make_thanksgiving_dinner:poured_drinks", type.to_s
+        redis.rpush "make_thanksgiving_dinner:poured_drinks", type.to_s
       end
     end
   end
 
   after { Object.send(:remove_const, :MakeThanksgivingDinner) }
 
-  let(:job_reserver) { Qless::JobReservers::Ordered.new([Plines.default_queue]) }
-  let(:worker) { Qless::Worker.new(Plines.qless, job_reserver) }
+  let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue]) }
+  let(:worker) { Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver) }
 
   RSpec::Matchers.define :be_before do |expected|
     chain :in do |array|
@@ -132,16 +133,16 @@ describe Plines, :redis do
     end
   end
 
-  let(:smith_batch) { Plines.most_recent_job_batch_for(family: "Smith") }
+  let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
 
   def enqueue_jobs
-    Plines.configure do |plines|
+    MakeThanksgivingDinner.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
     end
 
-    Plines.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
+    MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
-    Plines.most_recent_job_batch_for(family: "Jones").should be_nil
+    MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones").should be_nil
     smith_batch.should have(10).job_jids
     smith_batch.should_not be_complete
 
@@ -178,15 +179,15 @@ describe Plines, :redis do
       end
     end
 
-    Plines.default_queue.length.should eq(1)
+    MakeThanksgivingDinner.default_queue.length.should eq(1)
     smith_batch.should_not be_cancelled
     worker.work(0)
 
-    Plines.qless.should have_no_failures
+    MakeThanksgivingDinner.qless.should have_no_failures
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have_at_most(7).entries
 
-    Plines.default_queue.length.should eq(0)
+    MakeThanksgivingDinner.default_queue.length.should eq(0)
     smith_batch.should be_cancelled
   end
 

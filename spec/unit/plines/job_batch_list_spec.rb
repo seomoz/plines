@@ -3,13 +3,18 @@ require 'plines'
 
 module Plines
   describe JobBatchList, :redis do
-    let(:foo) { JobBatchList.new("foo") }
-    let(:bar) { JobBatchList.new("bar") }
+    let(:foo) { JobBatchList.new(pipeline_module, "foo") }
+    let(:bar) { JobBatchList.new(pipeline_module, "bar") }
 
-    it 'is uniquely identified by the id' do
-      j1 = JobBatchList.new("a")
-      j2 = JobBatchList.new("b")
-      j3 = JobBatchList.new("a")
+    it 'remembers the pipeline it is from' do
+      jbl = JobBatchList.new(pipeline_module, "foo")
+      jbl.pipeline.should be(pipeline_module)
+    end
+
+    it 'is uniquely identified by the id and pipeline' do
+      j1 = JobBatchList.new(pipeline_module, "a")
+      j2 = JobBatchList.new(pipeline_module, "b")
+      j3 = JobBatchList.new(pipeline_module, "a")
 
       j1.should eq(j3)
       j1.should eql(j3)
@@ -23,10 +28,10 @@ module Plines
 
     describe "#create_new_batch" do
       it 'creates each new batch with a unique ascending id' do
-        foo.create_new_batch.id.should eq("foo:1")
-        bar.create_new_batch.id.should eq("bar:1")
-        foo.create_new_batch.id.should eq("foo:2")
-        bar.create_new_batch.id.should eq("bar:2")
+        foo.create_new_batch.id.should eq("P:foo:1")
+        bar.create_new_batch.id.should eq("P:bar:1")
+        foo.create_new_batch.id.should eq("P:foo:2")
+        bar.create_new_batch.id.should eq("P:bar:2")
       end
     end
 
@@ -42,15 +47,6 @@ module Plines
         bar.create_new_batch
 
         foo.most_recent_batch.should eq(b2)
-      end
-    end
-
-    describe ".for" do
-      it "returns the job batch list for the given batch data" do
-        Plines.configuration.batch_list_key { |d| d[:foo] }
-        jbl = JobBatchList.for(foo: "bar", bazz: "gar")
-        jbl.should be_a(JobBatchList)
-        jbl.id.should eq("bar")
       end
     end
   end

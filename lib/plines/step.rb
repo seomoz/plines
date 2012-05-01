@@ -6,14 +6,24 @@ module Plines
   # This is the module that should be included in any class that
   # is intended to be a Plines step.
   module Step
-    def self.all_classes
-      @all_classes ||= []
-    end
+    # Error raised when you include Plines::Step in a module that is
+    # not nested within a pipeline module.
+    class NotDeclaredInPipelineError < StandardError; end
 
     def self.included(klass)
-      klass.extend ClassMethods
-      klass.fan_out { |d| [d] } # default to one step instance
-      Plines::Step.all_classes << klass
+      klass.class_eval do
+        extend ClassMethods
+
+        unless pipeline.is_a?(Plines::Pipeline)
+          raise NotDeclaredInPipelineError,
+            "#{klass} is not nested in a pipeline module and thus " +
+            "cannot be a Plines::Step. All plines steps must be " +
+            "declared within pipeline modules."
+        end
+
+        fan_out { |d| [d] } # default to one step instance
+        pipeline.step_classes << self
+      end
     end
 
     attr_reader :job_data, :job_batch
@@ -52,7 +62,7 @@ module Plines
       def dependencies_for(batch_data)
         Enumerator.new do |yielder|
           dependency_filters.each do |klass, filter|
-            klass = module_namespace.const_get(klass)
+            klass = pipeline.const_get(klass)
             klass.jobs_for(batch_data).each do |job|
               yielder.yield job if filter[job.data]
             end
@@ -71,28 +81,36 @@ module Plines
       end
 
       def perform(qless_job)
-        job_batch = JobBatch.new(qless_job.data.fetch("_job_batch_id"))
+        batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
         job_data = DynamicStruct.new(qless_job.data.reject do |k, v|
           k == "_job_batch_id"
         end)
 
-        new(job_batch, job_data).instance_eval do
+        new(batch, job_data).instance_eval do
           around_perform { perform }
         end
 
-        job_batch.mark_job_as_complete(qless_job.jid)
+        batch.mark_job_as_complete(qless_job.jid)
       end
 
       def external_dependencies
         @external_dependencies ||= Set.new
       end
 
+      def qless_queue
+        external_dependencies.any? ?
+          pipeline.awaiting_external_dependency_queue :
+          pipeline.default_queue
+      end
+
     private
 
-      def module_namespace
-        namespaces = name.split('::')
-        namespaces.pop # ignore the last one
-        namespaces.inject(Object) { |ns, mod| ns.const_get(mod) }
+      def pipeline
+        @pipeline ||= begin
+          namespaces = name.split('::')
+          namespaces.pop # ignore the last one
+          namespaces.inject(Object) { |ns, mod| ns.const_get(mod) }
+        end
       end
 
       def dependency_filters
