@@ -36,10 +36,9 @@ module PlinesSpecHelpers
   def step_class(name, &block)
     block ||= Proc.new { }
     klass = Class.new
-    raise "const set twice: #{name}" if pipeline_module.const_defined?(name)
     pipeline_module.const_set(name, klass)
     klass.class_eval do
-      include Plines::Step
+      extend Plines::Step
       module_eval(&block)
     end
   end

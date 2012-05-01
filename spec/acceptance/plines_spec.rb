@@ -9,7 +9,7 @@ describe Plines, :redis do
       extend self
 
       class BuyGroceries
-        include Plines::Step
+        extend Plines::Step
 
         def perform
           MakeThanksgivingDinner.add_performed_step :buy_groceries
@@ -17,7 +17,7 @@ describe Plines, :redis do
       end
 
       class MakeStuffing
-        include Plines::Step
+        extend Plines::Step
         depends_on :BuyGroceries
 
         def perform
@@ -26,7 +26,7 @@ describe Plines, :redis do
       end
 
       class PickupTurkey
-        include Plines::Step
+        extend Plines::Step
         depends_on :BuyGroceries
 
         def perform
@@ -35,7 +35,7 @@ describe Plines, :redis do
       end
 
       class BrineTurkey
-        include Plines::Step
+        extend Plines::Step
         depends_on :PickupTurkey
 
         def perform
@@ -44,7 +44,7 @@ describe Plines, :redis do
       end
 
       class StuffTurkey
-        include Plines::Step
+        extend Plines::Step
         depends_on :MakeStuffing, :BrineTurkey
 
         def perform
@@ -53,7 +53,7 @@ describe Plines, :redis do
       end
 
       class BakeTurkey
-        include Plines::Step
+        extend Plines::Step
         depends_on :StuffTurkey
 
         def perform
@@ -62,7 +62,7 @@ describe Plines, :redis do
       end
 
       class PourDrinks
-        include Plines::Step
+        extend Plines::Step
         depends_on :BuyGroceries
         fan_out { |data| data[:drinks].map { |d| { drink: d } } }
 
@@ -73,7 +73,7 @@ describe Plines, :redis do
       end
 
       class SetTable
-        include Plines::Step
+        extend Plines::Step
         depends_on :PourDrinks, :BakeTurkey
 
         def perform

@@ -7,7 +7,7 @@ require 'plines/job'
 
 module Plines
   describe Step do
-    context 'when included' do
+    context 'when extended onto a class' do
       it "adds the class to the pipeline's list of step classes" do
         mod = Module.new
         stub_const("MyPipeline", mod)
@@ -16,11 +16,11 @@ module Plines
         MyPipeline.step_classes.should eq([])
 
         class MyPipeline::A
-          include Plines::Step
+          extend Plines::Step
         end
 
         class MyPipeline::B
-          include Plines::Step
+          extend Plines::Step
         end
 
         MyPipeline.step_classes.should eq([MyPipeline::A, MyPipeline::B])
@@ -32,7 +32,7 @@ module Plines
 
         class MyNonPipeline::A; end
 
-        expect { MyNonPipeline::A.send(:include, Plines::Step) }.to raise_error(/not nested in a pipeline module/)
+        expect { MyNonPipeline::A.extend Plines::Step }.to raise_error(/not nested in a pipeline module/)
       end
     end
 
@@ -122,11 +122,11 @@ module Plines
         stub_const("MySteps", pipeline)
 
         class MySteps::A
-          include Plines::Step
+          extend Plines::Step
         end
 
         class MySteps::B
-          include Plines::Step
+          extend Plines::Step
           depends_on :A
         end
 
