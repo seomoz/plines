@@ -24,17 +24,17 @@ module Plines
       expect { Job.build(P::StepA, 5) }.to raise_error(ArgumentError)
     end
 
-    it 'initializes #dependencies and #dependees to empty sets' do
+    it 'initializes #dependencies and #dependents to empty sets' do
       b.dependencies.should eq(Set.new)
-      b.dependees.should eq(Set.new)
+      b.dependents.should eq(Set.new)
     end
 
-    it 'sets up the dependency/dependee relationship when a dependency is added' do
+    it 'sets up the dependency/dependent relationship when a dependency is added' do
       a2.dependencies.should be_empty
       b.dependencies.should be_empty
       a2.add_dependency(b)
       a2.dependencies.to_a.should eq([b])
-      b.dependees.to_a.should eq([a2])
+      b.dependents.to_a.should eq([a2])
     end
 
     it 'yields when constructed if passed a block' do

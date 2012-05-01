@@ -4,20 +4,20 @@ module Plines
   # An instance of a Step: a step class paired with some data for the job.
   Job = Struct.new(:klass, :data) do
     extend Forwardable
-    attr_reader :dependencies, :dependees
+    attr_reader :dependencies, :dependents
     def_delegators :klass, :qless_queue, :external_dependencies
 
     def initialize(*args)
       super
       raise ArgumentError.new, "data must be a hash" unless data.is_a?(Hash)
       @dependencies = Set.new
-      @dependees = Set.new
+      @dependents = Set.new
       yield self if block_given?
     end
 
     def add_dependency(step)
       dependencies << step
-      step.dependees << self
+      step.dependents << self
       self
     end
 

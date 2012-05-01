@@ -45,26 +45,26 @@ module Plines
         ])
 
         step(P::A).dependencies.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12), step(P::D)]
-        step(P::A).dependees.to_a.should =~ []
+        step(P::A).dependents.to_a.should =~ []
 
         step(P::B).dependencies.to_a.should =~ [step(P::E)]
-        step(P::B).dependees.to_a.should =~ [step(P::A)]
+        step(P::B).dependents.to_a.should =~ [step(P::A)]
 
         step(P::C, 11).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
-        step(P::C, 11).dependees.to_a.should =~ [step(P::A)]
+        step(P::C, 11).dependents.to_a.should =~ [step(P::A)]
         step(P::C, 12).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
-        step(P::C, 12).dependees.to_a.should =~ [step(P::A)]
+        step(P::C, 12).dependents.to_a.should =~ [step(P::A)]
 
         step(P::D).dependencies.to_a.should =~ []
-        step(P::D).dependees.to_a.should =~ [step(P::A)]
+        step(P::D).dependents.to_a.should =~ [step(P::A)]
 
         step(P::E).dependencies.to_a.should =~ []
-        step(P::E).dependees.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12)]
+        step(P::E).dependents.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12)]
 
         step(P::F, 10).dependencies.to_a.should =~ []
-        step(P::F, 10).dependees.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
+        step(P::F, 10).dependents.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
         step(P::F, 20).dependencies.to_a.should =~ []
-        step(P::F, 20).dependees.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
+        step(P::F, 20).dependents.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
       end
 
       it 'detects direct circular dependencies' do
