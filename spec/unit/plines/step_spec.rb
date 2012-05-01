@@ -62,6 +62,31 @@ module Plines
         step_class(:StepFoo)
         P::StepFoo.dependencies_for(:data).to_a.should eq([])
       end
+
+      it "includes the root dependency if there are no other declared dependency" do
+        step_class(:Foo)
+        step_class(:Bar)
+
+        P.root_dependency = P::Bar
+        P::Foo.dependencies_for({}).map(&:klass).should eq([P::Bar])
+      end
+
+      it "does not include the root dependency if there are other declared depenencies" do
+        step_class(:Foo) { depends_on :Bar }
+        step_class(:Bar)
+        step_class(:Bazz)
+
+        P.root_dependency = P::Bazz
+        P::Foo.dependencies_for({}).map(&:klass).should_not include(P::Bazz)
+      end
+
+      it "does not include the root dependency if it is the root dependency" do
+        step_class(:Foo)
+        step_class(:Bar)
+
+        P.root_dependency = P::Bar
+        P::Bar.dependencies_for({}).map(&:klass).should eq([])
+      end
     end
 
     describe "#has_external_dependencies?" do
@@ -85,6 +110,15 @@ module Plines
       it 'returns the awaiting_external_dependency_queue when it has external dependencies' do
         step_class(:A) { has_external_dependency :foo }
         P::A.qless_queue.should be(P.awaiting_external_dependency_queue)
+      end
+    end
+
+    describe "#depended_on_by_all_steps" do
+      it "sets itself as the pipline's root dependency" do
+        step_class(:A)
+        P.root_dependency.should_not be(P::A)
+        P::A.depended_on_by_all_steps
+        P.root_dependency.should be(P::A)
       end
     end
 

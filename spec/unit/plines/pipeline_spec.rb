@@ -94,6 +94,24 @@ module Plines
         MyPipeline.enqueue_jobs_for("a" => "foo")
       end
     end
+
+    describe ".root_dependency" do
+      it 'returns a null object implementation by default' do
+        MyPipeline.root_dependency.jobs_for("some" => "data").should eq([])
+      end
+
+      it 'returns the assigned root dependency' do
+        MyPipeline.root_dependency = :my_root_dependency
+        MyPipeline.root_dependency.should be(:my_root_dependency)
+      end
+
+      it 'cannot be re-assigned (since there cannot be multiple root dependencies)' do
+        MyPipeline.root_dependency = :A
+        expect {
+          MyPipeline.root_dependency = :B
+        }.to raise_error(Pipeline::RootDependencyAlreadySetError)
+      end
+    end
   end
 end
 

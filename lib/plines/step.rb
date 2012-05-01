@@ -28,6 +28,10 @@ module Plines
       end
     end
 
+    def depended_on_by_all_steps
+      pipeline.root_dependency = self
+    end
+
     def fan_out(&block)
       @fan_out_block = block
     end
@@ -42,10 +46,21 @@ module Plines
 
     def dependencies_for(batch_data)
       Enumerator.new do |yielder|
+        has_dependencies = false
+
         dependency_filters.each do |klass, filter|
           klass = pipeline.const_get(klass)
           klass.jobs_for(batch_data).each do |job|
-            yielder.yield job if filter[job.data]
+            if filter[job.data]
+              has_dependencies = true
+              yielder.yield job
+            end
+          end
+        end
+
+        if !has_dependencies && pipeline.root_dependency != self
+          pipeline.root_dependency.jobs_for(batch_data).each do |job|
+            yielder.yield job
           end
         end
       end

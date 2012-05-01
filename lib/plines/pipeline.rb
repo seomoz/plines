@@ -46,6 +46,36 @@ module Plines
       @step_classes ||= []
     end
 
+    # Null Object pattern implementation of the root dependency
+    # object so we don't need nil checks on #root_dependency
+    class NullRootDependency
+      def self.jobs_for(*args)
+        []
+      end
+
+      def self.nil?
+        true
+      end
+    end
+
+    # Error raised when two steps declare `depended_on_by_all_steps`;
+    # This cannot be allowed or there would be a circular dependency.
+    class RootDependencyAlreadySetError < StandardError; end
+
+    def root_dependency=(value)
+      if root_dependency.nil?
+        @root_dependency = value
+      else
+        raise RootDependencyAlreadySetError,
+          "The root dependency for pipeline #{self} is already set. " +
+          "Multiple root dependencies are not supported."
+      end
+    end
+
+    def root_dependency
+      @root_dependency ||= NullRootDependency
+    end
+
   private
 
     def job_batch_list_for(batch_data)
