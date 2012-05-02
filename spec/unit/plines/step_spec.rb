@@ -87,6 +87,14 @@ module Plines
         P.root_dependency = P::Bar
         P::Bar.dependencies_for({}).map(&:klass).should eq([])
       end
+
+      it 'includes all but itself when `depends_on_all_steps` is declared' do
+        step_class(:Foo) { depends_on_all_steps }
+        step_class(:Bar)
+        step_class(:Bazz)
+
+        P::Foo.dependencies_for({}).map(&:klass).should eq([P::Bar, P::Bazz])
+      end
     end
 
     describe "#has_external_dependencies?" do

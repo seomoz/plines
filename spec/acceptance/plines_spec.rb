@@ -72,7 +72,7 @@ describe Plines, :redis do
 
       class SetTable
         extend Plines::Step
-        depends_on :PourDrinks, :BakeTurkey
+        depends_on_all_steps
 
         def perform
           MakeThanksgivingDinner.add_performed_step :set_table

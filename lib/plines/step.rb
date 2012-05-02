@@ -24,12 +24,16 @@ module Plines
 
     def depends_on(*klasses, &block)
       klasses.each do |klass|
-        dependency_filters[klass] = (block || Proc.new { true })
+        dependency_filters[klass] = (block || default_dependency_filter)
       end
     end
 
     def depended_on_by_all_steps
       pipeline.root_dependency = self
+    end
+
+    def depends_on_all_steps
+      extend DependsOnAllSteps
     end
 
     def fan_out(&block)
@@ -102,9 +106,13 @@ module Plines
       @dependency_filters ||= {}
     end
 
+    def default_dependency_filter
+      Proc.new { true }
+    end
+
     def each_declared_dependency_job_for(batch_data)
       dependency_filters.each do |klass, filter|
-        klass = pipeline.const_get(klass)
+        klass = pipeline.const_get(klass) unless klass.is_a?(Class)
         klass.jobs_for(batch_data).each do |job|
           yield job if filter[job.data]
         end
@@ -131,6 +139,14 @@ module Plines
 
       def around_perform
         yield
+      end
+    end
+
+    module DependsOnAllSteps
+    private
+      def dependency_filters
+        klasses = pipeline.step_classes.reject { |c| c == self }
+        Hash[ *klasses.flat_map { |c| [c, default_dependency_filter] } ]
       end
     end
   end
