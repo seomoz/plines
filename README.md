@@ -54,8 +54,8 @@ end
 ```
 
 The `Plines::Step` module makes available some class-level
-macros for declaring step dependency relationships. See the *Step Class
-DSL* section below for more details.
+macros for declaring step dependency relationships. See the **Step Class
+DSL** section below for more details.
 
 Once you've defined all your steps, you can enqueue jobs for them:
 
