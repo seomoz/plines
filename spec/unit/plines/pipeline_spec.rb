@@ -112,6 +112,27 @@ module Plines
         }.to raise_error(Pipeline::RootDependencyAlreadySetError)
       end
     end
+
+    describe ".set_expiration_on", :redis do
+      it 'sets the configured expiration on the given redis key' do
+        MyPipeline.redis.set "foo", "bar"
+        MyPipeline.redis.ttl("foo").should eq(-1) # -1 means no TTL is set
+
+        MyPipeline.configuration.data_ttl_in_seconds = 3
+        MyPipeline.set_expiration_on("foo")
+        MyPipeline.redis.ttl("foo").should eq(3)
+      end
+
+      it 'can expire multiple keys' do
+        MyPipeline.redis.set "foo", "a"
+        MyPipeline.redis.set "bar", "a"
+
+        MyPipeline.configuration.data_ttl_in_seconds = 3
+        MyPipeline.set_expiration_on("foo", "bar")
+        MyPipeline.redis.ttl("foo").should eq(3)
+        MyPipeline.redis.ttl("bar").should eq(3)
+      end
+    end
   end
 end
 

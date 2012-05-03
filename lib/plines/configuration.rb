@@ -4,8 +4,11 @@ module Plines
     # Raised when there is a configuration error.
     class Error < StandardError; end
 
+    SIX_MONTHS_IN_SECONDS = 6 * 30 * 24 * 60 * 60
+
     def initialize
       batch_list_key { raise Error, "batch_list_key has not been configured" }
+      self.data_ttl_in_seconds = SIX_MONTHS_IN_SECONDS
     end
 
     def batch_list_key(&block)
@@ -14,6 +17,12 @@ module Plines
 
     def batch_list_key_for(batch_data)
       @batch_list_key_block[batch_data]
+    end
+
+    attr_accessor :data_ttl_in_seconds
+
+    def data_ttl_in_milliseconds
+      (data_ttl_in_seconds * 1000).to_i
     end
   end
 end

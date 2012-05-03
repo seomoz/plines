@@ -20,6 +20,24 @@ module Plines
         }.to raise_error(Plines::Configuration::Error)
       end
     end
+
+    describe "#data_ttl_in_milliseconds" do
+      it "returns the equivalent of 6 months by default" do
+        expected = 6 *  # months
+                   30 * # days
+                   24 * # hours
+                   60 * # minutes
+                   60 * # seconds
+                   1000 # to milliseconds
+
+        config.data_ttl_in_milliseconds.should eq(expected)
+      end
+
+      it "returns 1000 times the data_ttl_in_seconds, rounded to the nearest integer" do
+        config.data_ttl_in_seconds = Math::PI
+        config.data_ttl_in_milliseconds.should eq(3141)
+      end
+    end
   end
 end
 

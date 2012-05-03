@@ -60,8 +60,14 @@ module Plines
     end
 
     describe "#mark_job_as_complete" do
+      let!(:batch) { JobBatch.new(pipeline_module, "foo") }
+
+      before do
+        P.should respond_to(:set_expiration_on)
+        P.stub(:set_expiration_on)
+      end
+
       it "moves a jid from the pending to the complete set" do
-        batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job("a")
 
         batch.pending_job_jids.should include("a")
@@ -74,14 +80,12 @@ module Plines
       end
 
       it "raises an error if the given jid is not in the pending set" do
-        batch = JobBatch.new(pipeline_module, "foo")
         batch.completed_job_jids.should_not include("a")
         expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
         batch.completed_job_jids.should_not include("a")
       end
 
       it 'sets the completed_at timestamp when the last job is marked as complete' do
-        batch = JobBatch.new(pipeline_module, "foo")
         batch.pending_job_jids << "a" << "b"
 
         batch.completed_at.should be_nil
@@ -89,6 +93,26 @@ module Plines
         batch.completed_at.should be_nil
         Timecop.freeze(t2) { batch.mark_job_as_complete("b") }
         batch.completed_at.should eq(t2)
+      end
+
+      it 'expires the redis keys for the batch data' do
+        expired_keys = Set.new
+        P.stub(:set_expiration_on) do |*args|
+          expired_keys.merge(args)
+        end
+
+        batch.add_job("a", :foo)
+        batch.add_job("b")
+
+        P.redis.keys.should_not be_empty
+
+        batch.resolve_external_dependency(:foo)
+
+        batch.mark_job_as_complete("a")
+        expired_keys.should be_empty
+
+        batch.mark_job_as_complete("b")
+        expired_keys.to_a.should include(*P.redis.keys)
       end
     end
 

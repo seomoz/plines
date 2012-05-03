@@ -124,6 +124,14 @@ describe Plines, :redis do
     end
   end
 
+  def plines_temporary_redis_keys
+    MakeThanksgivingDinner.redis.keys.reject do |k|
+      k.start_with?("make_thanksgiving_dinner") ||
+      k.start_with?("ql") ||
+      k.end_with?("last_batch_num")
+    end
+  end
+
   let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
 
   def enqueue_jobs
@@ -189,6 +197,9 @@ describe Plines, :redis do
 
   it "supports external dependencies" do
     MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call
+    MakeThanksgivingDinner.configure do |plines|
+      plines.data_ttl_in_seconds = 0.0001
+    end
 
     enqueue_jobs
     worker.work(0)
@@ -199,9 +210,13 @@ describe Plines, :redis do
 
     smith_batch.resolve_external_dependency :await_turkey_ready_call
     worker.work(0)
+
+    MakeThanksgivingDinner.qless.should have_no_failures
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have(10).entries
     steps.should include("pickup_turkey")
+    sleep 0.0002
+    plines_temporary_redis_keys.should eq([])
   end
 
   it "supports middleware modules" do

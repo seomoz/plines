@@ -76,6 +76,12 @@ module Plines
       @root_dependency ||= NullRootDependency
     end
 
+    def set_expiration_on(*redis_keys)
+      redis_keys.each do |key|
+        redis.pexpire(key, configuration.data_ttl_in_milliseconds)
+      end
+    end
+
   private
 
     def job_batch_list_for(batch_data)

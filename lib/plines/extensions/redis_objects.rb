@@ -23,3 +23,12 @@ Redis::Set.class_eval do
   # entire object to a new redis key. #move here takes 2 args and moves one
   # entry in the set to a different set.
 end
+
+module Plines
+  module RedisObjectsHelpers
+    def declared_redis_object_keys
+      self.class.redis_objects.keys.map { |k| send(k).key }
+    end
+  end
+end
+

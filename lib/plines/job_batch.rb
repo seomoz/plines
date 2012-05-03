@@ -6,6 +6,7 @@ module Plines
   # based on the step dependency graph.
   class JobBatch < Struct.new(:pipeline, :id)
     include Redis::Objects
+    include Plines::RedisObjectsHelpers
 
     set :pending_job_jids
     set :completed_job_jids
@@ -44,6 +45,7 @@ module Plines
 
       if _complete?(pending_count, complete_count)
         meta["completed_at"] = Time.now.iso8601
+        set_expiration!
       end
     end
 
@@ -78,6 +80,7 @@ module Plines
     end
 
   private
+
     def _complete?(pending_size, complete_size)
       pending_size == 0 && complete_size > 0
     end
@@ -85,6 +88,26 @@ module Plines
     def time_from(meta_entry)
       date_string = meta[meta_entry]
       Time.iso8601(date_string) if date_string
+    end
+
+    def set_expiration!
+      keys_to_expire = declared_redis_object_keys.to_set
+
+      each_enqueued_job do |job|
+        keys_to_expire.merge(job.declared_redis_object_keys)
+
+        job.all_external_dependencies.each do |dep|
+          keys_to_expire << external_dependency_sets[dep].key
+        end
+      end
+
+      pipeline.set_expiration_on(*keys_to_expire)
+    end
+
+    def each_enqueued_job
+      job_jids.each do |jid|
+        yield EnqueuedJob.new(jid)
+      end
     end
 
     def cancel_job(jid)

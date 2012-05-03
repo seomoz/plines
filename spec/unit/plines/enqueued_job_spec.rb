@@ -31,6 +31,31 @@ module Plines
       end
     end
 
+    describe "#all_external_dependencies" do
+      it "returns pending and resolved external dependencies" do
+        job = EnqueuedJob.create("abc", :foo, :bar)
+        job.resolve_external_dependency(:foo)
+        job.pending_external_dependencies.should_not be_empty
+        job.resolved_external_dependencies.should_not be_empty
+
+        job.all_external_dependencies.should eq([:foo, :bar])
+      end
+    end
+
+    describe "#declared_redis_object_keys" do
+      it 'returns the keys for each owned object' do
+        job = EnqueuedJob.create("abc", :foo, :bar)
+        job.resolve_external_dependency(:foo)
+
+        keys = job.declared_redis_object_keys
+        keys.should have(2).entries
+        keys.grep(/pending/).should have(1).entry
+        keys.grep(/resolved/).should have(1).entry
+
+        job.redis.keys.should include(*keys)
+      end
+    end
+
     describe "#resolve_external_dependency" do
       let(:jid) { "abc" }
 

@@ -6,6 +6,7 @@ module Plines
   # that Plines needs to track about the job.
   class EnqueuedJob < Struct.new(:jid)
     include Redis::Objects
+    include Plines::RedisObjectsHelpers
 
     def initialize(jid, &block)
       super(jid)
@@ -26,6 +27,10 @@ module Plines
 
     def resolved_external_dependencies
       resolved_ext_deps.map(&:to_sym)
+    end
+
+    def all_external_dependencies
+      (pending_ext_deps | resolved_ext_deps).map(&:to_sym)
     end
 
     def resolve_external_dependency(name)
