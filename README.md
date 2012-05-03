@@ -238,8 +238,8 @@ job_batch.resolve_external_dependency :await_turkey_is_ready_for_pickup_notice
 ## Performing Work
 
 When a job gets run, the `#perform` instance method of your step class
-will be called. The perform method will have access to a few helper
-methods:
+will be called. The return value of your perform method is ignored.
+The perform method will have access to a few helper methods:
 
 ``` ruby
 module MakeThanksgivingDinner
