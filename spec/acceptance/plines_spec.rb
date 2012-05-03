@@ -13,7 +13,7 @@ describe Plines, :redis do
         depended_on_by_all_steps
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :buy_groceries
+          MakeThanksgivingDinner.performed_steps << :buy_groceries
         end
       end
 
@@ -21,7 +21,7 @@ describe Plines, :redis do
         extend Plines::Step
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :make_stuffing
+          MakeThanksgivingDinner.performed_steps << :make_stuffing
         end
       end
 
@@ -29,7 +29,7 @@ describe Plines, :redis do
         extend Plines::Step
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :pickup_turkey
+          MakeThanksgivingDinner.performed_steps << :pickup_turkey
         end
       end
 
@@ -38,7 +38,7 @@ describe Plines, :redis do
         depends_on :PickupTurkey
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :brine_turkey
+          MakeThanksgivingDinner.performed_steps << :brine_turkey
         end
       end
 
@@ -47,7 +47,7 @@ describe Plines, :redis do
         depends_on :MakeStuffing, :BrineTurkey
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :stuff_turkey
+          MakeThanksgivingDinner.performed_steps << :stuff_turkey
         end
       end
 
@@ -56,7 +56,7 @@ describe Plines, :redis do
         depends_on :StuffTurkey
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :bake_turkey
+          MakeThanksgivingDinner.performed_steps << :bake_turkey
         end
       end
 
@@ -65,8 +65,8 @@ describe Plines, :redis do
         fan_out { |data| data[:drinks].map { |d| { drink: d } } }
 
         def perform
-          MakeThanksgivingDinner.add_poured_drink job_data.drink
-          MakeThanksgivingDinner.add_performed_step :pour_drinks
+          MakeThanksgivingDinner.poured_drinks << job_data.drink
+          MakeThanksgivingDinner.performed_steps << :pour_drinks
         end
       end
 
@@ -75,24 +75,16 @@ describe Plines, :redis do
         depends_on_all_steps
 
         def perform
-          MakeThanksgivingDinner.add_performed_step :set_table
+          MakeThanksgivingDinner.performed_steps << :set_table
         end
       end
 
       def performed_steps
-        redis.lrange "make_thanksgiving_dinner:performed_steps", 0, -1
-      end
-
-      def add_performed_step(step)
-        redis.rpush "make_thanksgiving_dinner:performed_steps", step.to_s
+        @performed_steps ||= Redis::List.new("make_thanksgiving_dinner:performed_steps")
       end
 
       def poured_drinks
-        redis.lrange "make_thanksgiving_dinner:poured_drinks", 0, -1
-      end
-
-      def add_poured_drink(type)
-        redis.rpush "make_thanksgiving_dinner:poured_drinks", type.to_s
+        @poured_drinks ||= Redis::List.new("make_thanksgiving_dinner:poured_drinks")
       end
     end
   end
@@ -152,7 +144,7 @@ describe Plines, :redis do
     enqueue_jobs
     worker.work(0)
 
-    steps = MakeThanksgivingDinner.performed_steps
+    steps = MakeThanksgivingDinner.performed_steps.values
     steps.should have(10).entries
 
     steps.first.should eq("buy_groceries") # should always be first
@@ -163,7 +155,7 @@ describe Plines, :redis do
     "brine_turkey".should be_before("stuff_turkey").in(steps)
     "stuff_turkey".should be_before("bake_turkey").in(steps)
 
-    MakeThanksgivingDinner.poured_drinks.should =~ %w[ champaign water cider ]
+    MakeThanksgivingDinner.poured_drinks.values.should =~ %w[ champaign water cider ]
 
     smith_batch.should be_complete
   end
@@ -210,9 +202,9 @@ describe Plines, :redis do
     MakeThanksgivingDinner::PickupTurkey.class_eval do
       include Module.new {
         def around_perform
-          MakeThanksgivingDinner.add_performed_step :before_pickup_turkey
+          MakeThanksgivingDinner.performed_steps << :before_pickup_turkey
           super { yield }
-          MakeThanksgivingDinner.add_performed_step :after_pickup_turkey
+          MakeThanksgivingDinner.performed_steps << :after_pickup_turkey
         end
       }
     end
