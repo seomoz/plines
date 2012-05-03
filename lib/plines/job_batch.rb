@@ -77,6 +77,7 @@ module Plines
     def cancel!
       pending_job_jids.each { |jid| cancel_job(jid) }
       meta["cancelled"] = "1"
+      set_expiration!
     end
 
   private

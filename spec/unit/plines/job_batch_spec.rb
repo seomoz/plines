@@ -187,6 +187,11 @@ module Plines
       let(:jid)    { pipeline_module.default_queue.put(P::Foo, {}) }
       let!(:batch) { JobBatch.new(pipeline_module, "foo") { |jb| jb.add_job(jid) } }
 
+      before do
+        P.should respond_to(:set_expiration_on)
+        P.stub(:set_expiration_on)
+      end
+
       it 'cancels all qless jobs' do
         pipeline_module.default_queue.length.should be > 0
         batch.cancel!
@@ -197,6 +202,18 @@ module Plines
         batch.should_not be_cancelled
         batch.cancel!
         batch.should be_cancelled
+      end
+
+      it 'expires the redis keys for the batch data' do
+        expired_keys = Set.new
+        P.stub(:set_expiration_on) do |*args|
+          expired_keys.merge(args)
+        end
+
+        batch.cancel!
+
+        P.redis.keys.should_not be_empty
+        expired_keys.to_a.should include(*P.redis.keys.grep(/job_batch/))
       end
     end
   end
