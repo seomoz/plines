@@ -1,6 +1,7 @@
 require 'spec_helper'
 require 'plines'
 require 'qless/worker'
+require 'timecop'
 
 describe Plines, :redis do
   before do
@@ -140,9 +141,12 @@ describe Plines, :redis do
     MakeThanksgivingDinner.poured_drinks.should eq([])
   end
 
-  it 'enqueues Qless jobs and runs them in the expected order' do
-    enqueue_jobs
-    worker.work(0)
+  let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
+  let(:end_time)   { Time.new(2012, 5, 1, 9, 30) }
+
+  it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
+    Timecop.freeze(start_time) { enqueue_jobs }
+    Timecop.freeze(end_time) { worker.work(0) }
 
     steps = MakeThanksgivingDinner.performed_steps.values
     steps.should have(10).entries
@@ -158,6 +162,8 @@ describe Plines, :redis do
     MakeThanksgivingDinner.poured_drinks.values.should =~ %w[ champaign water cider ]
 
     smith_batch.should be_complete
+    smith_batch.created_at.should eq(start_time)
+    smith_batch.completed_at.should eq(end_time)
   end
 
   it 'allows a job batch to be cancelled in midstream' do

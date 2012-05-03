@@ -1,3 +1,4 @@
+require 'time'
 require 'plines/extensions/redis_objects'
 
 module Plines
@@ -12,6 +13,7 @@ module Plines
 
     def initialize(pipeline, id)
       super(pipeline, id)
+      meta["created_at"] ||= Time.now.iso8601
       yield self if block_given?
     end
 
@@ -28,15 +30,25 @@ module Plines
     end
 
     def mark_job_as_complete(jid)
-      unless pending_job_jids.move(jid, completed_job_jids)
+      moved, pending_count, complete_count = redis.multi do
+        pending_job_jids.move(jid, completed_job_jids)
+        pending_job_jids.length
+        completed_job_jids.length
+      end
+
+      unless moved == 1
         raise ArgumentError,
           "Jid #{jid} cannot be marked as complete for " +
           "job batch #{id} since it is not pending"
       end
+
+      if _complete?(pending_count, complete_count)
+        meta["completed_at"] = Time.now.iso8601
+      end
     end
 
     def complete?
-      pending_job_jids.empty? && !completed_job_jids.empty?
+      _complete?(pending_job_jids.length, completed_job_jids.length)
     end
 
     def resolve_external_dependency(dep_name)
@@ -46,6 +58,14 @@ module Plines
           job.move(pipeline.default_queue.name) if job
         end
       end
+    end
+
+    def created_at
+      time_from "created_at"
+    end
+
+    def completed_at
+      time_from "completed_at"
     end
 
     def cancelled?
@@ -58,6 +78,14 @@ module Plines
     end
 
   private
+    def _complete?(pending_size, complete_size)
+      pending_size == 0 && complete_size > 0
+    end
+
+    def time_from(meta_entry)
+      date_string = meta[meta_entry]
+      Time.iso8601(date_string) if date_string
+    end
 
     def cancel_job(jid)
       # Cancelled jobs can no longer be fetched.

@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'timecop'
 require 'plines/pipeline'
 require 'plines/step'
 require 'plines/enqueued_job'
@@ -24,6 +25,17 @@ module Plines
     it 'remembers what pipeline it is for' do
       j1 = JobBatch.new(pipeline_module, "a")
       j1.pipeline.should be(pipeline_module)
+    end
+
+    let(:t1) { Time.new(2012, 4, 1) }
+    let(:t2) { Time.new(2012, 5, 1) }
+
+    it 'remembers when it was created' do
+      Timecop.freeze(t1) { JobBatch.new(pipeline_module, "a") }
+      j2 = nil
+      Timecop.freeze(t2) { j2 = JobBatch.new(pipeline_module, "a") }
+
+      j2.created_at.should eq(t1)
     end
 
     describe "#add_job" do
@@ -66,6 +78,17 @@ module Plines
         batch.completed_job_jids.should_not include("a")
         expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
         batch.completed_job_jids.should_not include("a")
+      end
+
+      it 'sets the completed_at timestamp when the last job is marked as complete' do
+        batch = JobBatch.new(pipeline_module, "foo")
+        batch.pending_job_jids << "a" << "b"
+
+        batch.completed_at.should be_nil
+        batch.mark_job_as_complete("a")
+        batch.completed_at.should be_nil
+        Timecop.freeze(t2) { batch.mark_job_as_complete("b") }
+        batch.completed_at.should eq(t2)
       end
     end
 
