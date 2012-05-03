@@ -129,16 +129,21 @@ module MakeThanksgivingDinner
     end
   end
 
-  class AddWhipCreamToPies
+  class AddWhipCreamToPie
     extend Plines::Step
 
-    # By default, `depends_on` makes this step depend on all
-    # instances of the named step. If you only want it to depend
-    # on some instances of the named step, pass a block; this step
-    # will only depend on the MakePie jobs for which the pie_type is
-    # apple or pumpkin.
-    depends_on :MakePie do |job_data|
-      %w[ apple pumpkin ].include?(job_data['pie_type'])
+    fan_out do |batch_data|
+      batch_data['pie_types'].map do |type|
+        { 'pie_type' => type, 'family' => batch_data['family'] }
+      end
+    end
+
+    # By default, `depends_on` makes all instances of this step depend on all
+    # instances of the named step. If you only want it to depend on some
+    # instances of the named step, pass a block; the instances of this step
+    # will only depend on the MakePie jobs for which the pie_type is the same.
+    depends_on :MakePie do |add_whip_cream_data, make_pie_data|
+      add_whip_cream_data['pie_type'] == make_pie_data['pie_type']
     end
   end
 
@@ -178,7 +183,8 @@ will be enqueued in this batch:
 * 1 PrepareTurkey job
 * 3 MakePie jobs, each with slightly different arguments (1 each with
   "apple", "pumpkin" and "pecan")
-* 1 AddWhipCreamToPies job
+* 3 AddWhipCreamToPie jobs, each with slightly different arguments (1
+  each with "apple", "pumpkin" and "pecan")
 * 1 SetTable job
 
 The declared dependencies will be honored as well:
@@ -186,8 +192,8 @@ The declared dependencies will be honored as well:
 * BuyGroceries is guaranteed to run first.
 * MakeStuffing and the 3 MakePie jobs will be available for processing
   immediately after the BuyGroceries job has finished.
-* AddWhipCreamToPies will be available for processing once the
-  apple and pumpkin MakePie jobs have finished.
+* The 3 AddWhipCreamToPie jobs will be available for processing once
+  their corresponding MakePie jobs have completed.
 * PickupTurkey will not run until the
   `:await_turkey_is_ready_for_pickup_notice` external dependency is
   fulfilled (see below for more details).

@@ -13,11 +13,8 @@ module Plines
     def initialize(step_classes, batch_data)
       @steps = Job.accumulate_instances do
         step_classes.each do |step_klass|
-          dependencies = step_klass.dependencies_for(batch_data)
-          step_klass.jobs_for(batch_data).each do |step|
-            dependencies.each do |dep|
-              step.add_dependency(dep)
-            end
+          step_klass.jobs_for(batch_data).each do |job|
+            job.add_dependencies_for(batch_data)
           end
         end
       end

@@ -48,16 +48,16 @@ module Plines
       external_dependencies.any?
     end
 
-    def dependencies_for(batch_data)
+    def dependencies_for(job, batch_data)
       Enumerator.new do |yielder|
         has_dependencies = false
 
-        each_declared_dependency_job_for(batch_data) do |job|
+        each_declared_dependency_job_for(job, batch_data) do |job|
           has_dependencies = true
           yielder.yield job
         end
 
-        each_root_dependency_job_for(batch_data) do |job|
+        each_root_dependency_job_for(job, batch_data) do |job|
           yielder.yield job
         end unless has_dependencies
       end
@@ -110,20 +110,20 @@ module Plines
       Proc.new { true }
     end
 
-    def each_declared_dependency_job_for(batch_data)
+    def each_declared_dependency_job_for(job, batch_data)
       dependency_filters.each do |klass, filter|
         klass = pipeline.const_get(klass) unless klass.is_a?(Class)
-        klass.jobs_for(batch_data).each do |job|
-          yield job if filter[job.data]
+        klass.jobs_for(batch_data).each do |dependency|
+          yield dependency if filter[job.data, dependency.data]
         end
       end
     end
 
-    def each_root_dependency_job_for(batch_data)
+    def each_root_dependency_job_for(job, batch_data)
       return if pipeline.root_dependency == self
 
-      pipeline.root_dependency.jobs_for(batch_data).each do |job|
-        yield job
+      pipeline.root_dependency.jobs_for(batch_data).each do |dependency|
+        yield dependency
       end
     end
 

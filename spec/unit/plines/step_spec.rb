@@ -58,9 +58,11 @@ module Plines
     end
 
     describe "#dependencies_for" do
+      let(:stub_job) { fire_double("Plines::Job", :data => { "a" => 3 }) }
+
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        P::StepFoo.dependencies_for(:data).to_a.should eq([])
+        P::StepFoo.dependencies_for(stub_job, :data).to_a.should eq([])
       end
 
       it "includes the root dependency if there are no other declared dependency" do
@@ -68,7 +70,7 @@ module Plines
         step_class(:Bar)
 
         P.root_dependency = P::Bar
-        P::Foo.dependencies_for({}).map(&:klass).should eq([P::Bar])
+        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should eq([P::Bar])
       end
 
       it "does not include the root dependency if there are other declared depenencies" do
@@ -77,7 +79,7 @@ module Plines
         step_class(:Bazz)
 
         P.root_dependency = P::Bazz
-        P::Foo.dependencies_for({}).map(&:klass).should_not include(P::Bazz)
+        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should_not include(P::Bazz)
       end
 
       it "does not include the root dependency if it is the root dependency" do
@@ -85,7 +87,7 @@ module Plines
         step_class(:Bar)
 
         P.root_dependency = P::Bar
-        P::Bar.dependencies_for({}).map(&:klass).should eq([])
+        P::Bar.dependencies_for(stub_job, {}).map(&:klass).should eq([])
       end
 
       it 'includes all but itself when `depends_on_all_steps` is declared' do
@@ -93,7 +95,7 @@ module Plines
         step_class(:Bar)
         step_class(:Bazz)
 
-        P::Foo.dependencies_for({}).map(&:klass).should eq([P::Bar, P::Bazz])
+        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should eq([P::Bar, P::Bazz])
       end
     end
 
@@ -131,6 +133,7 @@ module Plines
     end
 
     describe "#depends_on" do
+      let(:stub_job) { fire_double("Plines::Job", data: { a: 1 }) }
       step_class(:StepA)
       step_class(:StepB)
 
@@ -139,7 +142,7 @@ module Plines
           depends_on :StepA, :StepB
         end
 
-        dependencies = P::StepC.dependencies_for({ a: 1 })
+        dependencies = P::StepC.dependencies_for(stub_job, { a: 1 })
         dependencies.map(&:klass).should eq([P::StepA, P::StepB])
         dependencies.map(&:data).should eq([{ a: 1 }, { a: 1 }])
       end
@@ -159,7 +162,7 @@ module Plines
           depends_on :A
         end
 
-        dependencies = MySteps::B.dependencies_for({})
+        dependencies = MySteps::B.dependencies_for(stub_job, {})
         dependencies.map(&:klass).should eq([MySteps::A])
       end
 
@@ -175,17 +178,17 @@ module Plines
             depends_on :StepX
           end
 
-          dependencies = P::StepY.dependencies_for(a: 17)
+          dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           dependencies.map(&:klass).should eq([P::StepX, P::StepX, P::StepX])
           dependencies.map(&:data).should eq([{ a: 18 }, { a: 19 }, { a: 20 }])
         end
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
           step_class(:StepY) do
-            depends_on(:StepX) { |d| d[:a].even? }
+            depends_on(:StepX) { |y_data, x_data| x_data[:a].even? }
           end
 
-          dependencies = P::StepY.dependencies_for(a: 17)
+          dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           dependencies.map(&:klass).should eq([P::StepX, P::StepX])
           dependencies.map(&:data).should eq([{ a: 18 }, { a: 20 }])
         end

@@ -21,6 +21,12 @@ module Plines
       self
     end
 
+    def add_dependencies_for(batch_data)
+      klass.dependencies_for(self, batch_data).each do |job|
+        add_dependency(job)
+      end
+    end
+
     class << self
       # Prevent users of this class from constructing a new instance directly;
       # Instead, they should use #build.

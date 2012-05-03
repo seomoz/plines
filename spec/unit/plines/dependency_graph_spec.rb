@@ -67,6 +67,30 @@ module Plines
         step(P::F, 20).dependents.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
       end
 
+      it 'correctly sets up individual dependencies on fan_out steps' do
+        [:A, :B].each do |klass|
+          step_class(klass) do
+            fan_out do |data|
+              [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
+            end
+          end
+        end
+
+        P::A.depends_on :B do |a_data, b_data|
+          a_data == b_data
+        end
+
+        graph.steps.should eq([
+          step(P::A, 11), step(P::A, 12),
+          step(P::B, 11), step(P::B, 12)
+        ])
+
+        step(P::A, 11).dependencies.to_a.should eq([step(P::B, 11)])
+        step(P::A, 12).dependencies.to_a.should eq([step(P::B, 12)])
+        step(P::B, 11).dependents.to_a.should eq([step(P::A, 11)])
+        step(P::B, 12).dependents.to_a.should eq([step(P::A, 12)])
+      end
+
       it 'detects direct circular dependencies' do
         step_class(:X) { depends_on :Y }
         step_class(:Y) { depends_on :X }
