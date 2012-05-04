@@ -63,7 +63,7 @@ describe Plines, :redis do
 
       class PourDrinks
         extend Plines::Step
-        fan_out { |data| data[:drinks].map { |d| { drink: d } } }
+        fan_out { |data| data[:drinks].map { |d| { drink: d, family: data[:family] } } }
 
         def perform
           MakeThanksgivingDinner.poured_drinks << job_data.drink
@@ -137,6 +137,9 @@ describe Plines, :redis do
   def enqueue_jobs
     MakeThanksgivingDinner.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
+      plines.qless_job_options do |job|
+        { tags: Array(job.data.fetch(:family)) }
+      end
     end
 
     MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
@@ -158,6 +161,7 @@ describe Plines, :redis do
 
   it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
     Timecop.freeze(start_time) { enqueue_jobs }
+    MakeThanksgivingDinner.default_queue.peek.tags.should eq(["Smith"])
     Timecop.freeze(end_time) { worker.work(0) }
 
     steps = MakeThanksgivingDinner.performed_steps.values

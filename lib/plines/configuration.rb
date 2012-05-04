@@ -8,6 +8,7 @@ module Plines
 
     def initialize
       batch_list_key { raise Error, "batch_list_key has not been configured" }
+      qless_job_options { |job| {} }
       self.data_ttl_in_seconds = SIX_MONTHS_IN_SECONDS
     end
 
@@ -23,6 +24,11 @@ module Plines
 
     def data_ttl_in_milliseconds
       (data_ttl_in_seconds * 1000).to_i
+    end
+
+    attr_reader :qless_job_options_block
+    def qless_job_options(&block)
+      @qless_job_options_block = block
     end
   end
 end

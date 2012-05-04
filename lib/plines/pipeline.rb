@@ -35,7 +35,7 @@ module Plines
     def enqueue_jobs_for(batch_data)
       graph = DependencyGraph.new(step_classes, batch_data)
       job_batch = job_batch_list_for(batch_data).create_new_batch
-      JobEnqueuer.new(graph, job_batch).enqueue_jobs
+      JobEnqueuer.new(graph, job_batch, &configuration.qless_job_options_block).enqueue_jobs
     end
 
     def most_recent_job_batch_for(batch_data)

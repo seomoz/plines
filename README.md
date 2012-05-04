@@ -312,7 +312,6 @@ You can include as many middleware modules as you like.
   passed.
 * Once the timeout is in place, provide a means in the job to know
   whether or not the job's dependencies have been fulfilled.
-* Provide a means to tag all Qless jobs in the batch.
 * Provide a means to configure the redis connection. Currently,
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.

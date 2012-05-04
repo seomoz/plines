@@ -18,7 +18,7 @@ module Plines
     let(:graph) { DependencyGraph.new(P.step_classes, batch_data) }
     let(:job_batch) { JobBatch.new(pipeline_module, "foo:1") }
 
-    let(:enqueuer) { JobEnqueuer.new(graph, job_batch) }
+    let(:enqueuer) { JobEnqueuer.new(graph, job_batch) { |job| { tags: [job.data.fetch("a")] } } }
 
     before { P.configuration.batch_list_key { |data| data[:a] } }
 
@@ -28,6 +28,7 @@ module Plines
       jobs = P.default_queue.peek(2)
       jobs.map { |j| j.klass.to_s }.should =~ %w[ P::B ]
       jobs.map(&:data).should eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
+      jobs.map(&:tags).should eq([["foo"]])
     end
 
     it 'sets up job dependencies correctly' do

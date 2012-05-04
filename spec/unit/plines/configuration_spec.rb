@@ -38,6 +38,18 @@ module Plines
         config.data_ttl_in_milliseconds.should eq(3141)
       end
     end
+
+    describe "#qless_job_options_block" do
+      it "returns the configured block" do
+        block = lambda { }
+        config.qless_job_options(&block)
+        config.qless_job_options_block.should be(block)
+      end
+
+      it "returns a block that returns an empty hash by default" do
+        config.qless_job_options_block.call(stub).should eq({})
+      end
+    end
   end
 end
 
