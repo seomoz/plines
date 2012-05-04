@@ -198,7 +198,10 @@ module Plines
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
         let(:job_batch) { JobBatch.new(pipeline_module, "abc:1") }
 
-        before { job_batch.pending_job_jids << qless_job.jid }
+        before do
+          job_batch.pending_job_jids << qless_job.jid
+          JobBatch.any_instance.stub(:set_expiration!)
+        end
 
         it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
           foo = nil
