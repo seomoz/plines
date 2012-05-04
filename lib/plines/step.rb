@@ -75,9 +75,7 @@ module Plines
         k == "_job_batch_id"
       end)
 
-      new(batch, job_data).instance_eval do
-        around_perform { perform }
-      end
+      new(batch, job_data).send(:around_perform)
 
       batch.mark_job_as_complete(qless_job.jid)
     end
@@ -138,7 +136,7 @@ module Plines
     private
 
       def around_perform
-        yield
+        perform
       end
     end
 

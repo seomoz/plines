@@ -227,7 +227,7 @@ describe Plines, :redis do
       include Module.new {
         def around_perform
           MakeThanksgivingDinner.performed_steps << :before_pickup_turkey
-          super { yield }
+          super
           MakeThanksgivingDinner.performed_steps << :after_pickup_turkey
         end
       }

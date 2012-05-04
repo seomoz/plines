@@ -251,7 +251,7 @@ module Plines
             include Module.new {
               def around_perform
                 self.class.order << :before_1
-                super { yield }
+                super
                 self.class.order << :after_1
               end
             }
@@ -259,7 +259,7 @@ module Plines
             include Module.new {
               def around_perform
                 self.class.order << :before_2
-                super { yield }
+                super
                 self.class.order << :after_2
               end
             }

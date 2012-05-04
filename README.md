@@ -284,8 +284,8 @@ module TimeWork
   def around_perform
     start_time = Time.now
 
-    # Use super and yield like this at the point the work should occur
-    super { yield }
+    # Use super at the point the work should occur...
+    super
 
     end_time = Time.now
     log_time(end_time - start_time)
