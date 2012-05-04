@@ -30,6 +30,10 @@ First, create a pipeline using the `Plines::Pipeline` module:
 ``` ruby
 module MyProcessingPipeline
   extend Plines::Pipeline
+
+  configure do |config|
+    # configuration goes here; see below for available options
+  end
 end
 ```
 
@@ -66,6 +70,37 @@ MyProcessingPipeline.enqueue_jobs_for("some" => "data", "goes" => "here")
 `MyProcessingPipeline.enqueue_jobs_for` will enqueue a full set of qless
 jobs (or a `JobBatch` in Plines terminology) for the given batch data
 based on your step classes' macro declarations.
+
+## Configuring a Pipeline
+
+Plines supports configuration at the pipeline level:
+
+``` ruby
+module MyProcessingPipeline
+  extend Plines::Pipeline
+
+  configure do |config|
+    # Determines how job batches are identified. Plines provides an API
+    # to find the most recent existing job batch based on this key.
+    config.batch_list_key { |batch_data| batch_data.fetch(:user_id) }
+
+    # Determines how long the Plines job batch data will be kept around
+    # in redis after the batch reaches a final state (cancelled or
+    # completed). By default, this is set to 6 months, but you
+    # will probably want to set it to something shorter (like 2 weeks)
+    config.data_ttl_in_seconds = 14 * 24 * 60 * 60
+
+    # Use this callback to set additional qless job options (such as
+    # tags and priority).
+    config.qless_job_options do |job|
+      { tags: [job.data[:user_id]] }.tap do |options|
+        # Make MyImportantJob have a priority that will make it run sooner.
+        options[:priority] = -1 if job.klass == MyImportantJob
+      end
+    end
+  end
+end
+```
 
 ## The Step Class DSL
 
