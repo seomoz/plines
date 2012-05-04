@@ -241,6 +241,17 @@ job_batch.cancel!
 job_batch.resolve_external_dependency :await_turkey_is_ready_for_pickup_notice
 ```
 
+Plines sets expiration on the redis keys it uses to track job batches as
+soon as the job batch is completed or canceled. By default, the
+expiration is set to 6 months.  You can configure it if you wish to
+shorten it:
+
+``` ruby
+MakeThanksgivingDinner.configure do |config|
+  config.data_ttl_in_seconds = 14 * 24 * 60 * 60 # 2 weeks
+end
+```
+
 ## Performing Work
 
 When a job gets run, the `#perform` instance method of your step class
@@ -266,7 +277,7 @@ end
 ```
 
 Plines also supports a middleware stack that wraps your `perform` method.
-To create a middleware, define a module with a `around_perform` method:
+To create a middleware, define a module with an `around_perform` method:
 
 ``` ruby
 module TimeWork
@@ -301,8 +312,6 @@ You can include as many middleware modules as you like.
   passed.
 * Once the timeout is in place, provide a means in the job to know
   whether or not the job's dependencies have been fulfilled.
-* Add expiration to redis keys that store batch data so it's not kept
-  around forever.
 * Provide a means to tag all Qless jobs in the batch.
 * Provide a means to configure the redis connection. Currently,
   `Redis.connect` is used, which uses the `REDIS_URL` environment
