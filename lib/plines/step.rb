@@ -99,6 +99,8 @@ module Plines
 
       options[:priority] = qless_options.priority if qless_options.priority
       options[:priority] ||= 0
+      options[:retries] = qless_options.retries if qless_options.retries
+      options[:retries] ||= 0
       options[:tags] = Array(options[:tags]) | qless_options.tags
 
       queue.put(self, data, options)
@@ -154,8 +156,8 @@ module Plines
       end
     end
 
-    QlessJobOptions = Struct.new(:tags, :priority, :queue) do
-      def initialize(*args)
+    QlessJobOptions = Struct.new(:tags, :priority, :queue, :retries) do
+      def initialize
         super
         self.queue ||= :plines
         self.tags ||= []

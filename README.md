@@ -131,6 +131,7 @@ module MakeThanksgivingDinner
       qless.queue = :make_stuffing
       qless.tags = [:foo, :bar]
       qless.priority = -10
+      qless.retries = 7
     end
   end
 

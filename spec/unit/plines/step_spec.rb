@@ -160,6 +160,26 @@ module Plines
         enqueue.queue.should eq("plines")
       end
 
+      it 'enqueues the job with the configured retry count' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.retries = 9
+          end
+        end
+
+        enqueue.retries.should eq(9)
+      end
+
+      it 'enqueues the job with the passed retry count if none is configured' do
+        step_class(:A)
+        enqueue(retries: 12).retries.should eq(12)
+      end
+
+      it 'enqueues the job with a retry count of 0 if none is passed or configured' do
+        step_class(:A)
+        enqueue.retries.should eq(0)
+      end
+
       it 'enqueues the job with the configured priority' do
         step_class(:A) do
           qless_options do |qless|
