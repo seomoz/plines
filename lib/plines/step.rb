@@ -84,10 +84,24 @@ module Plines
       @external_dependencies ||= Set.new
     end
 
-    def qless_queue
-      external_dependencies.any? ?
-        pipeline.awaiting_external_dependency_queue :
-        pipeline.default_queue
+    def qless_options
+      @qless_options ||= QlessJobOptions.new
+      yield @qless_options if block_given?
+      @qless_options
+    end
+
+    def enqueue_qless_job(data, options = {})
+      queue = if external_dependencies.any?
+        pipeline.awaiting_external_dependency_queue
+      else
+        pipeline.qless.queue(qless_options.queue)
+      end
+
+      options[:priority] = qless_options.priority if qless_options.priority
+      options[:priority] ||= 0
+      options[:tags] = Array(options[:tags]) | qless_options.tags
+
+      queue.put(self, data, options)
     end
 
   private
@@ -137,6 +151,18 @@ module Plines
 
       def around_perform
         perform
+      end
+    end
+
+    QlessJobOptions = Struct.new(:tags, :priority, :queue) do
+      def initialize(*args)
+        super
+        self.queue ||= :plines
+        self.tags ||= []
+      end
+
+      def tag=(value)
+        self.tags = Array(value)
       end
     end
 

@@ -111,15 +111,99 @@ module Plines
       end
     end
 
-    describe "#qless_queue" do
-      it 'returns the default qless queue when it has no external dependencies' do
-        step_class(:A)
-        P::A.qless_queue.should be(P.default_queue)
+    describe "#enqueue_qless_job", :redis do
+      def enqueue(options = {})
+        data = options.delete(:data) || {}
+        jid = P::A.enqueue_qless_job(data, options)
+        P.qless.job(jid)
       end
 
-      it 'returns the awaiting_external_dependency_queue when it has external dependencies' do
-        step_class(:A) { has_external_dependency :foo }
-        P::A.qless_queue.should be(P.awaiting_external_dependency_queue)
+      def queue(name)
+        P.qless.queue(name)
+      end
+
+      it 'enqueues the job with the passed dependencies' do
+        step_class(:A)
+        jid = queue(:foo).put(P::A, {})
+        job = enqueue(depends: [jid])
+        job.dependencies.should eq([jid])
+      end
+
+      it 'enqueues the job with the passed data' do
+        step_class(:A)
+        enqueue(data: { "a" => 5 }).data.should eq("a" => 5)
+      end
+
+      it 'enqueues the job to the configured queue' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.queue = "special"
+          end
+        end
+
+        enqueue.queue.should eq("special")
+      end
+
+      it 'enqueues jobs with external dependencies to the awaiting queue even if a queue is configured' do
+        step_class(:A) do
+          has_external_dependency :foo
+          qless_options do |qless|
+            qless.queue = "special"
+          end
+        end
+
+        enqueue.queue.should eq(P.awaiting_external_dependency_queue.name)
+      end
+
+      it 'enqueues the job to the "plines" queue if no queue is configured' do
+        step_class(:A)
+        enqueue.queue.should eq("plines")
+      end
+
+      it 'enqueues the job with the configured priority' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.priority = 100
+          end
+        end
+
+        enqueue(priority: 12).priority.should eq(100)
+      end
+
+      it 'enqueues the job with the passed priority if none is configured' do
+        step_class(:A)
+        enqueue(priority: 12).priority.should eq(12)
+      end
+
+      it 'enqueues the job with no priority if none is configured or passed' do
+        step_class(:A)
+        enqueue.priority.should eq(0)
+      end
+
+      it 'enqueues the job with the set union of the configured and passed tags' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.tags = ["mine"]
+          end
+        end
+
+        enqueue.tags.should eq(["mine"])
+        enqueue(tags: ['foo', 'mine', 'bar']).tags.should =~ %w[ foo bar mine ]
+      end
+
+      it 'also supports the singular #tag API' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.tag = "mine"
+          end
+        end
+
+        enqueue.tags.should eq(["mine"])
+      end
+
+      it "returns the jid" do
+        step_class(:A)
+        P::A.enqueue_qless_job({}).should match(/\A[a-f0-9]{32}\z/)
       end
     end
 

@@ -90,13 +90,11 @@ module MyProcessingPipeline
     # will probably want to set it to something shorter (like 2 weeks)
     config.data_ttl_in_seconds = 14 * 24 * 60 * 60
 
-    # Use this callback to set additional qless job options (such as
-    # tags and priority).
+    # Use this callback to set additional global qless job
+    # options (such as tags and priority). You can also set
+    # options on an individual step class (see below).
     config.qless_job_options do |job|
-      { tags: [job.data[:user_id]] }.tap do |options|
-        # Make MyImportantJob have a priority that will make it run sooner.
-        options[:priority] = -1 if job.klass == MyImportantJob
-      end
+      { tags: [job.data[:user_id]] }
     end
   end
 end
@@ -126,6 +124,14 @@ module MakeThanksgivingDinner
   # depended_on_by_all_steps declaration above.
   class MakeStuffing
     extend Plines::Step
+
+    # qless_options lets you set qless job options for this step.
+    qless_options do |qless|
+      # By default, jobs are enqueued to the :plines queue but you can override it
+      qless.queue = :make_stuffing
+      qless.tags = [:foo, :bar]
+      qless.priority = -10
+    end
   end
 
   class PickupTurkey

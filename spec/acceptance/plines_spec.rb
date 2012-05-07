@@ -13,6 +13,11 @@ describe Plines, :redis do
         extend Plines::Step
         depended_on_by_all_steps
 
+        qless_options do |q|
+          q.queue = :groceries
+          q.priority = -10
+        end
+
         def perform
           MakeThanksgivingDinner.performed_steps << :buy_groceries
         end
@@ -92,7 +97,8 @@ describe Plines, :redis do
 
   after { Object.send(:remove_const, :MakeThanksgivingDinner) }
 
-  let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue]) }
+  let(:grocieries_queue) { MakeThanksgivingDinner.qless.queue(:groceries) }
+  let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
   let(:worker) { Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver) }
 
   RSpec::Matchers.define :be_before do |expected|
@@ -161,7 +167,10 @@ describe Plines, :redis do
 
   it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
     Timecop.freeze(start_time) { enqueue_jobs }
-    MakeThanksgivingDinner.default_queue.peek.tags.should eq(["Smith"])
+    grocieries_queue.peek.tags.should eq(["Smith"])
+    job = grocieries_queue.peek
+    job.klass.to_s.should eq("MakeThanksgivingDinner::BuyGroceries")
+    job.priority.should eq(-10)
     Timecop.freeze(end_time) { worker.work(0) }
 
     steps = MakeThanksgivingDinner.performed_steps.values
@@ -191,7 +200,7 @@ describe Plines, :redis do
       end
     end
 
-    MakeThanksgivingDinner.default_queue.length.should eq(1)
+    grocieries_queue.length.should eq(1)
     smith_batch.should_not be_cancelled
     worker.work(0)
 
