@@ -111,6 +111,19 @@ module Plines
       end
     end
 
+    describe "#processing_queue" do
+      it 'returns a Qless::Queue object for the configured queue' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.queue = "special"
+          end
+        end
+
+        P::A.processing_queue.should be_a(Qless::Queue)
+        P::A.processing_queue.name.should eq("special")
+      end
+    end
+
     describe "#enqueue_qless_job", :redis do
       def enqueue(options = {})
         data = options.delete(:data) || {}

@@ -94,7 +94,7 @@ module Plines
       queue = if external_dependencies.any?
         pipeline.awaiting_external_dependency_queue
       else
-        pipeline.qless.queue(qless_options.queue)
+        processing_queue
       end
 
       options[:priority] = qless_options.priority if qless_options.priority
@@ -104,6 +104,10 @@ module Plines
       options[:tags] = Array(options[:tags]) | qless_options.tags
 
       queue.put(self, data, options)
+    end
+
+    def processing_queue
+      @processing_queue ||= pipeline.qless.queue(qless_options.queue)
     end
 
   private
