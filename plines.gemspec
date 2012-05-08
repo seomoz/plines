@@ -14,7 +14,7 @@ Gem::Specification.new do |gem|
   gem.version       = Plines::VERSION
 
   gem.add_dependency 'redis-objects', '~> 0.5.2'
-  gem.add_development_dependency 'rspec', '~> 2.9'
+  gem.add_development_dependency 'rspec', '~> 2.10'
   gem.add_development_dependency 'rspec-fire', '~> 0.4'
   gem.add_development_dependency 'rake', '~> 0.9.2.2'
   gem.add_development_dependency 'debugger', '~> 1.1.1'
