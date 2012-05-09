@@ -72,7 +72,7 @@ module Plines
         P.qless.job(jid)
       end
 
-      it 'enqueues a job with wait_up_to delay' do
+      it 'enqueues a timeout job with wait_up_to delay' do
         now  = Time.now
         Time.stub(:now) { now }
 
@@ -88,6 +88,13 @@ module Plines
         Time.stub(:now) { now + 3001 }
         P.default_queue.peek.jid.should eq(jid)
         scheduled_job_jids.should_not include(jid)
+      end
+
+      it 'enqueues the timeout jobs with a high priority so that they run right away' do
+        step_class(:D) { has_external_dependency :bar, wait_up_to: 3000 }
+        enqueuer.enqueue_jobs
+        scheduled_job = job_for(scheduled_job_jids.first)
+        scheduled_job.priority.should eq(JobEnqueuer::TIMEOUT_JOB_PRIORITY)
       end
 
       it 'enqueues a single job with multiple jids if multiple steps have the same external dependency and wait_up_to setting' do

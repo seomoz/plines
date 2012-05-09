@@ -375,7 +375,6 @@ You can include as many middleware modules as you like.
 * Cancel scheduled timeout jobs when dependencies are met.
 * Provide a query API in the job for knowing what dependencies were
   timed out.
-* Ensure the timeout jobs get a high priority.
 
 ## Contributing
 

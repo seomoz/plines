@@ -48,6 +48,8 @@ module Plines
       end
     end
 
+    TIMEOUT_JOB_PRIORITY = -999999 # an arbitrary high priority
+
     def enqueue_external_dependency_timeouts
       external_dep_timeouts.each do |tk, jobs|
         job_ids = jobs.map { |k| jids[k] }
@@ -55,7 +57,8 @@ module Plines
           @job_batch, tk.dep_name, job_ids
 
         jobs.first.processing_queue.put \
-          ExternalDependencyTimeout, job_data, delay: tk.timeout
+          ExternalDependencyTimeout, job_data,
+          delay: tk.timeout, priority: TIMEOUT_JOB_PRIORITY
       end
     end
 
