@@ -83,10 +83,13 @@ module Plines
         job = job_for(jid)
         job.klass.to_s.should eq("Plines::ExternalDependencyTimeout")
         job.data.fetch("dep_name").should eq("bar")
+        job.state.should eq("scheduled")
         P.default_queue.peek.should be_nil
 
         Time.stub(:now) { now + 3001 }
-        P.default_queue.peek.jid.should eq(jid)
+        job = P.default_queue.peek
+        job.state.should eq("waiting")
+        job.jid.should eq(jid)
         scheduled_job_jids.should_not include(jid)
       end
 
