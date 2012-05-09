@@ -78,7 +78,7 @@ module Plines
         k == "_job_batch_id"
       end)
 
-      new(batch, job_data).send(:around_perform)
+      new(batch, job_data, qless_job.jid).send(:around_perform)
 
       batch.mark_job_as_complete(qless_job.jid)
     end
@@ -151,15 +151,21 @@ module Plines
     module InstanceMethods
       attr_reader :job_data, :job_batch
 
-      def initialize(job_batch, job_data)
+      def initialize(job_batch, job_data, jid)
         @job_batch = job_batch
         @job_data = job_data
+        @enqueued_job = EnqueuedJob.new(jid)
       end
 
     private
 
       def around_perform
         perform
+      end
+
+      def unresolved_external_dependencies
+        @unresolved_external_dependencies ||=
+          @enqueued_job.unresolved_external_dependencies
       end
     end
 

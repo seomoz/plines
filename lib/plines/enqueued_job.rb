@@ -39,6 +39,10 @@ module Plines
       ).map(&:to_sym)
     end
 
+    def unresolved_external_dependencies
+      pending_ext_deps.union(timed_out_ext_deps).map(&:to_sym)
+    end
+
     def resolve_external_dependency(name)
       update_external_dependency(
         name, resolved_ext_deps, pending_ext_deps, timed_out_ext_deps

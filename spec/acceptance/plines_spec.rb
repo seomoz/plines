@@ -92,6 +92,10 @@ describe Plines, :redis do
       def poured_drinks
         @poured_drinks ||= Redis::List.new("make_thanksgiving_dinner:poured_drinks")
       end
+
+      def unresolved_external_dependencies
+        @unresolved_external_dependencies ||= Redis::List.new("make_thanksgiving_dinner:unresolved_external_dependencies")
+      end
     end
   end
 
@@ -237,14 +241,30 @@ describe Plines, :redis do
 
   it "can timeout external dependencies" do
     MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call, wait_up_to: 0.3 # seconds
+    MakeThanksgivingDinner::PickupTurkey.class_eval do
+      include Module.new {
+        def around_perform
+          unresolved_external_dependencies.each do |d|
+            MakeThanksgivingDinner.unresolved_external_dependencies << d
+          end
+
+          super
+        end
+      }
+    end
 
     enqueue_jobs
     worker.work(0)
 
+    MakeThanksgivingDinner.qless.should have_no_failures
+    MakeThanksgivingDinner.unresolved_external_dependencies.values.should_not include("await_turkey_ready_call")
     MakeThanksgivingDinner.performed_steps.values.should_not include("pickup_turkey")
-    sleep 0.3 # so the timeout occurs
 
+    sleep 0.3 # so the timeout occurs
     worker.work(0)
+    MakeThanksgivingDinner.qless.should have_no_failures
+
+    MakeThanksgivingDinner.unresolved_external_dependencies.values.should include("await_turkey_ready_call")
     MakeThanksgivingDinner.performed_steps.values.should include("pickup_turkey")
   end
 

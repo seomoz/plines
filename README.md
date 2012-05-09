@@ -332,6 +332,19 @@ module MakeThanksgivingDinner
       # The job_batch instance this job is a part of is available as
       # well, so you can do things like cancel the batch.
       job_batch.cancel!
+
+      # External dependencies may be unresolved if it timed out (see above).
+      # #unresolved_external_dependencies returns an array of symbols,
+      # listing the external dependencies that are unresolved.
+      #
+      # Note that this does not necessarily indicate whether or not an
+      # external dependency timed out; it may have timed out, but then
+      # got resolved before this job ran.
+      # In addition, pending external dependencies are included (e.g.
+      # if the job was manually moved into the processing queue)
+      if unresolved_external_dependencies.any?
+        # do something different because there's an unresolved dependency
+      end
     end
   end
 end
@@ -373,8 +386,6 @@ You can include as many middleware modules as you like.
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.
 * Cancel scheduled timeout jobs when dependencies are met.
-* Provide a query API in the job for knowing what dependencies were
-  timed out.
 
 ## Contributing
 

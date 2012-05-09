@@ -314,10 +314,14 @@ module Plines
       describe "#perform", :redis do
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
         let(:job_batch) { JobBatch.new(pipeline_module, "abc:1") }
+        let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
         before do
+          fire_replaced_class_double("Plines::EnqueuedJob") # so we don't have to load it
+
           job_batch.pending_job_jids << qless_job.jid
           JobBatch.any_instance.stub(:set_expiration!)
+          Plines::EnqueuedJob.stub(new: enqueued_job)
         end
 
         it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
@@ -344,6 +348,20 @@ module Plines
           P::A.perform(qless_job)
           j_batch.should eq(job_batch)
           data_hash.should_not have_key("_job_batch_id")
+        end
+
+        it "makes the unresolved external dependencies available in the perform instance method" do
+          enqueued_job.stub(unresolved_external_dependencies: [:foo, :bar])
+
+          unresolved_ext_deps = []
+          step_class(:A) do
+            define_method(:perform) do
+              unresolved_ext_deps = unresolved_external_dependencies
+            end
+          end
+
+          P::A.perform(qless_job)
+          unresolved_ext_deps.should eq([:foo, :bar])
         end
 
         it "marks the job as complete in the job batch" do

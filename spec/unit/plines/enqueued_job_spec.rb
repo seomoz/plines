@@ -45,6 +45,20 @@ module Plines
       end
     end
 
+    describe "#unresolved_external_dependencies" do
+      it "returns pending and timed out external dependencies but not resolved ones" do
+        job = EnqueuedJob.create("abc", :foo, :bar, :bazz)
+        job.resolve_external_dependency(:foo)
+        job.timeout_external_dependency(:bazz)
+
+        job.pending_external_dependencies.should_not be_empty
+        job.resolved_external_dependencies.should_not be_empty
+        job.timed_out_external_dependencies.should_not be_empty
+
+        job.unresolved_external_dependencies.should =~ [:bar, :bazz]
+      end
+    end
+
     describe "#declared_redis_object_keys" do
       it 'returns the keys for each owned object' do
         job = EnqueuedJob.create("abc", :foo, :bar, :bazz)
