@@ -294,7 +294,7 @@ MakeThanksgivingDinner.configure do |config|
 end
 ```
 
-## Dependency Timeouts
+## External Dependency Timeouts
 
 Under normal configuration, no job will run until all of its
 dependencies have been met. However, plines provides support
@@ -312,6 +312,40 @@ end
 With this configuration, Plines will schedule a Qless job to run in
 3 hours that will timeout the `:my_async_service` external dependency,
 allowing the `MyStep` job to run without the dependency being resolved.
+
+## Step Dependency Timeouts (TODO)
+
+Plines does not yet support step dependency timeouts; however,
+Patrick and I (Myron) have thought a fair bit about it and have
+come up with what we think is the right way to do it.  I'm documenting
+it here so that I can move on to work on other things, but retain
+the design we came up with.
+
+Step dependency timeouts are declared similarly to external dependency timeouts:
+
+``` ruby
+module MyPipeline
+  class MyStep
+    extend Plines::Step
+    depends_on :SomeOtherStep, wait_up_to: 2.hours
+    qless_options do |qless|
+      qless.queue = :awesome
+    end
+  end
+end
+```
+
+Step dependency timeouts work in a similar fashion to external
+dependency timeouts (e.g. by scheduling a job at a high priority
+that will time out the dependency once the delay elapses). However,
+we don't want timeouts to occur because the `:awesome` queue is
+backed up more than 2 hours. The timeout should only occur because the
+job itself took too long to run, or failed and did not get retried, or
+failed all of its retries. Thus, the scheduled timeout job should not be
+enqueued until SomeOtherStep is popped off the queue.  Right before the
+`#perform` method is called, Plines will enqueue a scheduled timeout
+job. If the perform method completes successfully, the scheduled job
+will get cancelled.
 
 ## Performing Work
 
@@ -381,7 +415,7 @@ You can include as many middleware modules as you like.
 
 ## TODO
 
-* Provide a means to "timeout" unresolved job dependencies.
+* Implement the step dependency timeout schema described above.
 * Provide a means to configure the redis connection. Currently,
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.
