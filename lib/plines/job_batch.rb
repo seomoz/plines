@@ -54,11 +54,15 @@ module Plines
     end
 
     def resolve_external_dependency(dep_name)
-      update_external_dependency(dep_name, :resolve_external_dependency, external_dependency_sets[dep_name])
+      jids = external_dependency_sets[dep_name]
+
+      update_external_dependency \
+        dep_name, :resolve_external_dependency, jids
     end
 
     def timeout_external_dependency(dep_name, jids)
-      update_external_dependency(dep_name, :timeout_external_dependency, Array(jids))
+      update_external_dependency \
+        dep_name, :timeout_external_dependency, Array(jids)
     end
 
     def created_at

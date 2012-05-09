@@ -235,6 +235,19 @@ describe Plines, :redis do
     should_expire_keys
   end
 
+  it "can timeout external dependencies" do
+    MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call, wait_up_to: 0.3 # seconds
+
+    enqueue_jobs
+    worker.work(0)
+
+    MakeThanksgivingDinner.performed_steps.values.should_not include("pickup_turkey")
+    sleep 0.3 # so the timeout occurs
+
+    worker.work(0)
+    MakeThanksgivingDinner.performed_steps.values.should include("pickup_turkey")
+  end
+
   it "supports middleware modules" do
     MakeThanksgivingDinner::PickupTurkey.class_eval do
       include Module.new {

@@ -142,7 +142,7 @@ module MakeThanksgivingDinner
     # before this step is allowed to proceed. They are intended for
     # use when a step has a dependency on data from an external
     # asynchronous system that operates on its own schedule.
-    has_external_dependency :await_turkey_is_ready_for_pickup_notice
+    has_external_dependency :await_turkey_is_ready_for_pickup_notice, wait_up_to: 12.hours
   end
 
   class PrepareTurkey
@@ -151,7 +151,7 @@ module MakeThanksgivingDinner
     # Declares that the PrepareTurkey job cannot run until the
     # PickupTurkey has run first. Note that the step class name
     # is relative to the pipeline module namespace.
-    depends_on :PickupTurkey
+    depends_on :PickupTurkey, wait_up_to: 6.hours
   end
 
   class MakePie
@@ -294,6 +294,25 @@ MakeThanksgivingDinner.configure do |config|
 end
 ```
 
+## Dependency Timeouts
+
+Under normal configuration, no job will run until all of its
+dependencies have been met. However, plines provides support
+for timing out an external dependency:
+
+``` ruby
+module MyPipeline
+  class MyStep
+    extend Plines::Step
+    has_external_dependency :my_async_service, wait_up_to: 3.hours
+  end
+end
+```
+
+With this configuration, Plines will schedule a Qless job to run in
+3 hours that will timeout the `:my_async_service` external dependency,
+allowing the `MyStep` job to run without the dependency being resolved.
+
 ## Performing Work
 
 When a job gets run, the `#perform` instance method of your step class
@@ -349,14 +368,14 @@ You can include as many middleware modules as you like.
 
 ## TODO
 
-* Provide a means to "timeout" a job batch: i.e. have jobs with
-  unfulfilled dependencies proceed once a certain amount of time has
-  passed.
-* Once the timeout is in place, provide a means in the job to know
-  whether or not the job's dependencies have been fulfilled.
+* Provide a means to "timeout" unresolved job dependencies.
 * Provide a means to configure the redis connection. Currently,
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.
+* Cancel scheduled timeout jobs when dependencies are met.
+* Provide a query API in the job for knowing what dependencies were
+  timed out.
+* Ensure the timeout jobs get a high priority.
 
 ## Contributing
 

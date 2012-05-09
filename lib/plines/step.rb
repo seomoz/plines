@@ -41,7 +41,10 @@ module Plines
     end
 
     def has_external_dependency(*external_deps)
-      external_dependencies.merge(external_deps)
+      options = external_deps.last.is_a?(Hash) ? external_deps.pop : {}
+      external_deps.each do |dep|
+        external_dependencies[dep].merge!(options)
+      end
     end
 
     def has_external_dependencies?
@@ -81,7 +84,7 @@ module Plines
     end
 
     def external_dependencies
-      @external_dependencies ||= Set.new
+      @external_dependencies ||= Hash.new { |h, k| h[k] = {} }
     end
 
     def qless_options

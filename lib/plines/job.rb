@@ -5,7 +5,8 @@ module Plines
   Job = Struct.new(:klass, :data) do
     extend Forwardable
     attr_reader :dependencies, :dependents
-    def_delegators :klass, :qless_queue, :external_dependencies
+    def_delegators :klass, :qless_queue, :external_dependencies,
+                           :processing_queue
 
     def initialize(*args)
       super
