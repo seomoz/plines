@@ -166,6 +166,11 @@ describe Plines, :redis do
     plines_temporary_redis_key_ttls.should eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
   end
 
+  def process_work
+    worker.work(0)
+    MakeThanksgivingDinner.qless.should have_no_failures
+  end
+
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
   let(:end_time)   { Time.new(2012, 5, 1, 9, 30) }
 
@@ -175,7 +180,7 @@ describe Plines, :redis do
     job = grocieries_queue.peek
     job.klass.to_s.should eq("MakeThanksgivingDinner::BuyGroceries")
     job.priority.should eq(-10)
-    Timecop.freeze(end_time) { worker.work(0) }
+    Timecop.freeze(end_time) { process_work }
 
     steps = MakeThanksgivingDinner.performed_steps.values
     steps.should have(10).entries
@@ -206,9 +211,8 @@ describe Plines, :redis do
 
     grocieries_queue.length.should eq(1)
     smith_batch.should_not be_cancelled
-    worker.work(0)
+    process_work
 
-    MakeThanksgivingDinner.qless.should have_no_failures
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have_at_most(7).entries
 
@@ -222,16 +226,15 @@ describe Plines, :redis do
     MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call
 
     enqueue_jobs
-    worker.work(0)
+    process_work
 
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have(5).entries
     steps.should_not include("pickup_turkey")
 
     smith_batch.resolve_external_dependency :await_turkey_ready_call
-    worker.work(0)
+    process_work
 
-    MakeThanksgivingDinner.qless.should have_no_failures
     steps = MakeThanksgivingDinner.performed_steps
     steps.should have(10).entries
     steps.should include("pickup_turkey")
@@ -254,15 +257,13 @@ describe Plines, :redis do
     end
 
     enqueue_jobs
-    worker.work(0)
+    process_work
 
-    MakeThanksgivingDinner.qless.should have_no_failures
     MakeThanksgivingDinner.unresolved_external_dependencies.values.should_not include("await_turkey_ready_call")
     MakeThanksgivingDinner.performed_steps.values.should_not include("pickup_turkey")
 
     sleep 0.3 # so the timeout occurs
-    worker.work(0)
-    MakeThanksgivingDinner.qless.should have_no_failures
+    process_work
 
     MakeThanksgivingDinner.unresolved_external_dependencies.values.should include("await_turkey_ready_call")
     MakeThanksgivingDinner.performed_steps.values.should include("pickup_turkey")
@@ -280,7 +281,7 @@ describe Plines, :redis do
     end
 
     enqueue_jobs
-    worker.work(0)
+    process_work
 
     steps = MakeThanksgivingDinner.performed_steps
     steps.grep(/pickup_turkey/).should eq(%w[ before_pickup_turkey pickup_turkey after_pickup_turkey ])
