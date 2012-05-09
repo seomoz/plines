@@ -45,6 +45,13 @@ module Plines
         pipeline_module.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
         EnqueuedJob.new("abc").pending_external_dependencies.should =~ [:bar, :bazz]
       end
+
+      it 'returns the newly added job' do
+        batch = JobBatch.new(pipeline_module, "foo")
+        job = batch.add_job "abc", :bar, :bazz
+        job.should be_an(EnqueuedJob)
+        job.jid.should eq("abc")
+      end
     end
 
     describe "#job_jids" do

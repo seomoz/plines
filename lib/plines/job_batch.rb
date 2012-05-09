@@ -20,10 +20,10 @@ module Plines
 
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
-      EnqueuedJob.create(jid, *external_dependencies)
       external_dependencies.each do |dep|
         external_dependency_sets[dep] << jid
       end
+      EnqueuedJob.create(jid, *external_dependencies)
     end
 
     def job_jids
