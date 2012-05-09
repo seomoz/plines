@@ -54,12 +54,11 @@ module Plines
     end
 
     def resolve_external_dependency(dep_name)
-      external_dependency_sets[dep_name].each do |jid|
-        EnqueuedJob.new(jid).resolve_external_dependency(dep_name) do
-          job = pipeline.qless.job(jid)
-          job.move(pipeline.default_queue.name) if job
-        end
-      end
+      update_external_dependency(dep_name, :resolve_external_dependency, external_dependency_sets[dep_name])
+    end
+
+    def timeout_external_dependency(dep_name, jids)
+      update_external_dependency(dep_name, :timeout_external_dependency, Array(jids))
     end
 
     def created_at
@@ -81,6 +80,15 @@ module Plines
     end
 
   private
+
+    def update_external_dependency(dep_name, meth, jids)
+      jids.each do |jid|
+        EnqueuedJob.new(jid).send(meth, dep_name) do
+          job = pipeline.qless.job(jid)
+          job.move(pipeline.default_queue.name) if job
+        end
+      end
+    end
 
     def _complete?(pending_size, complete_size)
       pending_size == 0 && complete_size > 0
