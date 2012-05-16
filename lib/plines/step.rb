@@ -110,7 +110,7 @@ module Plines
     end
 
     def processing_queue
-      @processing_queue ||= pipeline.qless.queue(qless_options.queue)
+      @processing_queue ||= pipeline.qless.queues[qless_options.queue]
     end
 
   private

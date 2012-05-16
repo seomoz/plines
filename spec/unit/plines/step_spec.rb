@@ -128,11 +128,11 @@ module Plines
       def enqueue(options = {})
         data = options.delete(:data) || {}
         jid = P::A.enqueue_qless_job(data, options)
-        P.qless.job(jid)
+        P.qless.jobs[jid]
       end
 
       def queue(name)
-        P.qless.queue(name)
+        P.qless.queues[name]
       end
 
       it 'enqueues the job with the passed dependencies' do
@@ -180,17 +180,17 @@ module Plines
           end
         end
 
-        enqueue.retries.should eq(9)
+        enqueue.original_retries.should eq(9)
       end
 
       it 'enqueues the job with the passed retry count if none is configured' do
         step_class(:A)
-        enqueue(retries: 12).retries.should eq(12)
+        enqueue(retries: 12).original_retries.should eq(12)
       end
 
       it 'enqueues the job with a retry count of 0 if none is passed or configured' do
         step_class(:A)
-        enqueue.retries.should eq(0)
+        enqueue.original_retries.should eq(0)
       end
 
       it 'enqueues the job with the configured priority' do

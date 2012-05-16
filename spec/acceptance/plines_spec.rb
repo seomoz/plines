@@ -101,7 +101,7 @@ describe Plines, :redis do
 
   after { Object.send(:remove_const, :MakeThanksgivingDinner) }
 
-  let(:grocieries_queue) { MakeThanksgivingDinner.qless.queue(:groceries) }
+  let(:grocieries_queue) { MakeThanksgivingDinner.qless.queues[:groceries] }
   let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
   let(:worker) { Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver) }
 
@@ -117,7 +117,7 @@ describe Plines, :redis do
 
   RSpec::Matchers.define :have_no_failures do
     match do |actual|
-      actual.failed.size == 0
+      actual.jobs.failed.size == 0
     end
 
     failure_message_for_should do |actual|
@@ -125,7 +125,7 @@ describe Plines, :redis do
     end
 
     def failure_details_for(queue)
-      failed_jobs = queue.failed.keys.inject([]) { |failures, type| failures + actual.failed(type).fetch('jobs') }
+      failed_jobs = queue.jobs.failed.keys.inject([]) { |failures, type| failures + actual.jobs.failed(type).fetch('jobs') }
       details = failed_jobs.map do |j|
         [j.failure.fetch('group'), j.failure.fetch('message')].join("\n")
       end.join("\n" + '=' * 80)

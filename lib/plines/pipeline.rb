@@ -13,11 +13,11 @@ module Plines
     end
 
     def default_queue
-      @default_queue ||= qless.queue("plines")
+      @default_queue ||= qless.queues["plines"]
     end
 
     def awaiting_external_dependency_queue
-      @awaiting_external_dependency_queue ||= qless.queue("awaiting_ext_dep")
+      @awaiting_external_dependency_queue ||= qless.queues["awaiting_ext_dep"]
     end
 
     def configuration

@@ -65,11 +65,11 @@ module Plines
 
     describe "external_dependency timeout scheduling" do
       def scheduled_job_jids
-        P.default_queue.scheduled
+        P.default_queue.jobs.scheduled
       end
 
       def job_for(jid)
-        P.qless.job(jid)
+        P.qless.jobs[jid]
       end
 
       it 'enqueues a timeout job with wait_up_to delay' do

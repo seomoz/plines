@@ -88,7 +88,7 @@ module Plines
     def update_external_dependency(dep_name, meth, jids)
       jids.each do |jid|
         EnqueuedJob.new(jid).send(meth, dep_name) do
-          job = pipeline.qless.job(jid)
+          job = pipeline.qless.jobs[jid]
           job.move(pipeline.default_queue.name) if job
         end
       end
@@ -125,7 +125,7 @@ module Plines
 
     def cancel_job(jid)
       # Cancelled jobs can no longer be fetched.
-      return unless job = pipeline.qless.job(jid)
+      return unless job = pipeline.qless.jobs[jid]
 
       # Qless doesn't let you cancel a job that has dependents,
       # so we must cancel them first, which will "undepend" the
