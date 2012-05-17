@@ -154,7 +154,7 @@ module Plines
           end
         end
 
-        enqueue.queue.should eq("special")
+        enqueue.queue_name.should eq("special")
       end
 
       it 'enqueues jobs with external dependencies to the awaiting queue even if a queue is configured' do
@@ -165,12 +165,12 @@ module Plines
           end
         end
 
-        enqueue.queue.should eq(P.awaiting_external_dependency_queue.name)
+        enqueue.queue_name.should eq(P.awaiting_external_dependency_queue.name)
       end
 
       it 'enqueues the job to the "plines" queue if no queue is configured' do
         step_class(:A)
-        enqueue.queue.should eq("plines")
+        enqueue.queue_name.should eq("plines")
       end
 
       it 'enqueues the job with the configured retry count' do

@@ -162,7 +162,7 @@ module Plines
       end
 
       def queue_for(jid)
-        pipeline_module.qless.jobs[jid].queue
+        pipeline_module.qless.jobs[jid].queue_name
       end
 
       it 'moves the job into the default queue when it no longer has pending external dependencies' do
