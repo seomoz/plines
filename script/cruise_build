@@ -13,4 +13,7 @@ rvm use 1.9.3@plines --create
 
 bundle install --without os_x
 
+# Ensure cruise is running against the latest dependencies
+bundle update
+
 bundle exec rake cruise --trace
