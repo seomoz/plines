@@ -99,15 +99,31 @@ module Plines
       end
     end
 
-    describe "#has_external_dependencies?" do
+    describe "#has_external_dependencies_for?" do
       it "returns true for a step class that has external dependencies" do
         step_class(:StepA) { has_external_dependency :foo }
-        P::StepA.has_external_dependencies?.should be_true
+        P::StepA.has_external_dependencies_for?(any: 'data').should be_true
       end
 
       it "returns false for a step class that lacks external dependencies" do
         step_class(:StepA)
-        P::StepA.has_external_dependencies?.should be_false
+        P::StepA.has_external_dependencies_for?(any: 'data').should be_false
+      end
+
+      context 'for a step that has external dependencies for only some instances' do
+        step_class(:StepA) do
+          has_external_dependency :foo do |job_data|
+            job_data[:depends_on_foo]
+          end
+        end
+
+        it 'returns true if the block returns true' do
+          P::StepA.has_external_dependencies_for?(depends_on_foo: true).should be_true
+        end
+
+        it 'returns false if the block returns false' do
+          P::StepA.has_external_dependencies_for?(depends_on_foo: false).should be_false
+        end
       end
     end
 
@@ -166,6 +182,17 @@ module Plines
         end
 
         enqueue.queue_name.should eq(P.awaiting_external_dependency_queue.name)
+      end
+
+      it 'enqueues jobs with conditional external dependencies to the correct queue' do
+        step_class(:A) do
+          has_external_dependency :foo do |d|
+            d[:ext]
+          end
+        end
+
+        enqueue(data: { ext: true }).queue_name.should eq(P.awaiting_external_dependency_queue.name)
+        enqueue(data: { ext: false }).queue_name.should eq(P::A.processing_queue.name.to_s)
       end
 
       it 'enqueues the job to the "plines" queue if no queue is configured' do
