@@ -426,6 +426,9 @@ You can include as many middleware modules as you like.
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.
 * Cancel scheduled timeout jobs when dependencies are met.
+* Open source this! It's currently a private github repo, but I think we
+  should plan to open source it.  However, it probably makes sense to
+  actually use it in production first :).
 
 ## Contributing
 
