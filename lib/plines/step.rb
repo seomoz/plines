@@ -40,15 +40,22 @@ module Plines
       @fan_out_block = block
     end
 
-    def has_external_dependency(*external_deps)
+    def has_external_dependency(*external_deps, &block)
       options = external_deps.last.is_a?(Hash) ? external_deps.pop : {}
       external_deps.each do |dep|
-        external_dependencies[dep].merge!(options)
+        external_dependencies[dep].merge!(options.merge(block: block))
       end
     end
 
-    def has_external_dependencies?
-      external_dependencies.any?
+    def has_external_dependencies_for?(data)
+      external_dependencies_for(data).any?
+    end
+
+    def external_dependencies_for(data)
+      external_dependencies.select do |key, opts|
+        block = opts[:block] || Proc.new { true }
+        block.call(data)
+      end
     end
 
     def dependencies_for(job, batch_data)
@@ -94,7 +101,7 @@ module Plines
     end
 
     def enqueue_qless_job(data, options = {})
-      queue = if external_dependencies.any?
+      queue = if has_external_dependencies_for?(data)
         pipeline.awaiting_external_dependency_queue
       else
         processing_queue

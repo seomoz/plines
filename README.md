@@ -142,6 +142,12 @@ module MakeThanksgivingDinner
     # before this step is allowed to proceed. They are intended for
     # use when a step has a dependency on data from an external
     # asynchronous system that operates on its own schedule.
+    #
+    # Note: if you want only some instances of this step to have the
+    # external dependency, than pass a block.  The block will receive
+    # the job data for each job as an argument, and only the jobs for
+    # which the block returns `true` for their data will have the
+    # external dependency.
     has_external_dependency :await_turkey_is_ready_for_pickup_notice, wait_up_to: 12.hours
   end
 
@@ -420,6 +426,9 @@ You can include as many middleware modules as you like.
   `Redis.connect` is used, which uses the `REDIS_URL` environment
   variable, but long term it would be nice to be able to configure it.
 * Cancel scheduled timeout jobs when dependencies are met.
+* Open source this! It's currently a private github repo, but I think we
+  should plan to open source it.  However, it probably makes sense to
+  actually use it in production first :).
 
 ## Contributing
 
