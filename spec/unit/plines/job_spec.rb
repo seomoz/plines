@@ -80,6 +80,33 @@ module Plines
         Job.build(P::StepA, a: 1).should_not be(Job.build(P::StepA, a: 1))
       end
     end
+
+    describe "#external_dependencies" do
+      it 'returns each of the external dependencies of the job' do
+        step_class(:F) do
+          has_external_dependency :foo, :bar
+        end
+
+        j = Job.build(P::F, a: 1)
+        j.external_dependencies.keys.should eq([:foo, :bar])
+      end
+
+      it 'only includes external dependencies for which the conditional block returns true' do
+        step_class(:F) do
+          has_external_dependency(:foo) { |d| d[:foo] }
+          has_external_dependency(:bar) { |d| d[:bar] }
+        end
+
+        j = Job.build(P::F, a: 1)
+        j.external_dependencies.keys.should eq([])
+
+        j = Job.build(P::F, foo: true)
+        j.external_dependencies.keys.should eq([:foo])
+
+        j = Job.build(P::F, foo: true, bar: true)
+        j.external_dependencies.keys.should eq([:foo, :bar])
+      end
+    end
   end
 end
 

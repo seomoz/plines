@@ -155,7 +155,7 @@ describe Plines, :redis do
     MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
     MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones").should be_nil
-    smith_batch.should have(10).job_jids
+    smith_batch.should have_at_least(10).job_jids
     smith_batch.should_not be_complete
 
     MakeThanksgivingDinner.performed_steps.should eq([])
@@ -223,21 +223,36 @@ describe Plines, :redis do
   end
 
   it "supports external dependencies" do
-    MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call
+    MakeThanksgivingDinner::PickupTurkey.class_eval do
+      fan_out do |batch_data|
+        [:small, :big].map do |s|
+          batch_data.merge(size: s)
+        end
+      end
+
+      has_external_dependency :await_big_turkey_ready_call do |job_data|
+        job_data[:size] == :big
+      end
+
+      def perform
+        MakeThanksgivingDinner.performed_steps << "pickup_#{job_data.size}_turkey"
+      end
+    end
 
     enqueue_jobs
     process_work
 
-    steps = MakeThanksgivingDinner.performed_steps
-    steps.should have(5).entries
-    steps.should_not include("pickup_turkey")
+    steps = MakeThanksgivingDinner.performed_steps.values
+    steps.should include("pickup_small_turkey")
+    steps.should_not include("pickup_big_turkey")
+    steps.should have(6).entries
 
-    smith_batch.resolve_external_dependency :await_turkey_ready_call
+    smith_batch.resolve_external_dependency :await_big_turkey_ready_call
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps
-    steps.should have(10).entries
-    steps.should include("pickup_turkey")
+    steps.should have(11).entries
+    steps.should include("pickup_big_turkey")
 
     should_expire_keys
   end
