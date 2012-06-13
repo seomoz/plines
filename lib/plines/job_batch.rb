@@ -1,5 +1,5 @@
 require 'time'
-require 'plines/extensions/redis_objects'
+require 'plines/redis_objects'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
