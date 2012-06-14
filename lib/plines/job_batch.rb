@@ -30,6 +30,13 @@ module Plines
       pending_job_jids | completed_job_jids
     end
 
+    def jobs
+      job_repository = pipeline.qless.jobs
+      job_jids.map do |jid|
+        job_repository[jid]
+      end
+    end
+
     def mark_job_as_complete(jid)
       moved, pending_count, complete_count = redis.multi do
         pending_job_jids.move(jid, completed_job_jids)

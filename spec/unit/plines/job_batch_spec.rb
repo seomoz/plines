@@ -66,6 +66,20 @@ module Plines
       end
     end
 
+    describe "#jobs" do
+      it "returns all the jobs" do
+        batch = JobBatch.new(pipeline_module, "foo") do |jb|
+          jb.add_job("a")
+        end
+
+        jobs = fire_double("Qless::ClientJobs")
+        batch.pipeline.qless.stub(jobs: jobs)
+        jobs.stub(:[]).with("a") { :the_job }
+
+        batch.jobs.should eq([:the_job])
+      end
+    end
+
     describe "#mark_job_as_complete" do
       let!(:batch) { JobBatch.new(pipeline_module, "foo") }
 
