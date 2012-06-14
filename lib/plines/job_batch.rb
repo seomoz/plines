@@ -31,6 +31,10 @@ module Plines
     end
 
     def jobs
+      job_jids.map { |jid| EnqueuedJob.new(jid) }
+    end
+
+    def qless_jobs
       job_repository = pipeline.qless.jobs
       job_jids.map do |jid|
         job_repository[jid]

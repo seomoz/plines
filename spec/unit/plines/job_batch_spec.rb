@@ -66,8 +66,8 @@ module Plines
       end
     end
 
-    describe "#jobs" do
-      it "returns all the jobs" do
+    describe "#qless_jobs" do
+      it "returns all the qless job instances" do
         batch = JobBatch.new(pipeline_module, "foo") do |jb|
           jb.add_job("a")
         end
@@ -76,7 +76,19 @@ module Plines
         batch.pipeline.qless.stub(jobs: jobs)
         jobs.stub(:[]).with("a") { :the_job }
 
-        batch.jobs.should eq([:the_job])
+        batch.qless_jobs.should eq([:the_job])
+      end
+    end
+
+    describe "#jobs" do
+      it "returns all the enqueued job instances" do
+        batch = JobBatch.new(pipeline_module, "foo") do |jb|
+          jb.add_job("a")
+        end
+
+        job = batch.jobs.first
+        job.should be_a(EnqueuedJob)
+        job.jid.should eq("a")
       end
     end
 
