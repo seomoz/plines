@@ -97,6 +97,11 @@ module Plines
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
         MyPipeline.enqueue_jobs_for("a" => "foo")
       end
+
+      it 'returns the job batch' do
+        MyPipeline.configuration.batch_list_key { |data| data["a"] }
+        MyPipeline.enqueue_jobs_for("a" => "foo").should be_a(JobBatch)
+      end
     end
 
     describe ".root_dependency" do
