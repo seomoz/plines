@@ -81,9 +81,7 @@ module Plines
 
     def perform(qless_job)
       batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
-      job_data = DynamicStruct.new(qless_job.data.reject do |k, v|
-        k == "_job_batch_id"
-      end)
+      job_data = DynamicStruct.new(qless_job.data)
 
       new(batch, job_data, qless_job.jid).send(:around_perform)
 

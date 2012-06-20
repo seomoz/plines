@@ -374,7 +374,7 @@ module Plines
 
           P::A.perform(qless_job)
           j_batch.should eq(job_batch)
-          data_hash.should_not have_key("_job_batch_id")
+          data_hash.should have_key("_job_batch_id")
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
