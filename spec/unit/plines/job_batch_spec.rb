@@ -192,7 +192,8 @@ module Plines
       end
 
       it 'moves the job into the default queue when it no longer has pending external dependencies' do
-        jid = pipeline_module.awaiting_external_dependency_queue.put('Klass', {})
+        stub_const('Klass', Class.new)
+        jid = pipeline_module.awaiting_external_dependency_queue.put(Klass, {})
         batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job(jid, :foo, :bar)
 
