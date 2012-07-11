@@ -1,7 +1,7 @@
 # Project-specific configuration for CruiseControl.rb
 Project.configure do |project|
   # Send email notifications about broken and fixed builds (default: send to nobody)
-  project.email_notifier.emails = ['turbo@seomoz.org']
+  project.email_notifier.emails = ['moz-platform-dev@seomoz.org']
 
   # Set email 'from' field:
   project.email_notifier.from = 'seomoz@cruise.corp.seomoz.org'
