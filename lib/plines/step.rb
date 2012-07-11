@@ -1,3 +1,5 @@
+require 'forwardable'
+
 module Plines
   # This is the module that should be included in any class that
   # is intended to be a Plines step.
@@ -154,7 +156,9 @@ module Plines
     end
 
     module InstanceMethods
+      extend Forwardable
       attr_reader :job_data, :job_batch
+      def_delegator "self.class", :enqueue_qless_job
 
       def initialize(job_batch, job_data, jid)
         @job_batch = job_batch
