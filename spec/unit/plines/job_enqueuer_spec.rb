@@ -61,6 +61,14 @@ module Plines
         b_jid = a.dependents.first
         job_batch.job_jids.should include(a.jid, b_jid)
       end
+
+      it 'adds all the jids to the job batch before actually enqueing any jobs' do
+        enqueuer.should_receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
+          job_batch.job_jids.should include(jid, *dependency_jids)
+        end
+
+        enqueuer.enqueue_jobs
+      end
     end
 
     describe "external_dependency timeout scheduling" do
