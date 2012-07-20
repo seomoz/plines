@@ -106,6 +106,62 @@ module Plines
 
         expect { graph }.to raise_error(DependencyGraph::CircularDependencyError)
       end
+
+      it 'can return the steps in correct dependency order via an enumerable' do
+        step_class(:A) { depends_on :B, :C, :D }
+        step_class(:B) { depends_on :E }
+
+        step_class(:C) do
+          depends_on :E, :F
+          fan_out do |data|
+            [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
+          end
+        end
+
+        step_class(:D); step_class(:E);
+
+        step_class(:F) do
+          fan_out do |data|
+            [ { a: data[:a] * 1 }, { a: data[:a] * 2 } ]
+          end
+        end
+
+        step_class(:G) { depends_on :D, :E }
+
+        # these steps are totally separate from the above steps
+        step_class(:H) { depends_on :I, :J }
+        step_class(:I)
+        step_class(:J) { depends_on :I }
+
+        # index_for hash will allow quick lookup to determine the index of a step
+        index_for = {}
+        graph.ordered_steps.each_with_index do |step, index|
+          index_for[step] = index
+        end
+
+        index_for[step(P::A)].should > index_for[step(P::B)]
+        index_for[step(P::A)].should > index_for[step(P::C, 11)]
+        index_for[step(P::A)].should > index_for[step(P::C, 12)]
+        index_for[step(P::A)].should > index_for[step(P::D)]
+
+        index_for[step(P::B)].should > index_for[step(P::E)]
+
+        index_for[step(P::C, 11)].should > index_for[step(P::E)]
+        index_for[step(P::C, 11)].should > index_for[step(P::F, 10)]
+        index_for[step(P::C, 11)].should > index_for[step(P::F, 20)]
+
+        index_for[step(P::C, 12)].should > index_for[step(P::E)]
+        index_for[step(P::C, 12)].should > index_for[step(P::F, 10)]
+        index_for[step(P::C, 12)].should > index_for[step(P::F, 20)]
+
+        index_for[step(P::G)].should > index_for[step(P::D)]
+        index_for[step(P::G)].should > index_for[step(P::E)]
+
+        index_for[step(P::H)].should > index_for[step(P::I)]
+        index_for[step(P::H)].should > index_for[step(P::J)]
+
+        index_for[step(P::J)].should > index_for[step(P::I)]
+      end
     end
   end
 end
