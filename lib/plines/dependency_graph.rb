@@ -5,7 +5,7 @@ module Plines
   # Jobs (i.e. Step classes paired with data). The graph
   # takes care of preventing duplicate step instances.
   class DependencyGraph
-    attr_reader :steps
+    attr_reader :steps # FYI, steps is not ordered according to dependencies
 
     # Raised when a circular dependency is detected.
     class CircularDependencyError < StandardError; end
@@ -20,6 +20,15 @@ module Plines
       end
 
       detect_circular_dependencies!
+    end
+
+    def ordered_steps
+      visited = Set.new
+      Enumerator.new do |yielder|
+        steps.each do |step|
+          yield_next_ordered_step_for(step, visited, yielder)
+        end
+      end
     end
 
   private
@@ -45,6 +54,17 @@ module Plines
       step.dependencies.each do |dep|
         depth_first_search_from(dep, current_stack | [step])
       end
+    end
+
+    def yield_next_ordered_step_for(step, visited, yielder)
+      return if visited.include?(step)
+
+      step.dependencies.each do |dependency|
+        yield_next_ordered_step_for(dependency, visited, yielder)
+      end
+
+      visited << step
+      yielder.yield step
     end
   end
 end
