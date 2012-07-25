@@ -363,18 +363,22 @@ module Plines
           foo.should eq("bar")
         end
 
-        it "makes the job_batch available in the perform instance method" do
+        it "makes the job_batch and qless_job available in the perform instance method" do
           j_batch = data_hash = nil
+          qljob = nil
           step_class(:A) do
             define_method(:perform) do
               j_batch = self.job_batch
               data_hash = job_data.to_hash
+              qljob = qless_job
             end
           end
 
           P::A.perform(qless_job)
           j_batch.should eq(job_batch)
           data_hash.should have_key("_job_batch_id")
+
+          qljob.should eq(qless_job)
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do

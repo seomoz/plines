@@ -85,7 +85,7 @@ module Plines
       batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
 
-      new(batch, job_data, qless_job.jid).send(:around_perform)
+      new(batch, job_data, qless_job.jid, qless_job).send(:around_perform)
 
       batch.mark_job_as_complete(qless_job.jid)
     end
@@ -157,12 +157,13 @@ module Plines
 
     module InstanceMethods
       extend Forwardable
-      attr_reader :job_data, :job_batch
+      attr_reader :job_data, :job_batch, :qless_job
       def_delegator "self.class", :enqueue_qless_job
 
-      def initialize(job_batch, job_data, jid)
+      def initialize(job_batch, job_data, jid, qless_job)
         @job_batch = job_batch
         @job_data = job_data
+        @qless_job = qless_job
         @enqueued_job = EnqueuedJob.new(jid)
       end
 
