@@ -4,7 +4,7 @@ rvm:
   - 1.9.2
   - 1.9.3
 before_install:
-  - ./script/travis_redis_install
+  - curl -s https://raw.github.com/seomoz/qless-core/master/scripts/install_and_run_redis_2_6 | sh
 notifications:
   email:
     - moz-platform-dev@seomoz.org
