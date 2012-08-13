@@ -7,4 +7,4 @@ before_install:
   - ./script/travis_redis_install
 notifications:
   email:
-    - proby@seomoz.org
+    - moz-platform-dev@seomoz.org
