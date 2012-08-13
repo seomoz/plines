@@ -35,7 +35,7 @@ module Plines
 
       it "returns 1000 times the data_ttl_in_seconds, rounded to the nearest integer" do
         config.data_ttl_in_seconds = Math::PI
-        config.data_ttl_in_milliseconds.should eq(314199)
+        config.data_ttl_in_milliseconds.should eq(3141)
       end
     end
 
