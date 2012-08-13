@@ -9,8 +9,6 @@ if File.exist?('./config/redis_connection_url.txt')
 end
 
 require_relative '../config/setup_load_paths'
-require 'debugger'
-Debugger.start
 require 'rspec/fire'
 
 RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
