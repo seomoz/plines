@@ -13,5 +13,8 @@ tar xzf redis-2.6.0-rc6.tar.gz
 cd redis-2.6.0-rc6
 make
 
+# daemonize!
+echo "daemonize yes" > redis.conf
+
 # start the 2.6 server
-./src/redis-server
+./src/redis-server redis.conf
