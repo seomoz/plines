@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
 
+REDIS_VERSION=2.6.0-rc6
+
 # shutdown the 2.4 server
 redis-cli shutdown
 
 # download
-wget http://redis.googlecode.com/files/redis-2.6.0-rc6.tar.gz
+wget http://redis.googlecode.com/files/redis-$REDIS_VERSION.tar.gz
 
 # extract
-tar xzf redis-2.6.0-rc6.tar.gz
+tar xzf redis-$REDIS_VERSION.tar.gz
 
 # make
-cd redis-2.6.0-rc6
+cd redis-$REDIS_VERSION
 make
 
 # daemonize!
