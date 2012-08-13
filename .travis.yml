@@ -1,0 +1,8 @@
+language: ruby
+bundler_args: --without extras
+rvm:
+  - 1.9.2
+  - 1.9.3
+notifications:
+  email:
+    - proby@seomoz.org
