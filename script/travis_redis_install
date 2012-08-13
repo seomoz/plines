@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# shutdown the 2.4 server
+redis-cli shutdown
+
+# download
+wget http://redis.googlecode.com/files/redis-2.6.0-rc6.tar.gz
+
+# extract
+tar xzf redis-2.6.0-rc6.tar.gz
+
+# make
+cd redis-2.6.0-rc6
+make
+
+# start the 2.6 server
+./src/redis-server

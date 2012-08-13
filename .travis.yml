@@ -3,6 +3,8 @@ bundler_args: --without extras
 rvm:
   - 1.9.2
   - 1.9.3
+before_install:
+  - ./script/travis_redis_install
 notifications:
   email:
     - proby@seomoz.org
