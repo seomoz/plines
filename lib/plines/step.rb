@@ -140,7 +140,7 @@ module Plines
 
     def each_declared_dependency_job_for(job, batch_data)
       dependency_filters.each do |klass, filter|
-        klass = pipeline.const_get(klass) unless klass.is_a?(Class)
+        klass = pipeline.const_get(klass)
         klass.jobs_for(batch_data).each do |dependency|
           yield dependency if filter[job.data, dependency.data]
         end
@@ -194,8 +194,11 @@ module Plines
     module DependsOnAllSteps
     private
       def dependency_filters
-        klasses = pipeline.step_classes.reject { |c| c == self }
-        Hash[ *klasses.flat_map { |c| [c, default_dependency_filter] } ]
+        pipeline.step_classes.each_with_object({}) do |klass, hash|
+          next if klass == self
+          klass_name = klass.name.split('::').last
+          hash[klass_name] = default_dependency_filter
+        end
       end
     end
   end
