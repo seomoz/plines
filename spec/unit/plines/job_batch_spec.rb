@@ -114,7 +114,7 @@ module Plines
 
       it "raises an error if the given jid is not in the pending set" do
         batch.completed_job_jids.should_not include("a")
-        expect { batch.mark_job_as_complete("a") }.to raise_error(ArgumentError)
+        expect { batch.mark_job_as_complete("a") }.to raise_error(JobBatch::JobNotPendingError)
         batch.completed_job_jids.should_not include("a")
       end
 

@@ -8,6 +8,8 @@ module Plines
     include Redis::Objects
     include Plines::RedisObjectsHelpers
 
+    JobNotPendingError = Class.new(ArgumentError)
+
     set :pending_job_jids
     set :completed_job_jids
     hash_key :meta
@@ -49,7 +51,7 @@ module Plines
       end
 
       unless moved == 1
-        raise ArgumentError,
+        raise JobNotPendingError,
           "Jid #{jid} cannot be marked as complete for " +
           "job batch #{id} since it is not pending"
       end
