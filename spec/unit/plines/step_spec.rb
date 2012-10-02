@@ -338,6 +338,18 @@ module Plines
         end
       end
 
+      describe "QlessJobProxy object", :redis do
+        let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => '1234' }) }
+        let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
+
+        [:original_retries, :retries_left].each do |meth|
+          it "forwards ##{meth} onto the underlying qless job object" do
+            qless_job.should_receive(meth)
+            qless_job_proxy.send(meth)
+          end
+        end
+      end
+
       describe "#perform", :redis do
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
         let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }

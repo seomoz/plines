@@ -159,8 +159,14 @@ module Plines
 
     # We only want to selectively expose core qless functionality
     # to users so that plines and qless can maintain a consistent state.
-    # Right now we only want to expose the ability to safely retry jobs.
+    # Right now we only want to:
+    # - expose the ability to safely retry jobs
+    #     (while keeping plines state consistent)
+    # - expose the readers original_retries and retries_left
     QlessJobProxy = Struct.new(:qless_job, :job_retried) do
+      extend Forwardable
+      def_delegators "self.qless_job", :original_retries, :retries_left
+
       def initialize(qless_job)
         super
         self.qless_job = qless_job
