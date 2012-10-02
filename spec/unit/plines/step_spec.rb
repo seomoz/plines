@@ -340,7 +340,7 @@ module Plines
 
       describe "#perform", :redis do
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
-        let(:proxy_qless_job) { Plines::Step::ProxyQlessJob.new(qless_job) }
+        let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
         let(:job_batch) { JobBatch.new(pipeline_module, "abc:1") }
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
@@ -379,7 +379,7 @@ module Plines
           j_batch.should eq(job_batch)
           data_hash.should have_key("_job_batch_id")
 
-          qljob.should eq(proxy_qless_job)
+          qljob.should eq(qless_job_proxy)
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do

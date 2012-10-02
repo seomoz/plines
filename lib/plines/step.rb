@@ -84,12 +84,12 @@ module Plines
     def perform(qless_job)
       batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
-      proxied_qless_job = ProxyQlessJob.new(qless_job)
+      qless_job_proxy = QlessJobProxy.new(qless_job)
 
-      new(batch, job_data, qless_job.jid, proxied_qless_job)
+      new(batch, job_data, qless_job.jid, qless_job_proxy)
         .send(:around_perform)
 
-      batch.mark_job_as_complete(qless_job.jid) if proxied_qless_job.completed?
+      batch.mark_job_as_complete(qless_job.jid) if qless_job_proxy.completed?
     end
 
     def external_dependencies
@@ -157,7 +157,10 @@ module Plines
       end
     end
 
-    ProxyQlessJob = Struct.new(:qless_job, :job_retried) do
+    # We only want to selectively expose core qless functionality
+    # to users so that plines and qless can maintain a consistent state.
+    # Right now we only want to expose the ability to safely retry jobs.
+    QlessJobProxy = Struct.new(:qless_job, :job_retried) do
       def initialize(qless_job)
         super
         self.qless_job = qless_job
