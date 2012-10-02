@@ -340,6 +340,7 @@ module Plines
 
       describe "#perform", :redis do
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
+        let(:proxy_qless_job) { Plines::Step::ProxyQlessJob.new(qless_job) }
         let(:job_batch) { JobBatch.new(pipeline_module, "abc:1") }
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
@@ -363,7 +364,7 @@ module Plines
           foo.should eq("bar")
         end
 
-        it "makes the job_batch and qless_job available in the perform instance method" do
+        it "makes the job_batch and proxied qless_job available in the perform instance method" do
           j_batch = data_hash = nil
           qljob = nil
           step_class(:A) do
@@ -378,7 +379,7 @@ module Plines
           j_batch.should eq(job_batch)
           data_hash.should have_key("_job_batch_id")
 
-          qljob.should eq(qless_job)
+          qljob.should eq(proxy_qless_job)
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
@@ -406,6 +407,23 @@ module Plines
           P::A.perform(qless_job)
           job_batch.pending_job_jids.should_not include(qless_job.jid)
           job_batch.completed_job_jids.should include(qless_job.jid)
+        end
+
+        it "does not mark the job as complete in the job batch if the job was retried" do
+          job_batch.pending_job_jids.should include(qless_job.jid)
+          job_batch.completed_job_jids.should_not include(qless_job.jid)
+          qless_job.stub(:retry)
+          qless_job.should_receive(:retry)
+
+          step_class(:A) do
+            def perform
+              qless_job.retry
+            end
+          end
+
+          P::A.perform(qless_job)
+          job_batch.pending_job_jids.should include(qless_job.jid)
+          job_batch.completed_job_jids.should_not include(qless_job.jid)
         end
 
         it "supports #around_perform middleware modules" do

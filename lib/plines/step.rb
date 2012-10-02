@@ -84,10 +84,12 @@ module Plines
     def perform(qless_job)
       batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
+      proxied_qless_job = ProxyQlessJob.new(qless_job)
 
-      new(batch, job_data, qless_job.jid, qless_job).send(:around_perform)
+      new(batch, job_data, qless_job.jid, proxied_qless_job)
+        .send(:around_perform)
 
-      batch.mark_job_as_complete(qless_job.jid)
+      batch.mark_job_as_complete(qless_job.jid) if proxied_qless_job.completed?
     end
 
     def external_dependencies
@@ -152,6 +154,23 @@ module Plines
 
       pipeline.root_dependency.jobs_for(batch_data).each do |dependency|
         yield dependency
+      end
+    end
+
+    ProxyQlessJob = Struct.new(:qless_job, :job_retried) do
+      def initialize(qless_job)
+        super
+        self.qless_job = qless_job
+        self.job_retried = false
+      end
+
+      def retry(delay=0)
+        self.qless_job.retry(delay)
+        self.job_retried = true
+      end
+
+      def completed?
+        !self.job_retried
       end
     end
 
