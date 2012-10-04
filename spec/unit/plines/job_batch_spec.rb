@@ -103,6 +103,7 @@ module Plines
       it "moves a jid from the pending to the complete set" do
         batch.add_job("a")
 
+        batch.pending_job_jids.should include("a")
 
         batch.completed_job_jids.should_not include("a")
 
