@@ -103,7 +103,7 @@ module Plines
       it "moves a jid from the pending to the complete set" do
         batch.add_job("a")
 
-        batch.pending_job_jids.should include("a")
+
         batch.completed_job_jids.should_not include("a")
 
         batch.mark_job_as_complete("a")
@@ -166,6 +166,14 @@ module Plines
         batch = JobBatch.new(pipeline_module, "foo")
         batch.completed_job_jids << "b"
         batch.should be_complete
+      end
+    end
+
+    describe "#pending_jobs" do
+      it "should show all pending jobs" do
+        batch = JobBatch.new(pipeline_module, "foo")
+        batch.add_job("a")
+        batch.pending_jobs.count.should == 1
       end
     end
 

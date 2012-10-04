@@ -36,8 +36,17 @@ module Plines
       job_jids.map { |jid| EnqueuedJob.new(jid) }
     end
 
+    def job_repository
+      pipeline.qless.jobs
+    end
+
+    def pending_jobs
+      pending_job_jids.map do |jid|
+        job_repository[jid]
+      end
+    end
+
     def qless_jobs
-      job_repository = pipeline.qless.jobs
       job_jids.map do |jid|
         job_repository[jid]
       end
