@@ -40,7 +40,7 @@ module Plines
       pipeline.qless.jobs
     end
 
-    def pending_jobs
+    def pending_qless_jobs
       pending_job_jids.map do |jid|
         job_repository[jid]
       end

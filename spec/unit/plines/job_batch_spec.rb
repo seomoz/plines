@@ -174,7 +174,7 @@ module Plines
       it "should show all pending jobs" do
         batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job("a")
-        batch.pending_jobs.count.should == 1
+        batch.pending_qless_jobs.should eq([pipeline_module.qless.jobs["a"]])
       end
     end
 
