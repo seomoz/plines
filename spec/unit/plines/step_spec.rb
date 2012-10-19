@@ -195,6 +195,22 @@ module Plines
         enqueue(data: { ext: false }).queue_name.should eq(P::A.processing_queue.name.to_s)
       end
 
+      it 'enqueues the job to the queue specified in the pipeline' do
+        step_class(:A)
+
+        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+      end
+
+      it 'enqueues the job to the queue specified in step class, overriding the pipeline queue' do
+        step_class(:A) do
+          qless_options do |qless|
+            qless.queue = "special"
+          end
+        end
+
+        enqueue(queue: 'pipeline_queue').queue_name.should eq("special")
+      end
+
       it 'enqueues the job to the "plines" queue if no queue is configured' do
         step_class(:A)
         enqueue.queue_name.should eq("plines")

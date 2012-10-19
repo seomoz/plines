@@ -103,6 +103,13 @@ module Plines
     end
 
     def enqueue_qless_job(data, options = {})
+      # options[:queue] will hold the queue override set in the pipeline
+      # only use that override if the local qless_options has not
+      # been changed from the default
+      if options[:queue] && qless_options.queue.to_sym == :plines
+        qless_options.queue = options[:queue]
+      end
+
       queue = if has_external_dependencies_for?(data)
         pipeline.awaiting_external_dependency_queue
       else

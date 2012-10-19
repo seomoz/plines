@@ -91,7 +91,7 @@ module MyProcessingPipeline
     config.data_ttl_in_seconds = 14 * 24 * 60 * 60
 
     # Use this callback to set additional global qless job
-    # options (such as tags and priority). You can also set
+    # options (such as queue, tags and priority). You can also set
     # options on an individual step class (see below).
     config.qless_job_options do |job|
       { tags: [job.data[:user_id]] }
@@ -128,6 +128,7 @@ module MakeThanksgivingDinner
     # qless_options lets you set qless job options for this step.
     qless_options do |qless|
       # By default, jobs are enqueued to the :plines queue but you can override it
+      # Plines::Step overrides here will override any configurations in a Plines::Pipeline class
       qless.queue = :make_stuffing
       qless.tags = [:foo, :bar]
       qless.priority = -10
