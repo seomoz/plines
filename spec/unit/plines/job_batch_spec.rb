@@ -200,16 +200,21 @@ module Plines
         pipeline_module.qless.jobs[jid].queue_name
       end
 
-      it 'moves the job into the default queue when it no longer has pending external dependencies' do
-        stub_const('Klass', Class.new)
-        jid = pipeline_module.awaiting_external_dependency_queue.put(Klass, {})
+      step_class(:Klass) do
+        qless_options do |q|
+          q.queue = "some_queue"
+        end
+      end
+
+      it "moves the job into it's configured queue when it no longer has pending external dependencies" do
+        jid = pipeline_module.awaiting_external_dependency_queue.put(P::Klass, {})
         batch = JobBatch.new(pipeline_module, "foo")
         batch.add_job(jid, :foo, :bar)
 
         update_dependency(batch, :foo)
         queue_for(jid).should eq(pipeline_module.awaiting_external_dependency_queue.name)
         update_dependency(batch, :bar)
-        queue_for(jid).should eq(pipeline_module.default_queue.name)
+        queue_for(jid).should eq(P::Klass.processing_queue.name)
       end
     end
 
