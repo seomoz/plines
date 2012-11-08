@@ -195,10 +195,36 @@ module Plines
         enqueue(data: { ext: false }).queue_name.should eq(P::A.processing_queue.name.to_s)
       end
 
+      it 'enqueues jobs with conditional external dependencies to the correct queue when a queue option is provided' do
+        step_class(:A) do
+          has_external_dependency :foo do |d|
+            d[:ext]
+          end
+        end
+
+        enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name.should eq(P.awaiting_external_dependency_queue.name)
+        enqueue(data: { ext: false }, queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+      end
+
       it 'enqueues the job to the queue specified in the pipeline' do
         step_class(:A)
 
         enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+      end
+
+      it 'can enqueue the job multiple times into different queues' do
+        step_class(:A)
+
+        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+        enqueue(queue: 'pipeline_queue2').queue_name.should eq('pipeline_queue2')
+        enqueue.queue_name.should eq('plines')
+      end
+
+      it 'enqueues to the correct queue on a per request basis' do
+        step_class(:A)
+
+        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+        enqueue.queue_name.should eq('plines')
       end
 
       it 'enqueues the job to the queue specified in step class, overriding the pipeline queue' do
@@ -209,6 +235,7 @@ module Plines
         end
 
         enqueue(queue: 'pipeline_queue').queue_name.should eq("special")
+        enqueue.queue_name.should eq("special")
       end
 
       it 'enqueues the job to the "plines" queue if no queue is configured' do
