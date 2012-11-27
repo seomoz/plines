@@ -78,6 +78,15 @@ module Plines
       end
     end
 
+    describe ".job_batch_list_for", :redis do
+      it 'returns a job batch list object' do
+        MyPipeline.configuration.batch_list_key { |data| data["a"] }
+        batch = MyPipeline.job_batch_list_for("a" => "foo")
+        batch.should be_a(JobBatchList)
+        batch.key.should eq("foo")
+      end
+    end
+
     describe ".enqueue_jobs_for" do
       it 'enqueues jobs for the given batch data' do
         qless_job_block_called = false

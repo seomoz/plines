@@ -84,8 +84,6 @@ module Plines
       end
     end
 
-  private
-
     def job_batch_list_for(batch_data)
       key = configuration.batch_list_key_for(batch_data)
       JobBatchList.new(self, key)
