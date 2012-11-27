@@ -18,6 +18,14 @@ module Plines
       JobBatch.new(pipeline, batch_id_for(last_batch_num.increment))
     end
 
+    def each(&block)
+      return enum_for(:each) unless block_given?
+
+      1.upto(last_batch_num.value) do |num|
+        yield JobBatch.new(pipeline, batch_id_for(num))
+      end
+    end
+
   private
 
     # needed by the redis objects counter

@@ -51,6 +51,21 @@ module Plines
         foo.most_recent_batch.should eq(b2)
       end
     end
+
+    it 'can enumerate all existing job batches' do
+      foo.create_new_batch
+      foo.create_new_batch
+
+      foo.map(&:id).should eq(%w[ P:foo:1 P:foo:2 ])
+    end
+
+    it 'can return a lazy enumerator' do
+      foo.create_new_batch
+      foo.create_new_batch
+
+      list = foo.each
+      list.map(&:id).should eq(%w[ P:foo:1 P:foo:2 ])
+    end
   end
 end
 
