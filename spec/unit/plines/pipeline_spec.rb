@@ -71,7 +71,7 @@ module Plines
     describe ".most_recent_job_batch_for", :redis do
       it 'returns a job batch using the configured key' do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
-        JobBatchList.new(MyPipeline, "foo").create_new_batch
+        JobBatchList.new(MyPipeline, "foo").create_new_batch({})
         batch = MyPipeline.most_recent_job_batch_for("a" => "foo")
         batch.should be_a(JobBatch)
         batch.id.should include("foo")
@@ -109,7 +109,9 @@ module Plines
 
       it 'returns the job batch' do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
-        MyPipeline.enqueue_jobs_for("a" => "foo").should be_a(JobBatch)
+        batch = MyPipeline.enqueue_jobs_for("a" => "foo")
+        batch.should be_a(JobBatch)
+        batch.data.should eq("a" => "foo")
       end
     end
 

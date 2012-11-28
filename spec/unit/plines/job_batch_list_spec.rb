@@ -30,38 +30,42 @@ module Plines
 
     describe "#create_new_batch" do
       it 'creates each new batch with a unique ascending id' do
-        foo.create_new_batch.id.should eq("P:foo:1")
-        bar.create_new_batch.id.should eq("P:bar:1")
-        foo.create_new_batch.id.should eq("P:foo:2")
-        bar.create_new_batch.id.should eq("P:bar:2")
+        foo.create_new_batch({}).id.should eq("P:foo:1")
+        bar.create_new_batch({}).id.should eq("P:bar:1")
+        foo.create_new_batch({}).id.should eq("P:foo:2")
+        bar.create_new_batch({}).id.should eq("P:bar:2")
+      end
+
+      it 'passes the given batch data along to the job batch object' do
+        foo.create_new_batch('a' => 3).data.should eq('a' => 3)
       end
     end
 
     describe "#most_recent_batch" do
       it 'returns nil if there are no batches for the given id' do
-        foo.create_new_batch
+        foo.create_new_batch({})
         bar.most_recent_batch.should be_nil
       end
 
       it 'returns the most recently created batch for the given id' do
-        b1 = foo.create_new_batch
-        b2 = foo.create_new_batch
-        bar.create_new_batch
+        b1 = foo.create_new_batch({})
+        b2 = foo.create_new_batch({})
+        bar.create_new_batch({})
 
         foo.most_recent_batch.should eq(b2)
       end
     end
 
     it 'can enumerate all existing job batches' do
-      foo.create_new_batch
-      foo.create_new_batch
+      foo.create_new_batch({})
+      foo.create_new_batch({})
 
       foo.map(&:id).should eq(%w[ P:foo:1 P:foo:2 ])
     end
 
     it 'can return a lazy enumerator' do
-      foo.create_new_batch
-      foo.create_new_batch
+      foo.create_new_batch({})
+      foo.create_new_batch({})
 
       list = foo.each
       list.map(&:id).should eq(%w[ P:foo:1 P:foo:2 ])

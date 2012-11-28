@@ -38,6 +38,26 @@ module Plines
       j2.created_at.should eq(t1)
     end
 
+    it 'remembers the job batch data' do
+      batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
+      batch.data.should eq("name" => "Bob", "age" => 13)
+    end
+
+    it 'only stores the job batch data the first time it is created' do
+      batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
+      batch = JobBatch.new(pipeline_module, "a")
+      batch.data.should eq("name" => "Bob", "age" => 13)
+    end
+
+    describe "#data" do
+      it 'returns nil if the job batch was created before we stored the batch data' do
+        batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
+        batch.meta.delete(JobBatch::BATCH_DATA_KEY) # simulate it having been saved w/o this
+
+        batch.data.should be(nil)
+      end
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.new(pipeline_module, "foo")

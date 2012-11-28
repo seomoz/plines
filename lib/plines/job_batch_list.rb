@@ -14,8 +14,10 @@ module Plines
       JobBatch.new(pipeline, batch_id_for(batch_num))
     end
 
-    def create_new_batch
-      JobBatch.new(pipeline, batch_id_for(last_batch_num.increment))
+    def create_new_batch(batch_data)
+      JobBatch.new(pipeline,
+                   batch_id_for(last_batch_num.increment),
+                   batch_data)
     end
 
     def each(&block)

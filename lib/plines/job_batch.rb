@@ -1,5 +1,6 @@
 require 'time'
 require 'plines/redis_objects'
+require 'json'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -14,9 +15,12 @@ module Plines
     set :completed_job_jids
     hash_key :meta
 
-    def initialize(pipeline, id)
+    BATCH_DATA_KEY = "batch_data"
+
+    def initialize(pipeline, id, batch_data = {})
       super(pipeline, id)
       meta["created_at"] ||= Time.now.iso8601
+      meta[BATCH_DATA_KEY] ||= encode(batch_data)
       yield self if block_given?
     end
 
@@ -105,6 +109,10 @@ module Plines
       set_expiration!
     end
 
+    def data
+      decode(meta["batch_data"])
+    end
+
   private
 
     def update_external_dependency(dep_name, meth, jids)
@@ -164,6 +172,14 @@ module Plines
         key = [self.class.redis_prefix, id, "ext_deps", dep].join(':')
         hash[dep] = Redis::Set.new(key, self.class.redis)
       end
+    end
+
+    def encode(hash)
+      JSON.dump(hash)
+    end
+
+    def decode(string)
+      string && JSON.load(string)
     end
   end
 end
