@@ -5,8 +5,8 @@ rvm:
   - 1.9.3
   - jruby-19mode
   - rbx-19mode
-before_install:
-  - curl -s https://raw.github.com/seomoz/qless-core/master/scripts/install_and_run_redis_2_6 | sh
+services:
+  - redis-server
 notifications:
   email:
     - moz-platform-dev@seomoz.org
