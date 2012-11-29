@@ -13,7 +13,7 @@ module Plines
   describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
     let(:graph) { DependencyGraph.new(P.step_classes, batch_data) }
-    let(:job_batch) { JobBatch.new(pipeline_module, "foo:1") }
+    let(:job_batch) { JobBatch.create(pipeline_module, "foo:1", {}) }
 
     let(:enqueuer) { JobEnqueuer.new(graph, job_batch) { |job| { tags: [job.data.fetch("a")] } } }
 

@@ -7,10 +7,33 @@ require 'plines/job_batch'
 
 module Plines
   describe JobBatch, :redis do
+    describe ".find" do
+      it 'finds a previously created job batch' do
+        batch = JobBatch.create(pipeline_module, "a", {})
+        batch2 = JobBatch.find(pipeline_module, "a")
+        batch2.should eq(batch)
+      end
+
+      it 'raises an error if it cannot find an existing one' do
+        expect {
+          JobBatch.find(pipeline_module, "a")
+        }.to raise_error(JobBatch::CannotFindExistingJobBatchError)
+      end
+    end
+
+    describe ".create" do
+      it 'raises an error if a job batch with the given id has already been created' do
+        batch = JobBatch.create(pipeline_module, "a", {})
+        expect {
+          JobBatch.create(pipeline_module, "a", {})
+        }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
+      end
+    end
+
     it 'is uniquely identified by the id' do
-      j1 = JobBatch.new(pipeline_module, "a")
-      j2 = JobBatch.new(pipeline_module, "b")
-      j3 = JobBatch.new(pipeline_module, "a")
+      j1 = JobBatch.create(pipeline_module, "a", {})
+      j2 = JobBatch.create(pipeline_module, "b", {})
+      j3 = JobBatch.find(pipeline_module, "a")
 
       j1.should eq(j3)
       j1.should eql(j3)
@@ -23,7 +46,7 @@ module Plines
     end
 
     it 'remembers what pipeline it is for' do
-      j1 = JobBatch.new(pipeline_module, "a")
+      j1 = JobBatch.create(pipeline_module, "a", {})
       j1.pipeline.should be(pipeline_module)
     end
 
@@ -31,27 +54,20 @@ module Plines
     let(:t2) { Time.new(2012, 5, 1) }
 
     it 'remembers when it was created' do
-      Timecop.freeze(t1) { JobBatch.new(pipeline_module, "a") }
-      j2 = nil
-      Timecop.freeze(t2) { j2 = JobBatch.new(pipeline_module, "a") }
+      Timecop.freeze(t1) { JobBatch.create(pipeline_module, "a", {}) }
+      j2 = JobBatch.find(pipeline_module, "a")
 
       j2.created_at.should eq(t1)
     end
 
     it 'remembers the job batch data' do
-      batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
-      batch.data.should eq("name" => "Bob", "age" => 13)
-    end
-
-    it 'only stores the job batch data the first time it is created' do
-      batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
-      batch = JobBatch.new(pipeline_module, "a")
+      batch = JobBatch.create(pipeline_module, "a", "name" => "Bob", "age" => 13)
       batch.data.should eq("name" => "Bob", "age" => 13)
     end
 
     describe "#data" do
       it 'returns nil if the job batch was created before we stored the batch data' do
-        batch = JobBatch.new(pipeline_module, "a", "name" => "Bob", "age" => 13)
+        batch = JobBatch.create(pipeline_module, "a", "name" => "Bob", "age" => 13)
         batch.meta.delete(JobBatch::BATCH_DATA_KEY) # simulate it having been saved w/o this
 
         batch.data.should be(nil)
@@ -60,14 +76,14 @@ module Plines
 
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.add_job "abc", :bar, :bazz
         pipeline_module.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
         EnqueuedJob.new("abc").pending_external_dependencies.should =~ [:bar, :bazz]
       end
 
       it 'returns the newly added job' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         job = batch.add_job "abc", :bar, :bazz
         job.should be_an(EnqueuedJob)
         job.jid.should eq("abc")
@@ -76,7 +92,7 @@ module Plines
 
     describe "#job_jids" do
       it "returns all job jids, even when some have been completed" do
-        batch = JobBatch.new(pipeline_module, "foo") do |jb|
+        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
           jb.add_job("a"); jb.add_job("b"); jb.add_job("c")
         end
 
@@ -88,7 +104,7 @@ module Plines
 
     describe "#qless_jobs" do
       it "returns all the qless job instances" do
-        batch = JobBatch.new(pipeline_module, "foo") do |jb|
+        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
           jb.add_job("a")
         end
 
@@ -102,7 +118,7 @@ module Plines
 
     describe "#jobs" do
       it "returns all the enqueued job instances" do
-        batch = JobBatch.new(pipeline_module, "foo") do |jb|
+        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
           jb.add_job("a")
         end
 
@@ -113,7 +129,7 @@ module Plines
     end
 
     describe "#mark_job_as_complete" do
-      let!(:batch) { JobBatch.new(pipeline_module, "foo") }
+      let!(:batch) { JobBatch.create(pipeline_module, "foo", {}) }
 
       before do
         P.should respond_to(:set_expiration_on)
@@ -172,19 +188,19 @@ module Plines
 
     describe "#complete?" do
       it 'returns false when there are no pending or completed jobs' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.should_not be_complete
       end
 
       it 'returns false when there are pending jobs and completed jobs' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.pending_job_jids << "a"
         batch.completed_job_jids << "b"
         batch.should_not be_complete
       end
 
       it 'returns true when there are only completed jobs' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.completed_job_jids << "b"
         batch.should be_complete
       end
@@ -192,7 +208,7 @@ module Plines
 
     describe "#pending_jobs" do
       it "should show all pending jobs" do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.add_job("a")
         batch.pending_qless_jobs.should eq([pipeline_module.qless.jobs["a"]])
       end
@@ -200,7 +216,7 @@ module Plines
 
     shared_examples_for "updating a job batch external dependency" do |set_name|
       it "updates the dependency resolved on all jobs that have it" do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", :foo)
         jidb_job = batch.add_job("jidb", :foo)
 
@@ -228,7 +244,7 @@ module Plines
 
       it "moves the job into it's configured queue when it no longer has pending external dependencies" do
         jid = pipeline_module.awaiting_external_dependency_queue.put(P::Klass, {})
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         batch.add_job(jid, :foo, :bar)
 
         update_dependency(batch, :foo)
@@ -246,7 +262,7 @@ module Plines
       end
 
       it 'does not attempt to resolve the dependency on jobs that do not have it' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", :foo)
         jidb_job = batch.add_job("jidb")
 
@@ -270,7 +286,7 @@ module Plines
       end
 
       it 'only times out the dependency on the given jobs' do
-        batch = JobBatch.new(pipeline_module, "foo")
+        batch = JobBatch.create(pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", :foo)
         jidb_job = batch.add_job("jidb", :foo)
 
@@ -281,7 +297,7 @@ module Plines
     end
 
     describe "#has_unresolved_external_dependency?" do
-      let(:batch) { JobBatch.new(pipeline_module, "foo") }
+      let(:batch) { JobBatch.create(pipeline_module, "foo", {}) }
 
       it 'returns true if the batch has the given external dependency' do
         batch.add_job("jida", :foo)
@@ -294,7 +310,7 @@ module Plines
 
       it 'does not depend on in-process cached state that is not there for an instance in another process' do
         batch.add_job("jida", :foo)
-        other_instance = JobBatch.new(pipeline_module, batch.id)
+        other_instance = JobBatch.find(pipeline_module, batch.id)
         other_instance.should have_unresolved_external_dependency(:foo)
         other_instance.should_not have_unresolved_external_dependency(:bar)
       end
@@ -315,7 +331,7 @@ module Plines
     describe "#cancel!" do
       step_class(:Foo)
       let(:jid)    { pipeline_module.default_queue.put(P::Foo, {}) }
-      let!(:batch) { JobBatch.new(pipeline_module, "foo") { |jb| jb.add_job(jid) } }
+      let!(:batch) { JobBatch.create(pipeline_module, "foo", {}) { |jb| jb.add_job(jid) } }
 
       before do
         P.should respond_to(:set_expiration_on)

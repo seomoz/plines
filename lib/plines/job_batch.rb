@@ -15,13 +15,43 @@ module Plines
     set :completed_job_jids
     hash_key :meta
 
+    def initialize(pipeline, id)
+      super(pipeline, id)
+      yield self if block_given?
+    end
+
     BATCH_DATA_KEY = "batch_data"
 
-    def initialize(pipeline, id, batch_data = {})
-      super(pipeline, id)
-      meta["created_at"] ||= Time.now.iso8601
-      meta[BATCH_DATA_KEY] ||= encode(batch_data)
-      yield self if block_given?
+    # We use find/create in place of new for both
+    # so that the semantics of the two cases are clear.
+    private_class_method :new
+
+    CannotFindExistingJobBatchError = Class.new(StandardError)
+
+    def self.find(pipeline, id)
+      new(pipeline, id) do |inst|
+        unless inst.created_at
+          raise CannotFindExistingJobBatchError,
+            "Cannot find an existing job batch for #{pipeline} / #{id}"
+        end
+
+        yield inst if block_given?
+      end
+    end
+
+    JobBatchAlreadyCreatedError = Class.new(StandardError)
+
+    def self.create(pipeline, id, batch_data)
+      new(pipeline, id) do |inst|
+        if inst.created_at
+          raise JobBatchAlreadyCreatedError,
+            "Job batch #{pipeline} / #{id} already exists"
+        end
+
+        inst.meta["created_at"]   = Time.now.iso8601
+        inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
+        yield inst if block_given?
+      end
     end
 
     def add_job(jid, *external_dependencies)
@@ -178,10 +208,6 @@ module Plines
         key = [self.class.redis_prefix, id, "ext_deps", dep].join(':')
         hash[dep] = Redis::Set.new(key, self.class.redis)
       end
-    end
-
-    def encode(hash)
-      JSON.dump(hash)
     end
 
     def decode(string)
