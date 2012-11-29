@@ -105,6 +105,10 @@ describe Plines, :redis do
   let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
   let(:worker) { Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver) }
 
+  before do
+    worker.run_as_single_process = true if RUBY_ENGINE == 'jruby'
+  end
+
   RSpec::Matchers.define :be_before do |expected|
     chain :in do |array|
       @array = array
