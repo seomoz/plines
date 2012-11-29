@@ -91,6 +91,12 @@ module Plines
         dep_name, :timeout_external_dependency, Array(jids)
     end
 
+    def has_unresolved_external_dependency?(dep_name)
+      external_dependency_sets[dep_name].any? do |jid|
+        EnqueuedJob.new(jid).unresolved_external_dependencies.include?(dep_name)
+      end
+    end
+
     def created_at
       time_from "created_at"
     end

@@ -280,6 +280,38 @@ module Plines
       end
     end
 
+    describe "#has_unresolved_external_dependency?" do
+      let(:batch) { JobBatch.new(pipeline_module, "foo") }
+
+      it 'returns true if the batch has the given external dependency' do
+        batch.add_job("jida", :foo)
+        batch.should have_unresolved_external_dependency(:foo)
+      end
+
+      it 'returns false if the batch does not have the given external dependency' do
+        batch.should_not have_unresolved_external_dependency(:foo)
+      end
+
+      it 'does not depend on in-process cached state that is not there for an instance in another process' do
+        batch.add_job("jida", :foo)
+        other_instance = JobBatch.new(pipeline_module, batch.id)
+        other_instance.should have_unresolved_external_dependency(:foo)
+        other_instance.should_not have_unresolved_external_dependency(:bar)
+      end
+
+      it 'returns false if the given external dependency has been resolved' do
+        batch.add_job("jida", :foo)
+        batch.resolve_external_dependency(:foo)
+        batch.should_not have_unresolved_external_dependency(:foo)
+      end
+
+      it 'returns true if the given external dependency timed out' do
+        batch.add_job("jida", :foo)
+        batch.timeout_external_dependency(:foo, "jida")
+        batch.should have_unresolved_external_dependency(:foo)
+      end
+    end
+
     describe "#cancel!" do
       step_class(:Foo)
       let(:jid)    { pipeline_module.default_queue.put(P::Foo, {}) }
