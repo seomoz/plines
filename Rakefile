@@ -28,13 +28,19 @@ RSpec::Core::RakeTask.new(:spec) do |t|
   t.ruby_opts  = "-Ispec -rsimplecov_setup"
 end
 
-require 'cane/rake_task'
+if RUBY_ENGINE == 'ruby'
+  require 'cane/rake_task'
 
-desc "Run cane to check quality metrics"
-Cane::RakeTask.new(:quality) do |cane|
-  cane.style_glob = "lib/**/*.rb"
-  cane.abc_max = 15
-  cane.add_threshold 'coverage/coverage_percent.txt', :==, 100
+  desc "Run cane to check quality metrics"
+  Cane::RakeTask.new(:quality) do |cane|
+    cane.style_glob = "lib/**/*.rb"
+    cane.abc_max = 15
+    cane.add_threshold 'coverage/coverage_percent.txt', :==, 100
+  end
+else
+  task :quality do
+    # no-op; Cane isn't supported on this interpretter
+  end
 end
 
 task default: [:spec, :quality]
