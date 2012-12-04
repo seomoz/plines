@@ -82,7 +82,7 @@ module Plines
     end
 
     def perform(qless_job)
-      batch = JobBatch.new(pipeline, qless_job.data.fetch("_job_batch_id"))
+      batch = JobBatch.find(pipeline, qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
       qless_job_proxy = QlessJobProxy.new(qless_job)
 

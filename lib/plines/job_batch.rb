@@ -1,5 +1,6 @@
 require 'time'
 require 'plines/redis_objects'
+require 'json'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -16,8 +17,41 @@ module Plines
 
     def initialize(pipeline, id)
       super(pipeline, id)
-      meta["created_at"] ||= Time.now.iso8601
       yield self if block_given?
+    end
+
+    BATCH_DATA_KEY = "batch_data"
+
+    # We use find/create in place of new for both
+    # so that the semantics of the two cases are clear.
+    private_class_method :new
+
+    CannotFindExistingJobBatchError = Class.new(StandardError)
+
+    def self.find(pipeline, id)
+      new(pipeline, id) do |inst|
+        unless inst.created_at
+          raise CannotFindExistingJobBatchError,
+            "Cannot find an existing job batch for #{pipeline} / #{id}"
+        end
+
+        yield inst if block_given?
+      end
+    end
+
+    JobBatchAlreadyCreatedError = Class.new(StandardError)
+
+    def self.create(pipeline, id, batch_data)
+      new(pipeline, id) do |inst|
+        if inst.created_at
+          raise JobBatchAlreadyCreatedError,
+            "Job batch #{pipeline} / #{id} already exists"
+        end
+
+        inst.meta["created_at"]   = Time.now.iso8601
+        inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
+        yield inst if block_given?
+      end
     end
 
     def add_job(jid, *external_dependencies)
@@ -87,6 +121,12 @@ module Plines
         dep_name, :timeout_external_dependency, Array(jids)
     end
 
+    def has_unresolved_external_dependency?(dep_name)
+      external_dependency_sets[dep_name].any? do |jid|
+        EnqueuedJob.new(jid).unresolved_external_dependencies.include?(dep_name)
+      end
+    end
+
     def created_at
       time_from "created_at"
     end
@@ -103,6 +143,10 @@ module Plines
       pending_job_jids.each { |jid| cancel_job(jid) }
       meta["cancelled"] = "1"
       set_expiration!
+    end
+
+    def data
+      decode(meta["batch_data"])
     end
 
   private
@@ -164,6 +208,10 @@ module Plines
         key = [self.class.redis_prefix, id, "ext_deps", dep].join(':')
         hash[dep] = Redis::Set.new(key, self.class.redis)
       end
+    end
+
+    def decode(string)
+      string && JSON.load(string)
     end
   end
 end

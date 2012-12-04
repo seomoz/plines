@@ -396,7 +396,7 @@ module Plines
       describe "#perform", :redis do
         let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }) }
         let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
-        let(:job_batch) { JobBatch.new(pipeline_module, "abc:1") }
+        let(:job_batch) { JobBatch.create(pipeline_module, "abc:1", {}) }
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
         before do
