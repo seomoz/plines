@@ -77,14 +77,14 @@ module Plines
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(pipeline_module, "foo", {})
-        batch.add_job "abc", :bar, :bazz
+        batch.add_job "abc", "bar", "bazz"
         pipeline_module.redis.smembers("job_batch:foo:pending_job_jids").should =~ %w[ abc ]
-        EnqueuedJob.new("abc").pending_external_dependencies.should =~ [:bar, :bazz]
+        EnqueuedJob.new("abc").pending_external_dependencies.should =~ ["bar", "bazz"]
       end
 
       it 'returns the newly added job' do
         batch = JobBatch.create(pipeline_module, "foo", {})
-        job = batch.add_job "abc", :bar, :bazz
+        job = batch.add_job "abc", "bar", "bazz"
         job.should be_an(EnqueuedJob)
         job.jid.should eq("abc")
       end
@@ -171,12 +171,12 @@ module Plines
           expired_keys.merge(args)
         end
 
-        batch.add_job("a", :foo)
+        batch.add_job("a", "foo")
         batch.add_job("b")
 
         P.redis.keys.should_not be_empty
 
-        batch.resolve_external_dependency(:foo)
+        batch.resolve_external_dependency("foo")
 
         batch.mark_job_as_complete("a")
         expired_keys.should be_empty
@@ -217,19 +217,19 @@ module Plines
     shared_examples_for "updating a job batch external dependency" do |set_name|
       it "updates the dependency resolved on all jobs that have it" do
         batch = JobBatch.create(pipeline_module, "foo", {})
-        jida_job = batch.add_job("jida", :foo)
-        jidb_job = batch.add_job("jidb", :foo)
+        jida_job = batch.add_job("jida", "foo")
+        jidb_job = batch.add_job("jidb", "foo")
 
-        jida_job.pending_external_dependencies.should include(:foo)
-        jidb_job.pending_external_dependencies.should include(:foo)
+        jida_job.pending_external_dependencies.should include("foo")
+        jidb_job.pending_external_dependencies.should include("foo")
 
-        update_dependency(batch, :foo)
+        update_dependency(batch, "foo")
 
-        jida_job.pending_external_dependencies.should_not include(:foo)
-        jidb_job.pending_external_dependencies.should_not include(:foo)
+        jida_job.pending_external_dependencies.should_not include("foo")
+        jidb_job.pending_external_dependencies.should_not include("foo")
 
-        jida_job.send(set_name).should include(:foo)
-        jidb_job.send(set_name).should include(:foo)
+        jida_job.send(set_name).should include("foo")
+        jidb_job.send(set_name).should include("foo")
       end
 
       def queue_for(jid)
@@ -245,11 +245,11 @@ module Plines
       it "moves the job into it's configured queue when it no longer has pending external dependencies" do
         jid = pipeline_module.awaiting_external_dependency_queue.put(P::Klass, {})
         batch = JobBatch.create(pipeline_module, "foo", {})
-        batch.add_job(jid, :foo, :bar)
+        batch.add_job(jid, "foo", "bar")
 
-        update_dependency(batch, :foo)
+        update_dependency(batch, "foo")
         queue_for(jid).should eq(pipeline_module.awaiting_external_dependency_queue.name)
-        update_dependency(batch, :bar)
+        update_dependency(batch, "bar")
         queue_for(jid).should eq(P::Klass.processing_queue.name)
       end
     end
@@ -263,7 +263,7 @@ module Plines
 
       it 'does not attempt to resolve the dependency on jobs that do not have it' do
         batch = JobBatch.create(pipeline_module, "foo", {})
-        jida_job = batch.add_job("jida", :foo)
+        jida_job = batch.add_job("jida", "foo")
         jidb_job = batch.add_job("jidb")
 
         EnqueuedJob.stub(:new).with("jida") { jida_job }
@@ -273,7 +273,7 @@ module Plines
         jidb_job.should_not_receive(:resolve_external_dependency)
         jida_job.should_receive(:resolve_external_dependency)
 
-        batch.resolve_external_dependency(:foo)
+        batch.resolve_external_dependency("foo")
       end
     end
 
@@ -287,12 +287,12 @@ module Plines
 
       it 'only times out the dependency on the given jobs' do
         batch = JobBatch.create(pipeline_module, "foo", {})
-        jida_job = batch.add_job("jida", :foo)
-        jidb_job = batch.add_job("jidb", :foo)
+        jida_job = batch.add_job("jida", "foo")
+        jidb_job = batch.add_job("jidb", "foo")
 
-        batch.timeout_external_dependency(:foo, "jida")
-        jida_job.timed_out_external_dependencies.should include(:foo)
-        jidb_job.timed_out_external_dependencies.should_not include(:foo)
+        batch.timeout_external_dependency("foo", "jida")
+        jida_job.timed_out_external_dependencies.should include("foo")
+        jidb_job.timed_out_external_dependencies.should_not include("foo")
       end
     end
 
@@ -300,31 +300,31 @@ module Plines
       let(:batch) { JobBatch.create(pipeline_module, "foo", {}) }
 
       it 'returns true if the batch has the given external dependency' do
-        batch.add_job("jida", :foo)
-        batch.should have_unresolved_external_dependency(:foo)
+        batch.add_job("jida", "foo")
+        batch.should have_unresolved_external_dependency("foo")
       end
 
       it 'returns false if the batch does not have the given external dependency' do
-        batch.should_not have_unresolved_external_dependency(:foo)
+        batch.should_not have_unresolved_external_dependency("foo")
       end
 
       it 'does not depend on in-process cached state that is not there for an instance in another process' do
-        batch.add_job("jida", :foo)
+        batch.add_job("jida", "foo")
         other_instance = JobBatch.find(pipeline_module, batch.id)
-        other_instance.should have_unresolved_external_dependency(:foo)
-        other_instance.should_not have_unresolved_external_dependency(:bar)
+        other_instance.should have_unresolved_external_dependency("foo")
+        other_instance.should_not have_unresolved_external_dependency("bar")
       end
 
       it 'returns false if the given external dependency has been resolved' do
-        batch.add_job("jida", :foo)
-        batch.resolve_external_dependency(:foo)
-        batch.should_not have_unresolved_external_dependency(:foo)
+        batch.add_job("jida", "foo")
+        batch.resolve_external_dependency("foo")
+        batch.should_not have_unresolved_external_dependency("foo")
       end
 
       it 'returns true if the given external dependency timed out' do
-        batch.add_job("jida", :foo)
-        batch.timeout_external_dependency(:foo, "jida")
-        batch.should have_unresolved_external_dependency(:foo)
+        batch.add_job("jida", "foo")
+        batch.timeout_external_dependency("foo", "jida")
+        batch.should have_unresolved_external_dependency("foo")
       end
     end
 

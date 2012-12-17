@@ -234,8 +234,8 @@ describe Plines, :redis do
         end
       end
 
-      has_external_dependency :await_big_turkey_ready_call do |job_data|
-        job_data[:size] == :big
+      has_external_dependencies do |job_data|
+        "await_#{job_data[:size]}_turkey_ready_call"
       end
 
       def perform
@@ -247,22 +247,31 @@ describe Plines, :redis do
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps.values
-    steps.should include("pickup_small_turkey")
+    steps.should_not include("pickup_small_turkey")
     steps.should_not include("pickup_big_turkey")
-    steps.should have(6).entries
+    steps.should have(5).entries
 
-    smith_batch.resolve_external_dependency :await_big_turkey_ready_call
+    smith_batch.resolve_external_dependency "await_big_turkey_ready_call"
+    process_work
+    steps = MakeThanksgivingDinner.performed_steps.values
+    steps.should_not include("pickup_small_turkey")
+    steps.should include("pickup_big_turkey")
+
+    smith_batch.resolve_external_dependency "await_small_turkey_ready_call"
     process_work
 
-    steps = MakeThanksgivingDinner.performed_steps
+    steps = MakeThanksgivingDinner.performed_steps.values
     steps.should have(11).entries
-    steps.should include("pickup_big_turkey")
+    steps.should include("pickup_small_turkey")
 
     should_expire_keys
   end
 
   it "can timeout external dependencies" do
-    MakeThanksgivingDinner::PickupTurkey.has_external_dependency :await_turkey_ready_call, wait_up_to: 0.3 # seconds
+    MakeThanksgivingDinner::PickupTurkey.has_external_dependencies(wait_up_to: 0.3) do
+      "await_turkey_ready_call"
+    end
+
     MakeThanksgivingDinner::PickupTurkey.class_eval do
       include Module.new {
         def around_perform

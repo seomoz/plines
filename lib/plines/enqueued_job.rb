@@ -22,25 +22,25 @@ module Plines
     end
 
     def pending_external_dependencies
-      pending_ext_deps.map(&:to_sym)
+      pending_ext_deps.members
     end
 
     def resolved_external_dependencies
-      resolved_ext_deps.map(&:to_sym)
+      resolved_ext_deps.members
     end
 
     def timed_out_external_dependencies
-      timed_out_ext_deps.map(&:to_sym)
+      timed_out_ext_deps.members
     end
 
     def all_external_dependencies
       pending_ext_deps.union(
         resolved_ext_deps, timed_out_ext_deps
-      ).map(&:to_sym)
+      )
     end
 
     def unresolved_external_dependencies
-      pending_ext_deps.union(timed_out_ext_deps).map(&:to_sym)
+      pending_ext_deps.union(timed_out_ext_deps)
     end
 
     def resolve_external_dependency(name)

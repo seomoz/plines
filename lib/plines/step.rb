@@ -1,6 +1,8 @@
 require 'forwardable'
 
 module Plines
+  ExternalDependency = Struct.new(:name, :options)
+
   # This is the module that should be included in any class that
   # is intended to be a Plines step.
   module Step
@@ -42,21 +44,21 @@ module Plines
       @fan_out_block = block
     end
 
-    def has_external_dependency(*external_deps, &block)
-      options = external_deps.last.is_a?(Hash) ? external_deps.pop : {}
-      external_deps.each do |dep|
-        external_dependencies[dep].merge!(options.merge(block: block))
-      end
+    def has_external_dependencies(options = {}, &block)
+      external_dependency_definitions << [options, block]
     end
 
     def has_external_dependencies_for?(data)
-      external_dependencies_for(data).any?
+      external_dependency_definitions.any? do |_, block|
+        !Array(block[data]).empty?
+      end
     end
 
     def external_dependencies_for(data)
-      external_dependencies.select do |key, opts|
-        block = opts[:block] || Proc.new { true }
-        block.call(data)
+      external_dependency_definitions.flat_map do |options, block|
+        Array(block[data]).map do |name|
+          ExternalDependency.new(name, options)
+        end
       end
     end
 
@@ -92,8 +94,8 @@ module Plines
       batch.mark_job_as_complete(qless_job.jid) if qless_job_proxy.completed?
     end
 
-    def external_dependencies
-      @external_dependencies ||= Hash.new { |h, k| h[k] = {} }
+    def external_dependency_definitions
+      @external_dependency_definitions ||= []
     end
 
     def qless_options
