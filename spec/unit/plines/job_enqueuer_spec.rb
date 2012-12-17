@@ -22,7 +22,7 @@ module Plines
     context "enqueing jobs with no timeouts" do
       step_class(:A) { depends_on :B }
       step_class(:B)
-      step_class(:C) { has_external_dependency :foo }
+      step_class(:C) { has_external_dependencies { :foo } }
 
       it 'enqueues jobs that have no dependencies with no dependencies' do
         enqueuer.enqueue_jobs
@@ -84,7 +84,7 @@ module Plines
         now  = Time.now
         Time.stub(:now) { now }
 
-        step_class(:D) { has_external_dependency :bar, wait_up_to: 3000 }
+        step_class(:D) { has_external_dependencies(wait_up_to: 3000) { :bar } }
         enqueuer.enqueue_jobs
 
         jid = scheduled_job_jids.first
@@ -102,15 +102,15 @@ module Plines
       end
 
       it 'enqueues the timeout jobs with a high priority so that they run right away' do
-        step_class(:D) { has_external_dependency :bar, wait_up_to: 3000 }
+        step_class(:D) { has_external_dependencies(wait_up_to: 3000) { :bar } }
         enqueuer.enqueue_jobs
         scheduled_job = job_for(scheduled_job_jids.first)
         scheduled_job.priority.should eq(JobEnqueuer::TIMEOUT_JOB_PRIORITY)
       end
 
       it 'enqueues a single job with multiple jids if multiple steps have the same external dependency and wait_up_to setting' do
-        step_class(:C) { has_external_dependency :bar, wait_up_to: 3000 }
-        step_class(:D) { has_external_dependency :bar, wait_up_to: 3000 }
+        step_class(:C) { has_external_dependencies(wait_up_to: 3000) { :bar } }
+        step_class(:D) { has_external_dependencies(wait_up_to: 3000) { :bar } }
         enqueuer.enqueue_jobs
 
         jid, expected_nil = scheduled_job_jids.first(2)
@@ -122,8 +122,8 @@ module Plines
       end
 
       it 'enqueues seperate delays jobs if multiple steps have the same external dependency with different wait_up_to settings' do
-        step_class(:C) { has_external_dependency :bar, wait_up_to: 3000 }
-        step_class(:D) { has_external_dependency :bar, wait_up_to: 3001 }
+        step_class(:C) { has_external_dependencies(wait_up_to: 3000) { :bar } }
+        step_class(:D) { has_external_dependencies(wait_up_to: 3001) { :bar } }
         enqueuer.enqueue_jobs
 
         scheduled_jobs = scheduled_job_jids.map { |jid| job_for(jid) }

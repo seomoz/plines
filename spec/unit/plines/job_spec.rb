@@ -84,27 +84,33 @@ module Plines
     describe "#external_dependencies" do
       it 'returns each of the external dependencies of the job' do
         step_class(:F) do
-          has_external_dependency :foo, :bar
+          has_external_dependencies do
+            [:foo, :bar]
+          end
         end
 
         j = Job.build(P::F, a: 1)
-        j.external_dependencies.keys.should eq([:foo, :bar])
+        j.external_dependencies.map(&:name).should eq([:foo, :bar])
       end
 
       it 'only includes external dependencies for which the conditional block returns true' do
         step_class(:F) do
-          has_external_dependency(:foo) { |d| d[:foo] }
-          has_external_dependency(:bar) { |d| d[:bar] }
+          has_external_dependencies do |data|
+            deps = []
+            deps << :foo if data[:foo]
+            deps << :bar if data[:bar]
+            deps
+          end
         end
 
         j = Job.build(P::F, a: 1)
-        j.external_dependencies.keys.should eq([])
+        j.external_dependencies.should eq([])
 
         j = Job.build(P::F, foo: true)
-        j.external_dependencies.keys.should eq([:foo])
+        j.external_dependencies.map(&:name).should eq([:foo])
 
         j = Job.build(P::F, foo: true, bar: true)
-        j.external_dependencies.keys.should eq([:foo, :bar])
+        j.external_dependencies.map(&:name).should eq([:foo, :bar])
       end
     end
   end
