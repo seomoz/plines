@@ -143,13 +143,10 @@ module MakeThanksgivingDinner
     # before this step is allowed to proceed. They are intended for
     # use when a step has a dependency on data from an external
     # asynchronous system that operates on its own schedule.
-    #
-    # Note: if you want only some instances of this step to have the
-    # external dependency, than pass a block.  The block will receive
-    # the job data for each job as an argument, and only the jobs for
-    # which the block returns `true` for their data will have the
-    # external dependency.
-    has_external_dependency :await_turkey_is_ready_for_pickup_notice, wait_up_to: 12.hours
+    has_external_dependencies(wait_up_to: 12.hours) do |job_data|
+      # you can return a single dependency or an array of them.
+      "await_turkey_is_ready_for_pickup_notice"
+    end
   end
 
   class PrepareTurkey
@@ -244,7 +241,7 @@ The declared dependencies will be honored as well:
 * The 3 AddWhipCreamToPie jobs will be available for processing once
   their corresponding MakePie jobs have completed.
 * PickupTurkey will not run until the
-  `:await_turkey_is_ready_for_pickup_notice` external dependency is
+  `"await_turkey_is_ready_for_pickup_notice"` external dependency is
   fulfilled (see below for more details).
 * PrepareTurkey will be available for processing once the PickupTurkey
   job has finished.
@@ -287,7 +284,7 @@ job_batch.cancel!
 
 # Resolves the named external dependency. For the example above,
 # calling this will allow the PickupTurkey job to proceed.
-job_batch.resolve_external_dependency :await_turkey_is_ready_for_pickup_notice
+job_batch.resolve_external_dependency "await_turkey_is_ready_for_pickup_notice"
 ```
 
 Plines sets expiration on the redis keys it uses to track job batches as
@@ -311,13 +308,15 @@ for timing out an external dependency:
 module MyPipeline
   class MyStep
     extend Plines::Step
-    has_external_dependency :my_async_service, wait_up_to: 3.hours
+    has_external_dependencies(wait_up_to: 3.hours) do |job_data|
+      "my_async_service"
+    end
   end
 end
 ```
 
 With this configuration, Plines will schedule a Qless job to run in
-3 hours that will timeout the `:my_async_service` external dependency,
+3 hours that will timeout the `"my_async_service"` external dependency,
 allowing the `MyStep` job to run without the dependency being resolved.
 
 ## Step Dependency Timeouts (TODO)

@@ -13,14 +13,10 @@ module Plines
       @dependency_graph.ordered_steps.each do |step|
         jid = Qless.generate_jid
         jids[step] = jid
-        @job_batch.add_job(jid, *step.external_dependencies.keys)
+        @job_batch.add_job(jid, *step.external_dependencies.map(&:name))
 
         enqueue_job_for(step, jid, dependency_jids_for(step))
-
-        step.external_dependencies.each do |key, value|
-          next unless timeout = value[:wait_up_to]
-          external_dep_timeouts[TimeoutKey.new(key, timeout)] << step
-        end
+        setup_external_dep_timeouts_for(step)
       end
 
       enqueue_external_dependency_timeouts
@@ -29,6 +25,7 @@ module Plines
     end
 
   private
+
     def jids
       @jids ||= {}
     end
@@ -37,6 +34,13 @@ module Plines
       step.klass.enqueue_qless_job \
         step.data.merge('_job_batch_id' => @job_batch.id),
         @qless_job_options_block[step].merge(depends: depends_on, jid: jid)
+    end
+
+    def setup_external_dep_timeouts_for(step)
+      step.external_dependencies.each do |dependency|
+        next unless timeout = dependency.options[:wait_up_to]
+        external_dep_timeouts[TimeoutKey.new(dependency.name, timeout)] << step
+      end
     end
 
     def dependency_jids_for(step)
