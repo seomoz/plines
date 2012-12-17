@@ -18,3 +18,5 @@ tmp
 
 bundle
 config/redis_connection_url.txt
+
+bin/*
