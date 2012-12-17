@@ -101,7 +101,7 @@ module Plines
 
     describe "#has_external_dependencies_for?" do
       it "returns true for a step class that has external dependencies" do
-        step_class(:StepA) { has_external_dependencies { :foo } }
+        step_class(:StepA) { has_external_dependencies { "foo" } }
         P::StepA.has_external_dependencies_for?(any: 'data').should be_true
       end
 
@@ -113,7 +113,7 @@ module Plines
       context 'for a step that has external dependencies for only some instances' do
         step_class(:StepA) do
           has_external_dependencies do |job_data|
-            :foo if job_data[:depends_on_foo]
+            "foo" if job_data[:depends_on_foo]
           end
         end
 
@@ -175,7 +175,7 @@ module Plines
 
       it 'enqueues jobs with external dependencies to the awaiting queue even if a queue is configured' do
         step_class(:A) do
-          has_external_dependencies { :foo }
+          has_external_dependencies { "foo" }
           qless_options do |qless|
             qless.queue = "special"
           end
@@ -186,7 +186,7 @@ module Plines
 
       it 'enqueues jobs with conditional external dependencies to the correct queue' do
         step_class(:A) do
-          has_external_dependencies { |d| :foo if d[:ext] }
+          has_external_dependencies { |d| "foo" if d[:ext] }
         end
 
         enqueue(data: { ext: true }).queue_name.should eq(P.awaiting_external_dependency_queue.name)
@@ -195,7 +195,7 @@ module Plines
 
       it 'enqueues jobs with conditional external dependencies to the correct queue when a queue option is provided' do
         step_class(:A) do
-          has_external_dependencies { |d| :foo if d[:ext] }
+          has_external_dependencies { |d| "foo" if d[:ext] }
         end
 
         enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name.should eq(P.awaiting_external_dependency_queue.name)
@@ -434,7 +434,7 @@ module Plines
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
-          enqueued_job.stub(unresolved_external_dependencies: [:foo, :bar])
+          enqueued_job.stub(unresolved_external_dependencies: ["foo", "bar"])
 
           unresolved_ext_deps = []
           step_class(:A) do
@@ -444,7 +444,7 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          unresolved_ext_deps.should eq([:foo, :bar])
+          unresolved_ext_deps.should eq(["foo", "bar"])
         end
 
         it "marks the job as complete in the job batch" do

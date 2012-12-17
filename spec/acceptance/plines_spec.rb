@@ -235,7 +235,7 @@ describe Plines, :redis do
       end
 
       has_external_dependencies do |job_data|
-        :"await_#{job_data[:size]}_turkey_ready_call"
+        "await_#{job_data[:size]}_turkey_ready_call"
       end
 
       def perform
@@ -251,13 +251,13 @@ describe Plines, :redis do
     steps.should_not include("pickup_big_turkey")
     steps.should have(5).entries
 
-    smith_batch.resolve_external_dependency :await_big_turkey_ready_call
+    smith_batch.resolve_external_dependency "await_big_turkey_ready_call"
     process_work
     steps = MakeThanksgivingDinner.performed_steps.values
     steps.should_not include("pickup_small_turkey")
     steps.should include("pickup_big_turkey")
 
-    smith_batch.resolve_external_dependency :await_small_turkey_ready_call
+    smith_batch.resolve_external_dependency "await_small_turkey_ready_call"
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps.values
@@ -269,7 +269,7 @@ describe Plines, :redis do
 
   it "can timeout external dependencies" do
     MakeThanksgivingDinner::PickupTurkey.has_external_dependencies(wait_up_to: 0.3) do
-      :await_turkey_ready_call
+      "await_turkey_ready_call"
     end
 
     MakeThanksgivingDinner::PickupTurkey.class_eval do
