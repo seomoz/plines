@@ -13,7 +13,7 @@ module Plines
         stub_const("MyPipeline", mod)
         mod.extend Plines::Pipeline
 
-        MyPipeline.step_classes.should eq([])
+        expect(MyPipeline.step_classes).to eq([])
 
         class MyPipeline::A
           extend Plines::Step
@@ -23,7 +23,7 @@ module Plines
           extend Plines::Step
         end
 
-        MyPipeline.step_classes.should eq([MyPipeline::A, MyPipeline::B])
+        expect(MyPipeline.step_classes).to eq([MyPipeline::A, MyPipeline::B])
       end
 
       it 'raises an error if it is not nested in a pipeline' do
@@ -40,8 +40,8 @@ module Plines
       it 'returns just 1 instance w/ the given data by default' do
         step_class(:A)
         instances = P::A.jobs_for(a: 1)
-        instances.map(&:klass).should eq([P::A])
-        instances.map(&:data).should eq([a: 1])
+        expect(instances.map(&:klass)).to eq([P::A])
+        expect(instances.map(&:data)).to eq([a: 1])
       end
 
       it 'returns one instance per array entry returned by the fan_out block' do
@@ -52,8 +52,8 @@ module Plines
         end
 
         instances = P::A.jobs_for(a: 3)
-        instances.map(&:klass).should eq([P::A, P::A])
-        instances.map(&:data).should eq([{ a: 4 }, { a: 5 }])
+        expect(instances.map(&:klass)).to eq([P::A, P::A])
+        expect(instances.map(&:data)).to eq([{ a: 4 }, { a: 5 }])
       end
     end
 
@@ -62,7 +62,7 @@ module Plines
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        P::StepFoo.dependencies_for(stub_job, :data).to_a.should eq([])
+        expect(P::StepFoo.dependencies_for(stub_job, :data).to_a).to eq([])
       end
 
       it "includes the root dependency if there are no other declared dependency" do
@@ -70,7 +70,7 @@ module Plines
         step_class(:Bar)
 
         P.root_dependency = P::Bar
-        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should eq([P::Bar])
+        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).to eq([P::Bar])
       end
 
       it "does not include the root dependency if there are other declared depenencies" do
@@ -79,7 +79,7 @@ module Plines
         step_class(:Bazz)
 
         P.root_dependency = P::Bazz
-        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should_not include(P::Bazz)
+        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).not_to include(P::Bazz)
       end
 
       it "does not include the root dependency if it is the root dependency" do
@@ -87,7 +87,7 @@ module Plines
         step_class(:Bar)
 
         P.root_dependency = P::Bar
-        P::Bar.dependencies_for(stub_job, {}).map(&:klass).should eq([])
+        expect(P::Bar.dependencies_for(stub_job, {}).map(&:klass)).to eq([])
       end
 
       it 'includes all but itself when `depends_on_all_steps` is declared' do
@@ -95,19 +95,19 @@ module Plines
         step_class(:Bar)
         step_class(:Bazz)
 
-        P::Foo.dependencies_for(stub_job, {}).map(&:klass).should eq([P::Bar, P::Bazz])
+        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).to eq([P::Bar, P::Bazz])
       end
     end
 
     describe "#has_external_dependencies_for?" do
       it "returns true for a step class that has external dependencies" do
         step_class(:StepA) { has_external_dependencies { "foo" } }
-        P::StepA.has_external_dependencies_for?(any: 'data').should be_true
+        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be_true
       end
 
       it "returns false for a step class that lacks external dependencies" do
         step_class(:StepA)
-        P::StepA.has_external_dependencies_for?(any: 'data').should be_false
+        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be_false
       end
 
       context 'for a step that has external dependencies for only some instances' do
@@ -118,11 +118,11 @@ module Plines
         end
 
         it 'returns true if the block returns true' do
-          P::StepA.has_external_dependencies_for?(depends_on_foo: true).should be_true
+          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: true)).to be_true
         end
 
         it 'returns false if the block returns false' do
-          P::StepA.has_external_dependencies_for?(depends_on_foo: false).should be_false
+          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: false)).to be_false
         end
       end
     end
@@ -135,8 +135,8 @@ module Plines
           end
         end
 
-        P::A.processing_queue.should be_a(Qless::Queue)
-        P::A.processing_queue.name.should eq("special")
+        expect(P::A.processing_queue).to be_a(Qless::Queue)
+        expect(P::A.processing_queue.name).to eq("special")
       end
     end
 
@@ -155,12 +155,12 @@ module Plines
         step_class(:A)
         jid = queue(:foo).put(P::A, {})
         job = enqueue(depends: [jid])
-        job.dependencies.should eq([jid])
+        expect(job.dependencies).to eq([jid])
       end
 
       it 'enqueues the job with the passed data' do
         step_class(:A)
-        enqueue(data: { "a" => 5 }).data.should eq("a" => 5)
+        expect(enqueue(data: { "a" => 5 }).data).to eq("a" => 5)
       end
 
       it 'enqueues the job to the configured queue' do
@@ -170,7 +170,7 @@ module Plines
           end
         end
 
-        enqueue.queue_name.should eq("special")
+        expect(enqueue.queue_name).to eq("special")
       end
 
       it 'enqueues jobs with external dependencies to the awaiting queue even if a queue is configured' do
@@ -181,7 +181,7 @@ module Plines
           end
         end
 
-        enqueue.queue_name.should eq(P.awaiting_external_dependency_queue.name)
+        expect(enqueue.queue_name).to eq(P.awaiting_external_dependency_queue.name)
       end
 
       it 'enqueues jobs with conditional external dependencies to the correct queue' do
@@ -189,8 +189,8 @@ module Plines
           has_external_dependencies { |d| "foo" if d[:ext] }
         end
 
-        enqueue(data: { ext: true }).queue_name.should eq(P.awaiting_external_dependency_queue.name)
-        enqueue(data: { ext: false }).queue_name.should eq(P::A.processing_queue.name.to_s)
+        expect(enqueue(data: { ext: true }).queue_name).to eq(P.awaiting_external_dependency_queue.name)
+        expect(enqueue(data: { ext: false }).queue_name).to eq(P::A.processing_queue.name.to_s)
       end
 
       it 'enqueues jobs with conditional external dependencies to the correct queue when a queue option is provided' do
@@ -198,29 +198,29 @@ module Plines
           has_external_dependencies { |d| "foo" if d[:ext] }
         end
 
-        enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name.should eq(P.awaiting_external_dependency_queue.name)
-        enqueue(data: { ext: false }, queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+        expect(enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name).to eq(P.awaiting_external_dependency_queue.name)
+        expect(enqueue(data: { ext: false }, queue: 'pipeline_queue').queue_name).to eq('pipeline_queue')
       end
 
       it 'enqueues the job to the queue specified in the pipeline' do
         step_class(:A)
 
-        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
+        expect(enqueue(queue: 'pipeline_queue').queue_name).to eq('pipeline_queue')
       end
 
       it 'can enqueue the job multiple times into different queues' do
         step_class(:A)
 
-        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
-        enqueue(queue: 'pipeline_queue2').queue_name.should eq('pipeline_queue2')
-        enqueue.queue_name.should eq('plines')
+        expect(enqueue(queue: 'pipeline_queue').queue_name).to eq('pipeline_queue')
+        expect(enqueue(queue: 'pipeline_queue2').queue_name).to eq('pipeline_queue2')
+        expect(enqueue.queue_name).to eq('plines')
       end
 
       it 'enqueues to the correct queue on a per request basis' do
         step_class(:A)
 
-        enqueue(queue: 'pipeline_queue').queue_name.should eq('pipeline_queue')
-        enqueue.queue_name.should eq('plines')
+        expect(enqueue(queue: 'pipeline_queue').queue_name).to eq('pipeline_queue')
+        expect(enqueue.queue_name).to eq('plines')
       end
 
       it 'enqueues the job to the queue specified in step class, overriding the pipeline queue' do
@@ -230,13 +230,13 @@ module Plines
           end
         end
 
-        enqueue(queue: 'pipeline_queue').queue_name.should eq("special")
-        enqueue.queue_name.should eq("special")
+        expect(enqueue(queue: 'pipeline_queue').queue_name).to eq("special")
+        expect(enqueue.queue_name).to eq("special")
       end
 
       it 'enqueues the job to the "plines" queue if no queue is configured' do
         step_class(:A)
-        enqueue.queue_name.should eq("plines")
+        expect(enqueue.queue_name).to eq("plines")
       end
 
       it 'enqueues the job with the configured retry count' do
@@ -246,17 +246,17 @@ module Plines
           end
         end
 
-        enqueue.original_retries.should eq(9)
+        expect(enqueue.original_retries).to eq(9)
       end
 
       it 'enqueues the job with the passed retry count if none is configured' do
         step_class(:A)
-        enqueue(retries: 12).original_retries.should eq(12)
+        expect(enqueue(retries: 12).original_retries).to eq(12)
       end
 
       it 'enqueues the job with a retry count of 0 if none is passed or configured' do
         step_class(:A)
-        enqueue.original_retries.should eq(0)
+        expect(enqueue.original_retries).to eq(0)
       end
 
       it 'enqueues the job with the configured priority' do
@@ -266,17 +266,17 @@ module Plines
           end
         end
 
-        enqueue(priority: 12).priority.should eq(100)
+        expect(enqueue(priority: 12).priority).to eq(100)
       end
 
       it 'enqueues the job with the passed priority if none is configured' do
         step_class(:A)
-        enqueue(priority: 12).priority.should eq(12)
+        expect(enqueue(priority: 12).priority).to eq(12)
       end
 
       it 'enqueues the job with no priority if none is configured or passed' do
         step_class(:A)
-        enqueue.priority.should eq(0)
+        expect(enqueue.priority).to eq(0)
       end
 
       it 'enqueues the job with the set union of the configured and passed tags' do
@@ -286,8 +286,8 @@ module Plines
           end
         end
 
-        enqueue.tags.should eq(["mine"])
-        enqueue(tags: ['foo', 'mine', 'bar']).tags.should =~ %w[ foo bar mine ]
+        expect(enqueue.tags).to eq(["mine"])
+        expect(enqueue(tags: ['foo', 'mine', 'bar']).tags).to match_array %w[ foo bar mine ]
       end
 
       it 'also supports the singular #tag API' do
@@ -297,21 +297,21 @@ module Plines
           end
         end
 
-        enqueue.tags.should eq(["mine"])
+        expect(enqueue.tags).to eq(["mine"])
       end
 
       it "returns the jid" do
         step_class(:A)
-        P::A.enqueue_qless_job({}).should match(/\A[a-f0-9]{32}\z/)
+        expect(P::A.enqueue_qless_job({})).to match(/\A[a-f0-9]{32}\z/)
       end
     end
 
     describe "#depended_on_by_all_steps" do
       it "sets itself as the pipline's root dependency" do
         step_class(:A)
-        P.root_dependency.should_not be(P::A)
+        expect(P.root_dependency).not_to be(P::A)
         P::A.depended_on_by_all_steps
-        P.root_dependency.should be(P::A)
+        expect(P.root_dependency).to be(P::A)
       end
     end
 
@@ -326,8 +326,8 @@ module Plines
         end
 
         dependencies = P::StepC.dependencies_for(stub_job, { a: 1 })
-        dependencies.map(&:klass).should eq([P::StepA, P::StepB])
-        dependencies.map(&:data).should eq([{ a: 1 }, { a: 1 }])
+        expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
+        expect(dependencies.map(&:data)).to eq([{ a: 1 }, { a: 1 }])
       end
 
       it "resolves step class names in the enclosing module" do
@@ -346,7 +346,7 @@ module Plines
         end
 
         dependencies = MySteps::B.dependencies_for(stub_job, {})
-        dependencies.map(&:klass).should eq([MySteps::A])
+        expect(dependencies.map(&:klass)).to eq([MySteps::A])
       end
 
       context 'when depending on a fan_out step' do
@@ -362,8 +362,8 @@ module Plines
           end
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
-          dependencies.map(&:klass).should eq([P::StepX, P::StepX, P::StepX])
-          dependencies.map(&:data).should eq([{ a: 18 }, { a: 19 }, { a: 20 }])
+          expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
+          expect(dependencies.map(&:data)).to eq([{ a: 18 }, { a: 19 }, { a: 20 }])
         end
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
@@ -372,8 +372,8 @@ module Plines
           end
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
-          dependencies.map(&:klass).should eq([P::StepX, P::StepX])
-          dependencies.map(&:data).should eq([{ a: 18 }, { a: 20 }])
+          expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
+          expect(dependencies.map(&:data)).to eq([{ a: 18 }, { a: 20 }])
         end
       end
 
@@ -412,7 +412,7 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          foo.should eq("bar")
+          expect(foo).to eq("bar")
         end
 
         it "makes the job_batch and proxied qless_job available in the perform instance method" do
@@ -427,10 +427,10 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          j_batch.should eq(job_batch)
-          data_hash.should have_key("_job_batch_id")
+          expect(j_batch).to eq(job_batch)
+          expect(data_hash).to have_key("_job_batch_id")
 
-          qljob.should eq(qless_job_proxy)
+          expect(qljob).to eq(qless_job_proxy)
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
@@ -444,25 +444,25 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          unresolved_ext_deps.should eq(["foo", "bar"])
+          expect(unresolved_ext_deps).to eq(["foo", "bar"])
         end
 
         it "marks the job as complete in the job batch" do
-          job_batch.pending_job_jids.should include(qless_job.jid)
-          job_batch.completed_job_jids.should_not include(qless_job.jid)
+          expect(job_batch.pending_job_jids).to include(qless_job.jid)
+          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
 
           step_class(:A) do
             def perform; end
           end
 
           P::A.perform(qless_job)
-          job_batch.pending_job_jids.should_not include(qless_job.jid)
-          job_batch.completed_job_jids.should include(qless_job.jid)
+          expect(job_batch.pending_job_jids).not_to include(qless_job.jid)
+          expect(job_batch.completed_job_jids).to include(qless_job.jid)
         end
 
         it "does not mark the job as complete in the job batch if the job was retried" do
-          job_batch.pending_job_jids.should include(qless_job.jid)
-          job_batch.completed_job_jids.should_not include(qless_job.jid)
+          expect(job_batch.pending_job_jids).to include(qless_job.jid)
+          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
           qless_job.stub(:retry)
           qless_job.should_receive(:retry)
 
@@ -473,8 +473,8 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          job_batch.pending_job_jids.should include(qless_job.jid)
-          job_batch.completed_job_jids.should_not include(qless_job.jid)
+          expect(job_batch.pending_job_jids).to include(qless_job.jid)
+          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
         end
 
         it "supports #around_perform middleware modules" do
@@ -503,7 +503,7 @@ module Plines
           end
 
           P::A.perform(qless_job)
-          P::A.order.should eq([:before_2, :before_1, :perform, :after_1, :after_2])
+          expect(P::A.order).to eq([:before_2, :before_1, :perform, :after_1, :after_2])
         end
       end
     end

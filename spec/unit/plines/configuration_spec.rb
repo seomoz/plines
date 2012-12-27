@@ -11,12 +11,12 @@ module Plines
           [batch_data.fetch("shard"), batch_data.fetch("campaign")].join('-')
         end
 
-        config.batch_list_key_for("shard" => "23", "campaign" => "12").should eq("23-12")
+        expect(config.batch_list_key_for("shard" => "23", "campaign" => "12")).to eq("23-12")
       end
 
       it "raises an error by default" do
         expect {
-          config.batch_list_key_for("shard" => "23", "campaign" => "12").should eq("23-12")
+          config.batch_list_key_for("shard" => "23", "campaign" => "12")
         }.to raise_error(Plines::Configuration::Error)
       end
     end
@@ -30,12 +30,12 @@ module Plines
                    60 * # seconds
                    1000 # to milliseconds
 
-        config.data_ttl_in_milliseconds.should eq(expected)
+        expect(config.data_ttl_in_milliseconds).to eq(expected)
       end
 
       it "returns 1000 times the data_ttl_in_seconds, rounded to the nearest integer" do
         config.data_ttl_in_seconds = Math::PI
-        config.data_ttl_in_milliseconds.should eq(3141)
+        expect(config.data_ttl_in_milliseconds).to eq(3141)
       end
     end
 
@@ -43,11 +43,11 @@ module Plines
       it "returns the configured block" do
         block = lambda { }
         config.qless_job_options(&block)
-        config.qless_job_options_block.should be(block)
+        expect(config.qless_job_options_block).to be(block)
       end
 
       it "returns a block that returns an empty hash by default" do
-        config.qless_job_options_block.call(stub).should eq({})
+        expect(config.qless_job_options_block.call(stub)).to eq({})
       end
     end
   end

@@ -63,6 +63,10 @@ RSpec.configure do |config|
   config.include RSpec::Fire
   config.include PlinesSpecHelpers
   config.extend PlinesSpecHelpers::ClassMethods
+
+  config.expect_with :rspec do |expectations|
+    expectations.syntax = :expect
+  end
 end
 
 shared_context "redis", :redis do

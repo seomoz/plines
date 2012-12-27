@@ -158,21 +158,21 @@ describe Plines, :redis do
 
     MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
 
-    MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones").should be_nil
-    smith_batch.should have_at_least(10).job_jids
-    smith_batch.should_not be_complete
+    expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones")).to be_nil
+    expect(smith_batch).to have_at_least(10).job_jids
+    expect(smith_batch).not_to be_complete
 
-    MakeThanksgivingDinner.performed_steps.should eq([])
-    MakeThanksgivingDinner.poured_drinks.should eq([])
+    expect(MakeThanksgivingDinner.performed_steps).to eq([])
+    expect(MakeThanksgivingDinner.poured_drinks).to eq([])
   end
 
   def should_expire_keys
-    plines_temporary_redis_key_ttls.should eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
+    expect(plines_temporary_redis_key_ttls).to eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
   end
 
   def process_work
     worker.work(0)
-    MakeThanksgivingDinner.qless.should have_no_failures
+    expect(MakeThanksgivingDinner.qless).to have_no_failures
   end
 
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
@@ -180,28 +180,28 @@ describe Plines, :redis do
 
   it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
     Timecop.freeze(start_time) { enqueue_jobs }
-    grocieries_queue.peek.tags.should eq(["Smith"])
+    expect(grocieries_queue.peek.tags).to eq(["Smith"])
     job = grocieries_queue.peek
-    job.klass.to_s.should eq("MakeThanksgivingDinner::BuyGroceries")
-    job.priority.should eq(-10)
+    expect(job.klass.to_s).to eq("MakeThanksgivingDinner::BuyGroceries")
+    expect(job.priority).to eq(-10)
     Timecop.freeze(end_time) { process_work }
 
     steps = MakeThanksgivingDinner.performed_steps.values
-    steps.should have(10).entries
+    expect(steps).to have(10).entries
 
-    steps.first.should eq("buy_groceries") # should always be first
-    steps.last.should eq("set_table") # should always be last
-    steps.count("pour_drinks").should eq(3) # should be in the middle somewhere
+    expect(steps.first).to eq("buy_groceries") # must always be first
+    expect(steps.last).to eq("set_table") # must always be last
+    expect(steps.count("pour_drinks")).to eq(3) # must be in the middle somewhere
 
-    "make_stuffing".should be_before("stuff_turkey").in(steps)
-    "brine_turkey".should be_before("stuff_turkey").in(steps)
-    "stuff_turkey".should be_before("bake_turkey").in(steps)
+    expect("make_stuffing").to be_before("stuff_turkey").in(steps)
+    expect("brine_turkey").to be_before("stuff_turkey").in(steps)
+    expect("stuff_turkey").to be_before("bake_turkey").in(steps)
 
-    MakeThanksgivingDinner.poured_drinks.values.should =~ %w[ champaign water cider ]
+    expect(MakeThanksgivingDinner.poured_drinks.values).to match_array %w[ champaign water cider ]
 
-    smith_batch.should be_complete
-    smith_batch.created_at.should eq(start_time)
-    smith_batch.completed_at.should eq(end_time)
+    expect(smith_batch).to be_complete
+    expect(smith_batch.created_at).to eq(start_time)
+    expect(smith_batch.completed_at).to eq(end_time)
   end
 
   it 'allows a job batch to be cancelled in midstream' do
@@ -213,15 +213,15 @@ describe Plines, :redis do
       end
     end
 
-    grocieries_queue.length.should eq(1)
-    smith_batch.should_not be_cancelled
+    expect(grocieries_queue.length).to eq(1)
+    expect(smith_batch).not_to be_cancelled
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps
-    steps.should have_at_most(7).entries
+    expect(steps).to have_at_most(7).entries
 
-    MakeThanksgivingDinner.default_queue.length.should eq(0)
-    smith_batch.should be_cancelled
+    expect(MakeThanksgivingDinner.default_queue.length).to eq(0)
+    expect(smith_batch).to be_cancelled
 
     should_expire_keys
   end
@@ -247,22 +247,22 @@ describe Plines, :redis do
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps.values
-    steps.should_not include("pickup_small_turkey")
-    steps.should_not include("pickup_big_turkey")
-    steps.should have(5).entries
+    expect(steps).not_to include("pickup_small_turkey")
+    expect(steps).not_to include("pickup_big_turkey")
+    expect(steps).to have(5).entries
 
     smith_batch.resolve_external_dependency "await_big_turkey_ready_call"
     process_work
     steps = MakeThanksgivingDinner.performed_steps.values
-    steps.should_not include("pickup_small_turkey")
-    steps.should include("pickup_big_turkey")
+    expect(steps).not_to include("pickup_small_turkey")
+    expect(steps).to include("pickup_big_turkey")
 
     smith_batch.resolve_external_dependency "await_small_turkey_ready_call"
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps.values
-    steps.should have(11).entries
-    steps.should include("pickup_small_turkey")
+    expect(steps).to have(11).entries
+    expect(steps).to include("pickup_small_turkey")
 
     should_expire_keys
   end
@@ -287,14 +287,14 @@ describe Plines, :redis do
     enqueue_jobs
     process_work
 
-    MakeThanksgivingDinner.unresolved_external_dependencies.values.should_not include("await_turkey_ready_call")
-    MakeThanksgivingDinner.performed_steps.values.should_not include("pickup_turkey")
+    expect(MakeThanksgivingDinner.unresolved_external_dependencies.values).not_to include("await_turkey_ready_call")
+    expect(MakeThanksgivingDinner.performed_steps.values).not_to include("pickup_turkey")
 
     sleep 0.3 # so the timeout occurs
     process_work
 
-    MakeThanksgivingDinner.unresolved_external_dependencies.values.should include("await_turkey_ready_call")
-    MakeThanksgivingDinner.performed_steps.values.should include("pickup_turkey")
+    expect(MakeThanksgivingDinner.unresolved_external_dependencies.values).to include("await_turkey_ready_call")
+    expect(MakeThanksgivingDinner.performed_steps.values).to include("pickup_turkey")
   end
 
   it "supports middleware modules" do
@@ -312,7 +312,7 @@ describe Plines, :redis do
     process_work
 
     steps = MakeThanksgivingDinner.performed_steps
-    steps.grep(/pickup_turkey/).should eq(%w[ before_pickup_turkey pickup_turkey after_pickup_turkey ])
+    expect(steps.grep(/pickup_turkey/)).to eq(%w[ before_pickup_turkey pickup_turkey after_pickup_turkey ])
   end
 end
 

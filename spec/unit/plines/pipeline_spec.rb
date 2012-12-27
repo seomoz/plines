@@ -18,39 +18,39 @@ module Plines
 
     describe ".qless" do
       it 'returns a memoized Qless::Client instance' do
-        MyPipeline.qless.should be_a(Qless::Client)
-        MyPipeline.qless.should be(MyPipeline.qless)
+        expect(MyPipeline.qless).to be_a(Qless::Client)
+        expect(MyPipeline.qless).to be(MyPipeline.qless)
       end
 
       it 'can be overridden' do
         orig_instance = MyPipeline.qless
         new_instance = Qless::Client.new
         MyPipeline.qless = new_instance
-        MyPipeline.qless.should be(new_instance)
-        MyPipeline.qless.should_not be(orig_instance)
+        expect(MyPipeline.qless).to be(new_instance)
+        expect(MyPipeline.qless).not_to be(orig_instance)
       end
     end
 
     describe ".default_queue" do
       it "returns the 'plines' queue, memoized" do
-        MyPipeline.default_queue.should be_a(Qless::Queue)
-        MyPipeline.default_queue.should be(MyPipeline.default_queue)
-        MyPipeline.default_queue.name.should eq("plines")
+        expect(MyPipeline.default_queue).to be_a(Qless::Queue)
+        expect(MyPipeline.default_queue).to be(MyPipeline.default_queue)
+        expect(MyPipeline.default_queue.name).to eq("plines")
       end
     end
 
     describe ".awaiting_external_dependency_queue" do
       it "returns the 'awaiting_ext_dep' queue, memoized" do
-        MyPipeline.awaiting_external_dependency_queue.should be_a(Qless::Queue)
-        MyPipeline.awaiting_external_dependency_queue.should be(MyPipeline.awaiting_external_dependency_queue)
-        MyPipeline.awaiting_external_dependency_queue.name.should eq("awaiting_ext_dep")
+        expect(MyPipeline.awaiting_external_dependency_queue).to be_a(Qless::Queue)
+        expect(MyPipeline.awaiting_external_dependency_queue).to be(MyPipeline.awaiting_external_dependency_queue)
+        expect(MyPipeline.awaiting_external_dependency_queue.name).to eq("awaiting_ext_dep")
       end
     end
 
     describe ".configuration" do
       it "returns a memoized Plines::Configuration instance" do
-        MyPipeline.configuration.should be_a(Plines::Configuration)
-        MyPipeline.configuration.should be(MyPipeline.configuration)
+        expect(MyPipeline.configuration).to be_a(Plines::Configuration)
+        expect(MyPipeline.configuration).to be(MyPipeline.configuration)
       end
     end
 
@@ -58,13 +58,13 @@ module Plines
       it "yields the configuration object" do
         yielded = nil
         MyPipeline.configure { |c| yielded = c }
-        yielded.should be(MyPipeline.configuration)
+        expect(yielded).to be(MyPipeline.configuration)
       end
     end
 
     describe ".redis" do
       it "returns the qless redis" do
-        MyPipeline.redis.should be(MyPipeline.qless.redis)
+        expect(MyPipeline.redis).to be(MyPipeline.qless.redis)
       end
     end
 
@@ -73,8 +73,8 @@ module Plines
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
         JobBatchList.new(MyPipeline, "foo").create_new_batch({})
         batch = MyPipeline.most_recent_job_batch_for("a" => "foo")
-        batch.should be_a(JobBatch)
-        batch.id.should include("foo")
+        expect(batch).to be_a(JobBatch)
+        expect(batch.id).to include("foo")
       end
     end
 
@@ -82,8 +82,8 @@ module Plines
       it 'returns a job batch list object' do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
         batch = MyPipeline.job_batch_list_for("a" => "foo")
-        batch.should be_a(JobBatchList)
-        batch.key.should eq("foo")
+        expect(batch).to be_a(JobBatchList)
+        expect(batch.key).to eq("foo")
       end
     end
 
@@ -94,10 +94,10 @@ module Plines
         enqueuer = fire_double("Plines::JobEnqueuer")
 
         Plines::JobEnqueuer.should_receive(:new) do |graph, job_batch, &block|
-          graph.should be_a(Plines::DependencyGraph)
-          job_batch.id.should include("foo")
+          expect(graph).to be_a(Plines::DependencyGraph)
+          expect(job_batch.id).to include("foo")
           block.call(stub)
-          qless_job_block_called.should be_true
+          expect(qless_job_block_called).to be_true
           enqueuer
         end
 
@@ -110,19 +110,19 @@ module Plines
       it 'returns the job batch' do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
         batch = MyPipeline.enqueue_jobs_for("a" => "foo")
-        batch.should be_a(JobBatch)
-        batch.data.should eq("a" => "foo")
+        expect(batch).to be_a(JobBatch)
+        expect(batch.data).to eq("a" => "foo")
       end
     end
 
     describe ".root_dependency" do
       it 'returns a null object implementation by default' do
-        MyPipeline.root_dependency.jobs_for("some" => "data").should eq([])
+        expect(MyPipeline.root_dependency.jobs_for("some" => "data")).to eq([])
       end
 
       it 'returns the assigned root dependency' do
         MyPipeline.root_dependency = :my_root_dependency
-        MyPipeline.root_dependency.should be(:my_root_dependency)
+        expect(MyPipeline.root_dependency).to be(:my_root_dependency)
       end
 
       it 'cannot be re-assigned (since there cannot be multiple root dependencies)' do
@@ -136,11 +136,11 @@ module Plines
     describe ".set_expiration_on", :redis do
       it 'sets the configured expiration on the given redis key' do
         MyPipeline.redis.set "foo", "bar"
-        MyPipeline.redis.ttl("foo").should eq(-1) # -1 means no TTL is set
+        expect(MyPipeline.redis.ttl("foo")).to eq(-1) # -1 means no TTL is set
 
         MyPipeline.configuration.data_ttl_in_seconds = 3
         MyPipeline.set_expiration_on("foo")
-        MyPipeline.redis.ttl("foo").should eq(3)
+        expect(MyPipeline.redis.ttl("foo")).to eq(3)
       end
 
       it 'can expire multiple keys' do
@@ -149,8 +149,8 @@ module Plines
 
         MyPipeline.configuration.data_ttl_in_seconds = 3
         MyPipeline.set_expiration_on("foo", "bar")
-        MyPipeline.redis.ttl("foo").should eq(3)
-        MyPipeline.redis.ttl("bar").should eq(3)
+        expect(MyPipeline.redis.ttl("foo")).to eq(3)
+        expect(MyPipeline.redis.ttl("bar")).to eq(3)
       end
     end
   end

@@ -13,7 +13,7 @@ module Plines
       job.stub(data: data)
 
       Plines::JobBatch.stub(:find).with(job_batch.pipeline, job_batch.id) { job_batch }
-      job_batch.should respond_to(:timeout_external_dependency).with(2).arguments
+      expect(job_batch).to respond_to(:timeout_external_dependency).with(2).arguments
       job_batch.should_receive(:timeout_external_dependency).with("foo", ["a", "b"])
 
       ExternalDependencyTimeout.perform(job)

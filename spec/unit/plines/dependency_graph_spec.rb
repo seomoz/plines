@@ -38,33 +38,33 @@ module Plines
           end
         end
 
-        graph.steps.should eq([
+        expect(graph.steps).to eq([
           step(P::A),
           step(P::B), step(P::C, 11), step(P::C, 12), step(P::D),
           step(P::E), step(P::F, 10), step(P::F, 20)
         ])
 
-        step(P::A).dependencies.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12), step(P::D)]
-        step(P::A).dependents.to_a.should =~ []
+        expect(step(P::A).dependencies.to_a).to match_array [step(P::B), step(P::C, 11), step(P::C, 12), step(P::D)]
+        expect(step(P::A).dependents.to_a).to match_array []
 
-        step(P::B).dependencies.to_a.should =~ [step(P::E)]
-        step(P::B).dependents.to_a.should =~ [step(P::A)]
+        expect(step(P::B).dependencies.to_a).to match_array [step(P::E)]
+        expect(step(P::B).dependents.to_a).to match_array [step(P::A)]
 
-        step(P::C, 11).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
-        step(P::C, 11).dependents.to_a.should =~ [step(P::A)]
-        step(P::C, 12).dependencies.to_a.should =~ [step(P::E), step(P::F, 10), step(P::F, 20)]
-        step(P::C, 12).dependents.to_a.should =~ [step(P::A)]
+        expect(step(P::C, 11).dependencies.to_a).to match_array [step(P::E), step(P::F, 10), step(P::F, 20)]
+        expect(step(P::C, 11).dependents.to_a).to match_array [step(P::A)]
+        expect(step(P::C, 12).dependencies.to_a).to match_array [step(P::E), step(P::F, 10), step(P::F, 20)]
+        expect(step(P::C, 12).dependents.to_a).to match_array [step(P::A)]
 
-        step(P::D).dependencies.to_a.should =~ []
-        step(P::D).dependents.to_a.should =~ [step(P::A)]
+        expect(step(P::D).dependencies.to_a).to match_array []
+        expect(step(P::D).dependents.to_a).to match_array [step(P::A)]
 
-        step(P::E).dependencies.to_a.should =~ []
-        step(P::E).dependents.to_a.should =~ [step(P::B), step(P::C, 11), step(P::C, 12)]
+        expect(step(P::E).dependencies.to_a).to match_array []
+        expect(step(P::E).dependents.to_a).to match_array [step(P::B), step(P::C, 11), step(P::C, 12)]
 
-        step(P::F, 10).dependencies.to_a.should =~ []
-        step(P::F, 10).dependents.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
-        step(P::F, 20).dependencies.to_a.should =~ []
-        step(P::F, 20).dependents.to_a.should =~ [step(P::C, 11), step(P::C, 12)]
+        expect(step(P::F, 10).dependencies.to_a).to match_array []
+        expect(step(P::F, 10).dependents.to_a).to match_array [step(P::C, 11), step(P::C, 12)]
+        expect(step(P::F, 20).dependencies.to_a).to match_array []
+        expect(step(P::F, 20).dependents.to_a).to match_array [step(P::C, 11), step(P::C, 12)]
       end
 
       it 'correctly sets up individual dependencies on fan_out steps' do
@@ -80,15 +80,15 @@ module Plines
           a_data == b_data
         end
 
-        graph.steps.should eq([
+        expect(graph.steps).to eq([
           step(P::A, 11), step(P::A, 12),
           step(P::B, 11), step(P::B, 12)
         ])
 
-        step(P::A, 11).dependencies.to_a.should eq([step(P::B, 11)])
-        step(P::A, 12).dependencies.to_a.should eq([step(P::B, 12)])
-        step(P::B, 11).dependents.to_a.should eq([step(P::A, 11)])
-        step(P::B, 12).dependents.to_a.should eq([step(P::A, 12)])
+        expect(step(P::A, 11).dependencies.to_a).to eq([step(P::B, 11)])
+        expect(step(P::A, 12).dependencies.to_a).to eq([step(P::B, 12)])
+        expect(step(P::B, 11).dependents.to_a).to eq([step(P::A, 11)])
+        expect(step(P::B, 12).dependents.to_a).to eq([step(P::A, 12)])
       end
 
       it 'detects direct circular dependencies' do
@@ -139,28 +139,28 @@ module Plines
           index_for[step] = index
         end
 
-        index_for[step(P::A)].should > index_for[step(P::B)]
-        index_for[step(P::A)].should > index_for[step(P::C, 11)]
-        index_for[step(P::A)].should > index_for[step(P::C, 12)]
-        index_for[step(P::A)].should > index_for[step(P::D)]
+        expect(index_for[step(P::A)]).to be > index_for[step(P::B)]
+        expect(index_for[step(P::A)]).to be > index_for[step(P::C, 11)]
+        expect(index_for[step(P::A)]).to be > index_for[step(P::C, 12)]
+        expect(index_for[step(P::A)]).to be > index_for[step(P::D)]
 
-        index_for[step(P::B)].should > index_for[step(P::E)]
+        expect(index_for[step(P::B)]).to be > index_for[step(P::E)]
 
-        index_for[step(P::C, 11)].should > index_for[step(P::E)]
-        index_for[step(P::C, 11)].should > index_for[step(P::F, 10)]
-        index_for[step(P::C, 11)].should > index_for[step(P::F, 20)]
+        expect(index_for[step(P::C, 11)]).to be > index_for[step(P::E)]
+        expect(index_for[step(P::C, 11)]).to be > index_for[step(P::F, 10)]
+        expect(index_for[step(P::C, 11)]).to be > index_for[step(P::F, 20)]
 
-        index_for[step(P::C, 12)].should > index_for[step(P::E)]
-        index_for[step(P::C, 12)].should > index_for[step(P::F, 10)]
-        index_for[step(P::C, 12)].should > index_for[step(P::F, 20)]
+        expect(index_for[step(P::C, 12)]).to be > index_for[step(P::E)]
+        expect(index_for[step(P::C, 12)]).to be > index_for[step(P::F, 10)]
+        expect(index_for[step(P::C, 12)]).to be > index_for[step(P::F, 20)]
 
-        index_for[step(P::G)].should > index_for[step(P::D)]
-        index_for[step(P::G)].should > index_for[step(P::E)]
+        expect(index_for[step(P::G)]).to be > index_for[step(P::D)]
+        expect(index_for[step(P::G)]).to be > index_for[step(P::E)]
 
-        index_for[step(P::H)].should > index_for[step(P::I)]
-        index_for[step(P::H)].should > index_for[step(P::J)]
+        expect(index_for[step(P::H)]).to be > index_for[step(P::I)]
+        expect(index_for[step(P::H)]).to be > index_for[step(P::J)]
 
-        index_for[step(P::J)].should > index_for[step(P::I)]
+        expect(index_for[step(P::J)]).to be > index_for[step(P::I)]
       end
     end
   end
