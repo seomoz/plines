@@ -25,7 +25,7 @@ require 'rspec/core/rake_task'
 
 RSpec::Core::RakeTask.new(:spec) do |t|
   t.rspec_opts = %w[--profile --format progress]
-  t.ruby_opts  = "-Ispec -rsimplecov_setup"
+  t.ruby_opts  = "-Ispec -r./config/setup_load_paths -rsimplecov_setup"
 end
 
 if RUBY_ENGINE == 'ruby'
