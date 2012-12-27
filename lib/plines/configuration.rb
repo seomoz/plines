@@ -10,6 +10,7 @@ module Plines
       batch_list_key { raise Error, "batch_list_key has not been configured" }
       qless_job_options { |job| {} }
       self.data_ttl_in_seconds = SIX_MONTHS_IN_SECONDS
+      @callbacks = Hash.new { |h, k| h[k] = [] }
     end
 
     def batch_list_key(&block)
@@ -29,6 +30,16 @@ module Plines
     attr_reader :qless_job_options_block
     def qless_job_options(&block)
       @qless_job_options_block = block
+    end
+
+    def after_job_batch_cancellation(&block)
+      @callbacks[:after_job_batch_cancellation] << block
+    end
+
+    def notify(callback_type, *args)
+      @callbacks[callback_type].each do |callback|
+        callback.call(*args)
+      end
     end
   end
 end

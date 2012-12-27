@@ -50,6 +50,21 @@ module Plines
         expect(config.qless_job_options_block.call(stub)).to eq({})
       end
     end
+
+    describe "#after_job_batch_cancellation" do
+      let(:the_job_batch) { double }
+
+      it 'adds a callback that can be invoked via #notify(:after_job_batch_cancellation)' do
+        hook_1_batch = hook_2_batch = nil
+        config.after_job_batch_cancellation { |jb| hook_1_batch = jb }
+        config.after_job_batch_cancellation { |jb| hook_2_batch = jb }
+
+        config.notify(:after_job_batch_cancellation, the_job_batch)
+
+        expect(hook_1_batch).to be(the_job_batch)
+        expect(hook_2_batch).to be(the_job_batch)
+      end
+    end
   end
 end
 

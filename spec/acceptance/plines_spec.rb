@@ -103,7 +103,10 @@ describe Plines, :redis do
 
   let(:grocieries_queue) { MakeThanksgivingDinner.qless.queues[:groceries] }
   let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
-  let(:worker) { Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver) }
+  let(:worker) do
+    Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver,
+                      run_as_single_process: true)
+  end
 
   before do
     worker.run_as_single_process = true if RUBY_ENGINE == 'jruby'
@@ -207,6 +210,13 @@ describe Plines, :redis do
   it 'allows a job batch to be cancelled in midstream' do
     enqueue_jobs
 
+    cancelled_job_batch = nil
+    MakeThanksgivingDinner.configure do |plines|
+      plines.after_job_batch_cancellation do |job_batch|
+        cancelled_job_batch = job_batch
+      end
+    end
+
     MakeThanksgivingDinner::StuffTurkey.class_eval do
       def perform
         job_batch.cancel!
@@ -222,6 +232,7 @@ describe Plines, :redis do
 
     expect(MakeThanksgivingDinner.default_queue.length).to eq(0)
     expect(smith_batch).to be_cancelled
+    expect(cancelled_job_batch).to eq(smith_batch)
 
     should_expire_keys
   end
