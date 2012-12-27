@@ -4,6 +4,7 @@ require 'plines/pipeline'
 require 'plines/step'
 require 'plines/enqueued_job'
 require 'plines/job_batch'
+require 'plines/configuration'
 
 module Plines
   describe JobBatch, :redis do
@@ -360,6 +361,15 @@ module Plines
 
         expect(P.redis.keys).not_to be_empty
         expect(expired_keys.to_a).to include(*P.redis.keys.grep(/job_batch/))
+      end
+
+      it 'notifies observers that it has been cancelled' do
+        notified_batch = nil
+        pipeline_module.configuration.after_job_batch_cancellation do |jb|
+          notified_batch = jb
+        end
+
+        expect { batch.cancel! }.to change { notified_batch }.from(nil).to(batch)
       end
     end
   end
