@@ -147,7 +147,7 @@ module Plines
     end
 
     def data
-      decode(meta["batch_data"])
+      decode(meta[BATCH_DATA_KEY])
     end
 
   private
