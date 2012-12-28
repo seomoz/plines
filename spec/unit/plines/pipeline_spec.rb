@@ -6,6 +6,8 @@ require 'plines/dependency_graph'
 require 'plines/job'
 require 'plines/job_batch_list'
 require 'plines/job_batch'
+require 'plines/enqueued_job'
+require 'timecop'
 
 module Plines
   describe Pipeline do
@@ -151,6 +153,67 @@ module Plines
         MyPipeline.set_expiration_on("foo", "bar")
         expect(MyPipeline.redis.ttl("foo")).to eq(3)
         expect(MyPipeline.redis.ttl("bar")).to eq(3)
+      end
+    end
+
+    describe ".matching_older_unfinished_job_batches", :redis do
+      before do
+        MyPipeline.configure do |c|
+          c.batch_list_key { |hash| hash[:key] || hash["key"] }
+        end
+      end
+
+      let(:baseline_time)  { Time.utc(2012, 12, 20, 12, 30) }
+      let(:main_key)       { "123" }
+      let(:main_job_batch) { create_job_batch }
+
+      def create_job_batch(overrides = {})
+        batch_data = { key: main_key }.merge(overrides)
+        job_batch_list = MyPipeline.job_batch_list_for(batch_data)
+
+        Timecop.freeze(overrides.delete(:time) || baseline_time) do
+          return job_batch_list.create_new_batch(batch_data)
+        end
+      end
+
+      subject { MyPipeline.matching_older_unfinished_job_batches(main_job_batch) }
+
+      it 'includes matching older unfinished job batches' do
+        batch = create_job_batch(time: baseline_time - 10)
+
+        expect(batch.created_at).to be < main_job_batch.created_at
+        expect(batch).to_not be_complete
+
+        expect(subject).to include(batch)
+      end
+
+      it 'does not include older unfinished job batches that do not match' do
+        batch = create_job_batch(key: "other", time: baseline_time - 10)
+
+        expect(batch.created_at).to be < main_job_batch.created_at
+        expect(batch).to_not be_complete
+
+        expect(subject).not_to include(batch)
+      end
+
+      it 'does not include matching newer unfinished job batches' do
+        batch = create_job_batch(time: baseline_time + 10)
+
+        expect(batch.created_at).to be > main_job_batch.created_at
+        expect(batch).to_not be_complete
+
+        expect(subject).not_to include(batch)
+      end
+
+      it 'does not include matching older finished job batches' do
+        batch = create_job_batch(time: baseline_time - 10)
+        expect(batch.created_at).to be < main_job_batch.created_at
+
+        batch.add_job("some-jid")
+        batch.mark_job_as_complete("some-jid")
+        expect(batch).to be_complete
+
+        expect(subject).not_to include(batch)
       end
     end
   end

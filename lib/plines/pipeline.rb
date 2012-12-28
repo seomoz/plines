@@ -90,6 +90,13 @@ module Plines
       key = configuration.batch_list_key_for(batch_data)
       JobBatchList.new(self, key)
     end
+
+    def matching_older_unfinished_job_batches(main_job_batch)
+      job_batch_list = job_batch_list_for(main_job_batch.data)
+      job_batch_list.each.select do |job_batch|
+        !job_batch.complete? && job_batch.created_at < main_job_batch.created_at
+      end
+    end
   end
 end
 
