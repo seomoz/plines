@@ -86,7 +86,7 @@ module Plines
         timed_out_ext_deps.include?(name)
       end
 
-      if results.all?(&:zero?)
+      if results.all? {|result| !result}
         raise ArgumentError, "EnqueuedJob #{jid} does not have pending " +
                              "external dependency #{name.inspect}"
       end
