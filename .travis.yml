@@ -13,5 +13,6 @@ notifications:
     - moz-platform-dev@seomoz.org
 matrix:
   allow_failures:
+    - rvm: 2.0.0
     - rvm: rbx-19mode
 
