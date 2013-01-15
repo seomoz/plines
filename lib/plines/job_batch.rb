@@ -93,7 +93,7 @@ module Plines
         completed_job_jids.length
       end
 
-      unless moved
+      unless moved == 1
         raise JobNotPendingError,
           "Jid #{jid} cannot be marked as complete for " +
           "job batch #{id} since it is not pending"

@@ -13,7 +13,7 @@ Gem::Specification.new do |gem|
   gem.require_paths = ["lib"]
   gem.version       = Plines::VERSION
 
-  gem.add_dependency 'redis-objects', '~> 0.6.1'
+  gem.add_dependency 'redis-objects', '~> 0.5.3'
   gem.add_development_dependency 'rspec', '~> 2.12'
   gem.add_development_dependency 'rspec-fire', '~> 0.4'
   gem.add_development_dependency 'rake', '~> 0.9.2.2'
