@@ -220,6 +220,7 @@ describe Plines, :redis do
     MakeThanksgivingDinner::StuffTurkey.class_eval do
       def perform
         job_batch.cancel!
+        qless_job.retry # so the worker doesn't try to complete it
       end
     end
 
