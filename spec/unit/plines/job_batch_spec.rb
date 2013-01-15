@@ -331,15 +331,22 @@ module Plines
 
     describe "#cancel!" do
       step_class(:Foo)
-      let(:jid)    { pipeline_module.default_queue.put(P::Foo, {}) }
-      let!(:batch) { JobBatch.create(pipeline_module, "foo", {}) { |jb| jb.add_job(jid) } }
+      let(:jid_1)  { pipeline_module.default_queue.put(P::Foo, {}) }
+      let(:jid_2)  { pipeline_module.default_queue.put(P::Foo, {}) }
+      let!(:batch) do
+        JobBatch.create(pipeline_module, "foo", {}) do |jb|
+          jb.add_job(jid_1)
+          jb.add_job(jid_2)
+        end
+      end
 
       before do
         expect(P).to respond_to(:set_expiration_on)
         P.stub(:set_expiration_on)
       end
 
-      it 'cancels all qless jobs' do
+      it 'cancels all qless jobs, including those that it thinks are complete' do
+        batch.mark_job_as_complete(jid_2)
         expect(pipeline_module.default_queue.length).to be > 0
         batch.cancel!
         expect(pipeline_module.default_queue.length).to eq(0)

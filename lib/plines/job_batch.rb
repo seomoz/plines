@@ -140,7 +140,7 @@ module Plines
     end
 
     def cancel!
-      pending_job_jids.each { |jid| cancel_job(jid) }
+      job_jids.each { |jid| cancel_job(jid) }
       meta["cancelled"] = "1"
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
