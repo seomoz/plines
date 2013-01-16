@@ -4,12 +4,12 @@ module Plines
     # Raised when there is a configuration error.
     class Error < StandardError; end
 
-    SIX_MONTHS_IN_SECONDS = 6 * 30 * 24 * 60 * 60
+    TWO_MONTHS_IN_SECONDS = 2 * 30 * 24 * 60 * 60
 
     def initialize
       batch_list_key { raise Error, "batch_list_key has not been configured" }
       qless_job_options { |job| {} }
-      self.data_ttl_in_seconds = SIX_MONTHS_IN_SECONDS
+      self.data_ttl_in_seconds = TWO_MONTHS_IN_SECONDS
       @callbacks = Hash.new { |h, k| h[k] = [] }
     end
 

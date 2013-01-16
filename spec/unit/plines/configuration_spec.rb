@@ -22,8 +22,8 @@ module Plines
     end
 
     describe "#data_ttl_in_milliseconds" do
-      it "returns the equivalent of 6 months by default" do
-        expected = 6 *  # months
+      it "returns the equivalent of 2 months by default" do
+        expected = 2 *  # months
                    30 * # days
                    24 * # hours
                    60 * # minutes
