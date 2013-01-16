@@ -28,8 +28,9 @@ module Plines
 
     CannotFindExistingJobBatchError = Class.new(StandardError)
 
-    def self.find(pipeline, id)
+    def self.find(pipeline, id, reconnect_to_redis = false)
       new(pipeline, id) do |inst|
+        redis.client.reconnect if reconnect_to_redis
         unless inst.created_at
           raise CannotFindExistingJobBatchError,
             "Cannot find an existing job batch for #{pipeline} / #{id}"
@@ -93,7 +94,7 @@ module Plines
         completed_job_jids.length
       end
 
-      unless moved == 1
+      unless moved
         raise JobNotPendingError,
           "Jid #{jid} cannot be marked as complete for " +
           "job batch #{id} since it is not pending"

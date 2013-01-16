@@ -12,7 +12,7 @@ module Plines
       data = ExternalDependencyTimeout.job_data_for(job_batch, "foo", ["a", "b"])
       job.stub(data: data)
 
-      Plines::JobBatch.stub(:find).with(job_batch.pipeline, job_batch.id) { job_batch }
+      Plines::JobBatch.stub(:find).with(job_batch.pipeline, job_batch.id, :reconnect_to_redis) { job_batch }
       expect(job_batch).to respond_to(:timeout_external_dependency).with(2).arguments
       job_batch.should_receive(:timeout_external_dependency).with("foo", ["a", "b"])
 
