@@ -91,7 +91,10 @@ module Plines
       new(batch, job_data, qless_job.jid, qless_job_proxy)
         .send(:around_perform)
 
-      batch.mark_job_as_complete(qless_job.jid) if qless_job_proxy.completed?
+      if qless_job_proxy.can_complete?
+        qless_job.complete
+        batch.mark_job_as_complete(qless_job.jid)
+      end
     end
 
     def external_dependency_definitions
@@ -182,7 +185,7 @@ module Plines
         self.job_retried = true
       end
 
-      def completed?
+      def can_complete?
         !self.job_retried
       end
     end
