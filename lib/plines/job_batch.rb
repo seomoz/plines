@@ -17,6 +17,7 @@ module Plines
 
     def initialize(pipeline, id)
       super(pipeline, id)
+      self.class.redis.client.reconnect
       yield self if block_given?
     end
 
@@ -28,9 +29,8 @@ module Plines
 
     CannotFindExistingJobBatchError = Class.new(StandardError)
 
-    def self.find(pipeline, id, reconnect_to_redis = false)
+    def self.find(pipeline, id)
       new(pipeline, id) do |inst|
-        redis.client.reconnect if reconnect_to_redis
         unless inst.created_at
           raise CannotFindExistingJobBatchError,
             "Cannot find an existing job batch for #{pipeline} / #{id}"

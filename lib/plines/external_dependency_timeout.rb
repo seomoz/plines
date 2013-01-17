@@ -9,9 +9,7 @@ module Plines
       pipeline_parts = job.data.fetch('pipeline').split('::')
       pipeline = pipeline_parts.inject(Object) { |ns, mod| ns.const_get(mod) }
 
-      job_batch = JobBatch.find(pipeline,
-                                job.data.fetch("job_batch_id"),
-                                :reconnect_to_redis)
+      job_batch = JobBatch.find(pipeline, job.data.fetch("job_batch_id"))
 
       job_batch.timeout_external_dependency \
         job.data.fetch("dep_name"),

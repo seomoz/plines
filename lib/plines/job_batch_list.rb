@@ -8,6 +8,11 @@ module Plines
 
     counter :last_batch_num
 
+    def initialize(pipeline, key)
+      super(pipeline, key)
+      self.class.redis.client.reconnect
+    end
+
     def most_recent_batch
       batch_num = last_batch_num.value
       return nil if batch_num.zero?
