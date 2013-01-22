@@ -246,8 +246,8 @@ describe Plines, :redis do
         end
       end
 
-      has_external_dependencies do |job_data|
-        "await_#{job_data[:size]}_turkey_ready_call"
+      has_external_dependencies do |deps, job_data|
+        deps.add "await_#{job_data[:size]}_turkey_ready_call"
       end
 
       def perform
@@ -280,8 +280,8 @@ describe Plines, :redis do
   end
 
   it "can timeout external dependencies" do
-    MakeThanksgivingDinner::PickupTurkey.has_external_dependencies(wait_up_to: 0.3) do
-      "await_turkey_ready_call"
+    MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
+      deps.add "await_turkey_ready_call", wait_up_to: 0.3
     end
 
     MakeThanksgivingDinner::PickupTurkey.class_eval do

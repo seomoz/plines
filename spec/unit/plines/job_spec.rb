@@ -84,8 +84,9 @@ module Plines
     describe "#external_dependencies" do
       it 'returns each of the external dependencies of the job' do
         step_class(:F) do
-          has_external_dependencies do
-            ["foo", "bar"]
+          has_external_dependencies do |deps|
+            deps.add "foo"
+            deps.add "bar"
           end
         end
 
@@ -95,11 +96,9 @@ module Plines
 
       it 'only includes external dependencies for which the conditional block returns true' do
         step_class(:F) do
-          has_external_dependencies do |data|
-            deps = []
-            deps << "foo" if data[:foo]
-            deps << "bar" if data[:bar]
-            deps
+          has_external_dependencies do |deps, data|
+            deps.add "foo" if data[:foo]
+            deps.add "bar" if data[:bar]
           end
         end
 

@@ -143,9 +143,8 @@ module MakeThanksgivingDinner
     # before this step is allowed to proceed. They are intended for
     # use when a step has a dependency on data from an external
     # asynchronous system that operates on its own schedule.
-    has_external_dependencies(wait_up_to: 12.hours) do |job_data|
-      # you can return a single dependency or an array of them.
-      "await_turkey_is_ready_for_pickup_notice"
+    has_external_dependencies do |deps, job_data|
+      deps.add "await_turkey_is_ready_for_pickup_notice", wait_up_to: 12.hours
     end
   end
 
@@ -155,7 +154,7 @@ module MakeThanksgivingDinner
     # Declares that the PrepareTurkey job cannot run until the
     # PickupTurkey has run first. Note that the step class name
     # is relative to the pipeline module namespace.
-    depends_on :PickupTurkey, wait_up_to: 6.hours
+    depends_on :PickupTurkey
   end
 
   class MakePie
@@ -308,8 +307,8 @@ for timing out an external dependency:
 module MyPipeline
   class MyStep
     extend Plines::Step
-    has_external_dependencies(wait_up_to: 3.hours) do |job_data|
-      "my_async_service"
+    has_external_dependencies do |deps, job_data|
+      deps.add "my_async_service", wait_up_to: 3.hours
     end
   end
 end

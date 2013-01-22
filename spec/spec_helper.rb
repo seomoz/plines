@@ -60,6 +60,7 @@ RSpec.configure do |config|
   config.treat_symbols_as_metadata_keys_with_true_values = true
   config.run_all_when_everything_filtered = true
   config.filter_run :f
+  config.alias_example_to :fit, :f
   config.include RSpec::Fire
   config.include PlinesSpecHelpers
   config.extend PlinesSpecHelpers::ClassMethods
