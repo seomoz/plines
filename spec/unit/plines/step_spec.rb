@@ -6,6 +6,17 @@ require 'plines/dynamic_struct'
 require 'plines/job'
 
 module Plines
+  describe ExternalDependencyList do
+    describe "#to_a" do
+      it 'protects against user side effects on the returned array' do
+        list = ExternalDependencyList.new
+        expect {
+          list.to_a << :something
+        }.not_to change { list.to_a }
+      end
+    end
+  end
+
   describe Step do
     context 'when extended onto a class' do
       it "adds the class to the pipeline's list of step classes" do

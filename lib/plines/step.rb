@@ -19,7 +19,7 @@ module Plines
     end
 
     def to_a
-      @dependencies
+      @dependencies.dup
     end
   end
 
