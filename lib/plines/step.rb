@@ -3,6 +3,26 @@ require 'forwardable'
 module Plines
   ExternalDependency = Struct.new(:name, :options)
 
+  # Keeps track of a list of external dependencies.
+  # These are yielded as the first argument to
+  # `has_external_dependencies`.
+  class ExternalDependencyList
+    extend Forwardable
+    def_delegators :@dependencies, :any?
+
+    def initialize
+      @dependencies = []
+    end
+
+    def add(name, options = {})
+      @dependencies << ExternalDependency.new(name, options)
+    end
+
+    def to_a
+      @dependencies.dup
+    end
+  end
+
   # This is the module that should be included in any class that
   # is intended to be a Plines step.
   module Step
@@ -44,22 +64,35 @@ module Plines
       @fan_out_block = block
     end
 
-    def has_external_dependencies(options = {}, &block)
-      external_dependency_definitions << [options, block]
+    def has_external_dependencies(*args, &block)
+      block ||= begin
+        options = args.last.is_a?(Hash) ? args.pop : {}
+        lambda do |deps, _|
+          args.each do |name|
+            deps.add name, options
+          end
+        end
+      end
+
+      external_dependency_definitions << block
     end
 
     def has_external_dependencies_for?(data)
-      external_dependency_definitions.any? do |_, block|
-        !Array(block[data]).empty?
+      external_dependency_definitions.any? do |block|
+        list = ExternalDependencyList.new
+        block.call(list, data)
+        list.any?
       end
     end
 
     def external_dependencies_for(data)
-      external_dependency_definitions.flat_map do |options, block|
-        Array(block[data]).map do |name|
-          ExternalDependency.new(name, options)
-        end
+      list = ExternalDependencyList.new
+
+      external_dependency_definitions.each do |block|
+        block.call(list, data)
       end
+
+      list.to_a
     end
 
     def dependencies_for(job, batch_data)

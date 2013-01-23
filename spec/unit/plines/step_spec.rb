@@ -6,6 +6,17 @@ require 'plines/dynamic_struct'
 require 'plines/job'
 
 module Plines
+  describe ExternalDependencyList do
+    describe "#to_a" do
+      it 'protects against user side effects on the returned array' do
+        list = ExternalDependencyList.new
+        expect {
+          list.to_a << :something
+        }.not_to change { list.to_a }
+      end
+    end
+  end
+
   describe Step do
     context 'when extended onto a class' do
       it "adds the class to the pipeline's list of step classes" do
@@ -101,7 +112,7 @@ module Plines
 
     describe "#has_external_dependencies_for?" do
       it "returns true for a step class that has external dependencies" do
-        step_class(:StepA) { has_external_dependencies { "foo" } }
+        step_class(:StepA) { has_external_dependencies { |deps| deps.add "foo" } }
         expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be_true
       end
 
@@ -112,19 +123,29 @@ module Plines
 
       context 'for a step that has external dependencies for only some instances' do
         step_class(:StepA) do
-          has_external_dependencies do |job_data|
-            "foo" if job_data[:depends_on_foo]
+          has_external_dependencies do |deps, job_data|
+            deps.add "foo" if job_data[:depends_on_foo]
           end
         end
 
-        it 'returns true if the block returns true' do
+        it 'returns true if the block adds a dependency for the job data' do
           expect(P::StepA.has_external_dependencies_for?(depends_on_foo: true)).to be_true
         end
 
-        it 'returns false if the block returns false' do
+        it 'returns false if the block does not add a dependency for the job data' do
           expect(P::StepA.has_external_dependencies_for?(depends_on_foo: false)).to be_false
         end
       end
+    end
+
+    it 'supports a terse syntax for declaring external dependencies' do
+      step_class(:A) do
+        has_external_dependencies "Foo", "Bar", wait_up_to: 30
+      end
+
+      deps = P::A.external_dependencies_for(some: "data")
+      expect(deps.map(&:name)).to match_array(%w[ Foo Bar ])
+      expect(deps.map(&:options)).to eq([wait_up_to: 30] * 2)
     end
 
     describe "#processing_queue" do
@@ -175,7 +196,7 @@ module Plines
 
       it 'enqueues jobs with external dependencies to the awaiting queue even if a queue is configured' do
         step_class(:A) do
-          has_external_dependencies { "foo" }
+          has_external_dependencies { |deps| deps.add "foo" }
           qless_options do |qless|
             qless.queue = "special"
           end
@@ -186,7 +207,7 @@ module Plines
 
       it 'enqueues jobs with conditional external dependencies to the correct queue' do
         step_class(:A) do
-          has_external_dependencies { |d| "foo" if d[:ext] }
+          has_external_dependencies { |deps, data| deps.add "foo" if data[:ext] }
         end
 
         expect(enqueue(data: { ext: true }).queue_name).to eq(P.awaiting_external_dependency_queue.name)
@@ -195,7 +216,7 @@ module Plines
 
       it 'enqueues jobs with conditional external dependencies to the correct queue when a queue option is provided' do
         step_class(:A) do
-          has_external_dependencies { |d| "foo" if d[:ext] }
+          has_external_dependencies { |deps, data| deps.add "foo" if data[:ext] }
         end
 
         expect(enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name).to eq(P.awaiting_external_dependency_queue.name)
