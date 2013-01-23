@@ -138,6 +138,16 @@ module Plines
       end
     end
 
+    it 'supports a terse syntax for declaring external dependencies' do
+      step_class(:A) do
+        has_external_dependencies "Foo", "Bar", wait_up_to: 30
+      end
+
+      deps = P::A.external_dependencies_for(some: "data")
+      expect(deps.map(&:name)).to match_array(%w[ Foo Bar ])
+      expect(deps.map(&:options)).to eq([wait_up_to: 30] * 2)
+    end
+
     describe "#processing_queue" do
       it 'returns a Qless::Queue object for the configured queue' do
         step_class(:A) do

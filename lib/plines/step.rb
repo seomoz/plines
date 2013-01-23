@@ -64,7 +64,16 @@ module Plines
       @fan_out_block = block
     end
 
-    def has_external_dependencies(&block)
+    def has_external_dependencies(*args, &block)
+      block ||= begin
+        options = args.last.is_a?(Hash) ? args.pop : {}
+        lambda do |deps, _|
+          args.each do |name|
+            deps.add name, options
+          end
+        end
+      end
+
       external_dependency_definitions << block
     end
 
