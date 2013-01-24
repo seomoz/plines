@@ -13,6 +13,24 @@ module Plines
       @callbacks = Hash.new { |h, k| h[k] = [] }
     end
 
+    attr_writer :qless
+    def qless
+      @qless ||= if @redis
+        Qless::Client.new(redis: @redis)
+      else
+        Qless::Client.new
+      end
+    end
+
+    attr_writer :redis
+    def redis
+      @redis ||= if @qless
+        @qless.redis
+      else
+        Redis.new
+      end
+    end
+
     def batch_list_key(&block)
       @batch_list_key_block = block
     end
@@ -22,7 +40,6 @@ module Plines
     end
 
     attr_accessor :data_ttl_in_seconds
-
     def data_ttl_in_milliseconds
       (data_ttl_in_seconds * 1000).to_i
     end

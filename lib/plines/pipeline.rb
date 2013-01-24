@@ -1,4 +1,5 @@
 require 'qless'
+require 'forwardable'
 
 module Plines
   # This module should be extended onto a class or module in order
@@ -6,11 +7,8 @@ module Plines
   # automatically belong to that pipeline. This enables one application
   # to have multiple pipelines.
   module Pipeline
-    attr_writer :qless
-
-    def qless
-      @qless ||= Qless::Client.new
-    end
+    extend Forwardable
+    def_delegators :configuration, :qless, :redis
 
     def default_queue
       @default_queue ||= qless.queues["plines"]
@@ -26,10 +24,6 @@ module Plines
 
     def configure
       yield configuration
-    end
-
-    def redis
-      qless.redis
     end
 
     def enqueue_jobs_for(batch_data)

@@ -18,21 +18,6 @@ module Plines
       stub_const("MyPipeline", mod)
     end
 
-    describe ".qless" do
-      it 'returns a memoized Qless::Client instance' do
-        expect(MyPipeline.qless).to be_a(Qless::Client)
-        expect(MyPipeline.qless).to be(MyPipeline.qless)
-      end
-
-      it 'can be overridden' do
-        orig_instance = MyPipeline.qless
-        new_instance = Qless::Client.new
-        MyPipeline.qless = new_instance
-        expect(MyPipeline.qless).to be(new_instance)
-        expect(MyPipeline.qless).not_to be(orig_instance)
-      end
-    end
-
     describe ".default_queue" do
       it "returns the 'plines' queue, memoized" do
         expect(MyPipeline.default_queue).to be_a(Qless::Queue)
@@ -61,12 +46,6 @@ module Plines
         yielded = nil
         MyPipeline.configure { |c| yielded = c }
         expect(yielded).to be(MyPipeline.configuration)
-      end
-    end
-
-    describe ".redis" do
-      it "returns the qless redis" do
-        expect(MyPipeline.redis).to be(MyPipeline.qless.redis)
       end
     end
 
