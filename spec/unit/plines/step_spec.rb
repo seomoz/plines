@@ -4,6 +4,7 @@ require 'plines/pipeline'
 require 'plines/job_batch'
 require 'plines/dynamic_struct'
 require 'plines/job'
+require 'plines/configuration'
 
 module Plines
   describe ExternalDependencyList do

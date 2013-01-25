@@ -35,7 +35,7 @@ if RUBY_ENGINE == 'ruby'
   Cane::RakeTask.new(:quality) do |cane|
     cane.style_glob = "lib/**/*.rb"
     cane.abc_max = 15
-    cane.add_threshold 'coverage/coverage_percent.txt', :==, 100
+    cane.add_threshold 'coverage/coverage_percent.txt', :>=, 100
   end
 else
   task :quality do
@@ -45,13 +45,15 @@ end
 
 task default: [:spec, :quality]
 
-namespace :cruise do
-  task :copy_artifacts do
-    if ENV['CC_BUILD_ARTIFACTS']
-      FileUtils.cp_r 'coverage', File.join(ENV['CC_BUILD_ARTIFACTS'], "coverage")
-    end
+namespace :ci do
+  desc "Run all tests both integrated and in isolation"
+  task :spec do
+    test_all_script = File.expand_path('../script/test_all', __FILE__)
+    sh test_all_script
   end
 end
 
-desc "Run cruise build"
-task cruise: [:spec, "cruise:copy_artifacts", :quality]
+
+desc "Run CI build"
+task ci: %w[ ci:spec quality ]
+
