@@ -162,8 +162,6 @@ module Plines
       pipeline.qless.queues[queue_name]
     end
 
-  private
-
     def pipeline
       @pipeline ||= begin
         namespaces = name.split('::')
@@ -171,6 +169,8 @@ module Plines
         namespaces.inject(Object) { |ns, mod| ns.const_get(mod) }
       end
     end
+
+  private
 
     def dependency_filters
       @dependency_filters ||= {}
@@ -232,7 +232,7 @@ module Plines
         @job_batch = job_batch
         @job_data = job_data
         @qless_job = qless_job
-        @enqueued_job = EnqueuedJob.new(jid)
+        @enqueued_job = EnqueuedJob.new(self.class.pipeline, jid)
       end
 
     private

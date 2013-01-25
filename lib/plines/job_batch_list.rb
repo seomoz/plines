@@ -1,16 +1,17 @@
-require 'redis/objects'
+require 'plines/redis_objects'
 
 module Plines
   # Represents a list of job batches that are grouped by
   # some common trait (such as a user id).
   class JobBatchList < Struct.new(:pipeline, :key)
-    include Redis::Objects
+    include Plines::RedisObjectsHelpers
 
     counter :last_batch_num
+    attr_reader :redis
 
     def initialize(pipeline, key)
       super(pipeline, key)
-      self.class.redis.client.reconnect
+      @redis = pipeline.redis
     end
 
     def most_recent_batch
@@ -35,10 +36,7 @@ module Plines
 
   private
 
-    # needed by the redis objects counter
-    def id
-      @id ||= [pipeline.name, key].join(':')
-    end
+    alias id key
 
     def batch_id_for(number)
       [id, number].join(':')

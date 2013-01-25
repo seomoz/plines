@@ -1,4 +1,5 @@
 require 'spec_helper'
+require 'plines/configuration'
 require 'plines/step'
 require 'plines/pipeline'
 require 'plines/job_batch'
@@ -149,7 +150,7 @@ module Plines
       expect(deps.map(&:options)).to eq([wait_up_to: 30] * 2)
     end
 
-    describe "#processing_queue" do
+    describe "#processing_queue", :redis do
       it 'returns a Qless::Queue object for the configured queue' do
         step_class(:A) do
           qless_options do |qless|

@@ -51,7 +51,7 @@ module Plines
         expect(jobs.map { |j| j.klass.to_s }).to eq(["P::C"])
         expect(jobs.map(&:data)).to eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
 
-        expect(EnqueuedJob.new(jobs.first.jid).pending_external_dependencies).to eq(["foo"])
+        expect(EnqueuedJob.new(P, jobs.first.jid).pending_external_dependencies).to eq(["foo"])
       end
 
       it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do

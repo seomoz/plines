@@ -1,12 +1,14 @@
 require 'spec_helper'
 require 'plines/enqueued_job'
+require 'plines/pipeline'
+require 'plines/configuration'
 
 module Plines
   describe EnqueuedJob, :redis do
     it 'is uniquely identified by the jid' do
-      j1 = EnqueuedJob.new("a")
-      j2 = EnqueuedJob.new("b")
-      j3 = EnqueuedJob.new("a")
+      j1 = EnqueuedJob.new(pipeline_module, "a")
+      j2 = EnqueuedJob.new(pipeline_module, "b")
+      j3 = EnqueuedJob.new(pipeline_module, "a")
 
       expect(j1).to eq(j3)
       expect(j1).to eql(j3)
@@ -19,21 +21,21 @@ module Plines
     end
 
     it 'provides a jid accessor' do
-      j1 = EnqueuedJob.new("abc")
+      j1 = EnqueuedJob.new(pipeline_module, "abc")
       expect(j1.jid).to eq("abc")
     end
 
     describe "#create" do
       it "creates an EnqueuedJob with the given external dependencies" do
-        EnqueuedJob.create("abc", "foo", "bar")
-        ej = EnqueuedJob.new("abc")
+        EnqueuedJob.create(pipeline_module, "abc", "foo", "bar")
+        ej = EnqueuedJob.new(pipeline_module, "abc")
         expect(ej.pending_external_dependencies).to match_array %w[ foo bar ]
       end
     end
 
     describe "#all_external_dependencies" do
       it "returns pending, resolved and timed out external dependencies" do
-        job = EnqueuedJob.create("abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bazz")
 
@@ -47,7 +49,7 @@ module Plines
 
     describe "#unresolved_external_dependencies" do
       it "returns pending and timed out external dependencies but not resolved ones" do
-        job = EnqueuedJob.create("abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bazz")
 
@@ -61,7 +63,7 @@ module Plines
 
     describe "#declared_redis_object_keys" do
       it 'returns the keys for each owned object' do
-        job = EnqueuedJob.create("abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bar")
 
@@ -80,16 +82,16 @@ module Plines
         let(:jid) { "abc" }
 
         it "moves the dependency to the #{final_set} set" do
-          EnqueuedJob.create(jid, "foo", "bar")
-          ej = EnqueuedJob.new(jid)
+          EnqueuedJob.create(pipeline_module, jid, "foo", "bar")
+          ej = EnqueuedJob.new(pipeline_module, jid)
           ej.send(meth, "bar")
           expect(ej.pending_external_dependencies).to eq(["foo"])
           expect(ej.send(final_set)).to eq(["bar"])
         end
 
         it 'yields when all external dependencies are resolved' do
-          EnqueuedJob.create(jid, "foo", "bar")
-          ej = EnqueuedJob.new(jid)
+          EnqueuedJob.create(pipeline_module, jid, "foo", "bar")
+          ej = EnqueuedJob.new(pipeline_module, jid)
 
           expect { |b| ej.send(meth, "bar", &b) }.not_to yield_control
           expect { |b| ej.send(meth, "foo", &b) }.to yield_control
@@ -97,8 +99,8 @@ module Plines
 
         it 'raises an error and does not yield if the given dependency does not exist' do
           yielded = false
-          EnqueuedJob.create(jid)
-          ej = EnqueuedJob.new(jid)
+          EnqueuedJob.create(pipeline_module, jid)
+          ej = EnqueuedJob.new(pipeline_module, jid)
           expect { ej.send(meth, "bazz") { yielded = true } }.to raise_error(ArgumentError)
           expect(yielded).to be_false
         end
@@ -112,7 +114,7 @@ module Plines
       :resolve_external_dependency, :resolved_external_dependencies
 
     context 'when resolving a previously timed out dependency' do
-      let(:ej) { EnqueuedJob.create("abc", "foo", "bar") }
+      let(:ej) { EnqueuedJob.create(pipeline_module, "abc", "foo", "bar") }
 
       before { ej.timeout_external_dependency("foo") }
 
@@ -130,7 +132,7 @@ module Plines
     end
 
     it 'cannot timeout a resolved dependency' do
-      ej = EnqueuedJob.create("abc", "foo")
+      ej = EnqueuedJob.create(pipeline_module, "abc", "foo")
       ej.resolve_external_dependency("foo") { }
       expect { |b| ej.timeout_external_dependency("foo", &b) }.not_to yield_control
       expect(ej.resolved_external_dependencies).to include("foo")

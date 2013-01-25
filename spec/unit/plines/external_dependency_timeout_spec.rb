@@ -1,11 +1,12 @@
 require 'spec_helper'
 require 'plines/external_dependency_timeout'
 require 'plines/job_batch'
+require 'plines/pipeline'
+require 'plines/configuration'
 
 module Plines
-  describe ExternalDependencyTimeout do
-    let(:pipeline) { fire_replaced_class_double("My::Pipeline") }
-    let(:job_batch) { JobBatch.create(pipeline, "abc", {}) }
+  describe ExternalDependencyTimeout, :redis do
+    let(:job_batch) { JobBatch.create(pipeline_module, "abc", {}) }
     let(:job) { fire_double("Qless::Job") }
 
     it 'times out the named dependency for the given jobs on the given job batch' do

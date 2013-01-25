@@ -79,8 +79,8 @@ module Plines
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(pipeline_module, "foo", {})
         batch.add_job "abc", "bar", "bazz"
-        expect(pipeline_module.redis.smembers("job_batch:foo:pending_job_jids")).to match_array %w[ abc ]
-        expect(EnqueuedJob.new("abc").pending_external_dependencies).to match_array ["bar", "bazz"]
+        expect(pipeline_module.redis.smembers("plines:P:JobBatch:foo:pending_job_jids")).to match_array %w[ abc ]
+        expect(EnqueuedJob.new(pipeline_module, "abc").pending_external_dependencies).to match_array ["bar", "bazz"]
       end
 
       it 'returns the newly added job' do
@@ -267,8 +267,8 @@ module Plines
         jida_job = batch.add_job("jida", "foo")
         jidb_job = batch.add_job("jidb")
 
-        EnqueuedJob.stub(:new).with("jida") { jida_job }
-        EnqueuedJob.stub(:new).with("jidb") { jidb_job }
+        EnqueuedJob.stub(:new).with(pipeline_module, "jida") { jida_job }
+        EnqueuedJob.stub(:new).with(pipeline_module, "jidb") { jidb_job }
 
         expect(jidb_job).to respond_to(:resolve_external_dependency)
         jidb_job.should_not_receive(:resolve_external_dependency)
