@@ -189,8 +189,7 @@ describe Plines, :redis do
 
   shared_examples_for 'plines acceptance tests' do |run_as_single_process|
     let(:worker) do
-      Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver,
-                        run_as_single_process: run_as_single_process)
+      Qless::Worker.new(job_reserver, run_as_single_process: run_as_single_process)
     end
 
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
