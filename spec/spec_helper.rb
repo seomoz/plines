@@ -1,13 +1,3 @@
-if File.exist?('./config/redis_connection_url.txt')
-  ENV['REDIS_URL'] = File.read('./config/redis_connection_url.txt')
-
-  # use a different db number for test environment
-  if db_num = ENV['REDIS_URL'][%r|\/(\d{1,2})\z|, 1]
-    db_num = db_num.to_i
-    ENV['REDIS_URL'].gsub!(%r|\/#{db_num}\z|, "/#{db_num + 1}")
-  end
-end
-
 require_relative '../config/setup_load_paths'
 unless ENV['TRAVIS']
   require 'debugger'
@@ -70,8 +60,20 @@ RSpec.configure do |config|
   end
 end
 
+redis_url = if File.exist?('./config/redis_connection_url.txt')
+  File.read('./config/redis_connection_url.txt').strip
+else
+  "redis://localhost:6379/1"
+end
+
 shared_context "redis", :redis do
-  before(:all)  { $_redis ||= ::Redis.connect }
-  before(:each) { $_redis.flushdb }
+  redis = nil
+  before(:all)  { redis ||= ::Redis.new(url: redis_url) }
+  let(:redis) { redis }
+
+  before(:each) do
+    redis.flushdb
+    pipeline_module.configuration.redis = redis
+  end
 end
 

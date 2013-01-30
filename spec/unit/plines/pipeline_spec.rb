@@ -10,10 +10,14 @@ require 'plines/enqueued_job'
 require 'timecop'
 
 module Plines
-  describe Pipeline do
+  describe Pipeline, :redis do
     before do
+      redis = self.redis
       mod = Module.new do
         extend Plines::Pipeline
+        configure do |c|
+          c.redis = redis
+        end
       end
       stub_const("MyPipeline", mod)
     end

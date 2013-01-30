@@ -2,8 +2,16 @@ require 'spec_helper'
 require 'plines'
 require 'qless/worker'
 require 'timecop'
+require 'redis/list'
 
 describe Plines, :redis do
+  module RedisReconnectMiddleware
+    def around_perform(job)
+      ::MakeThanksgivingDinner.redis.client.reconnect
+      super
+    end
+  end
+
   before do
     module ::MakeThanksgivingDinner
       extend Plines::Pipeline
@@ -86,15 +94,15 @@ describe Plines, :redis do
       end
 
       def performed_steps
-        @performed_steps ||= Redis::List.new("make_thanksgiving_dinner:performed_steps")
+        Redis::List.new("make_thanksgiving_dinner:performed_steps", MakeThanksgivingDinner.redis)
       end
 
       def poured_drinks
-        @poured_drinks ||= Redis::List.new("make_thanksgiving_dinner:poured_drinks")
+        Redis::List.new("make_thanksgiving_dinner:poured_drinks", MakeThanksgivingDinner.redis)
       end
 
       def unresolved_external_dependencies
-        @unresolved_external_dependencies ||= Redis::List.new("make_thanksgiving_dinner:unresolved_external_dependencies")
+        Redis::List.new("make_thanksgiving_dinner:unresolved_external_dependencies", MakeThanksgivingDinner.redis)
       end
     end
   end
@@ -153,6 +161,7 @@ describe Plines, :redis do
       plines.qless_job_options do |job|
         { tags: Array(job.data.fetch(:family)) }
       end
+      plines.redis = redis
     end
 
     MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
@@ -170,6 +179,7 @@ describe Plines, :redis do
   end
 
   def process_work
+    worker.extend RedisReconnectMiddleware unless worker.run_as_single_process
     worker.work(0)
     expect(MakeThanksgivingDinner.qless).to have_no_failures
   end
@@ -179,8 +189,7 @@ describe Plines, :redis do
 
   shared_examples_for 'plines acceptance tests' do |run_as_single_process|
     let(:worker) do
-      Qless::Worker.new(MakeThanksgivingDinner.qless, job_reserver,
-                        run_as_single_process: run_as_single_process)
+      Qless::Worker.new(job_reserver, run_as_single_process: run_as_single_process)
     end
 
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do

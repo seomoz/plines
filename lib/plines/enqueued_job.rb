@@ -4,17 +4,19 @@ module Plines
   # Once a Plines::Job has been enqueued as a Qless job into redis,
   # an EnqueuedJob is used to represent and hold the additional state
   # that Plines needs to track about the job.
-  class EnqueuedJob < Struct.new(:jid)
-    include Redis::Objects
+  class EnqueuedJob < Struct.new(:pipeline, :jid)
     include Plines::RedisObjectsHelpers
 
-    def initialize(jid, &block)
-      super(jid)
+    attr_reader :redis
+
+    def initialize(pipeline, jid, &block)
+      @redis = pipeline.redis
+      super(pipeline, jid)
       instance_eval(&block) if block
     end
 
-    def self.create(jid, *external_dependencies)
-      new(jid) do
+    def self.create(pipeline, jid, *external_dependencies)
+      new(pipeline, jid) do
         external_dependencies.each do |dep|
           pending_ext_deps << dep
         end

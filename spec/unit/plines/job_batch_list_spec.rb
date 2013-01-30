@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/job_batch'
 require 'plines/job_batch_list'
+require 'plines/configuration'
 
 module Plines
   describe JobBatchList, :redis do
@@ -30,10 +31,10 @@ module Plines
 
     describe "#create_new_batch" do
       it 'creates each new batch with a unique ascending id' do
-        expect(foo.create_new_batch({}).id).to eq("P:foo:1")
-        expect(bar.create_new_batch({}).id).to eq("P:bar:1")
-        expect(foo.create_new_batch({}).id).to eq("P:foo:2")
-        expect(bar.create_new_batch({}).id).to eq("P:bar:2")
+        expect(foo.create_new_batch({}).id).to eq("foo:1")
+        expect(bar.create_new_batch({}).id).to eq("bar:1")
+        expect(foo.create_new_batch({}).id).to eq("foo:2")
+        expect(bar.create_new_batch({}).id).to eq("bar:2")
       end
 
       it 'passes the given batch data along to the job batch object' do
@@ -60,7 +61,7 @@ module Plines
       foo.create_new_batch({})
       foo.create_new_batch({})
 
-      expect(foo.map(&:id)).to eq(%w[ P:foo:1 P:foo:2 ])
+      expect(foo.map(&:id)).to eq(%w[ foo:1 foo:2 ])
     end
 
     it 'can return a lazy enumerator' do
@@ -68,7 +69,7 @@ module Plines
       foo.create_new_batch({})
 
       list = foo.each
-      expect(list.map(&:id)).to eq(%w[ P:foo:1 P:foo:2 ])
+      expect(list.map(&:id)).to eq(%w[ foo:1 foo:2 ])
     end
   end
 end

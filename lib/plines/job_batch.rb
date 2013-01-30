@@ -1,12 +1,11 @@
 require 'time'
-require 'plines/redis_objects'
 require 'json'
+require 'plines/redis_objects'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
   # based on the step dependency graph.
   class JobBatch < Struct.new(:pipeline, :id)
-    include Redis::Objects
     include Plines::RedisObjectsHelpers
 
     JobNotPendingError = Class.new(ArgumentError)
@@ -14,10 +13,11 @@ module Plines
     set :pending_job_jids
     set :completed_job_jids
     hash_key :meta
+    attr_reader :redis
 
     def initialize(pipeline, id)
       super(pipeline, id)
-      self.class.redis.client.reconnect
+      @redis = pipeline.redis
       yield self if block_given?
     end
 
@@ -60,7 +60,7 @@ module Plines
       external_dependencies.each do |dep|
         external_dependency_sets[dep] << jid
       end
-      EnqueuedJob.create(jid, *external_dependencies)
+      EnqueuedJob.create(pipeline, jid, *external_dependencies)
     end
 
     def job_jids
@@ -68,7 +68,7 @@ module Plines
     end
 
     def jobs
-      job_jids.map { |jid| EnqueuedJob.new(jid) }
+      job_jids.map { |jid| EnqueuedJob.new(pipeline, jid) }
     end
 
     def job_repository
@@ -124,7 +124,8 @@ module Plines
 
     def has_unresolved_external_dependency?(dep_name)
       external_dependency_sets[dep_name].any? do |jid|
-        EnqueuedJob.new(jid).unresolved_external_dependencies.include?(dep_name)
+        EnqueuedJob.new(pipeline, jid)
+                   .unresolved_external_dependencies.include?(dep_name)
       end
     end
 
@@ -155,7 +156,7 @@ module Plines
 
     def update_external_dependency(dep_name, meth, jids)
       jids.each do |jid|
-        EnqueuedJob.new(jid).send(meth, dep_name) do
+        EnqueuedJob.new(pipeline, jid).send(meth, dep_name) do
           if job = pipeline.qless.jobs[jid]
             queue = job.klass.processing_queue
             job.move(queue.name)
@@ -189,7 +190,7 @@ module Plines
 
     def each_enqueued_job
       job_jids.each do |jid|
-        yield EnqueuedJob.new(jid)
+        yield EnqueuedJob.new(pipeline, jid)
       end
     end
 
@@ -207,8 +208,8 @@ module Plines
 
     def external_dependency_sets
       @external_dependency_sets ||= Hash.new do |hash, dep|
-        key = [self.class.redis_prefix, id, "ext_deps", dep].join(':')
-        hash[dep] = Redis::Set.new(key, self.class.redis)
+        key = [key_prefix, "ext_deps", dep].join(':')
+        hash[dep] = Redis::Set.new(key, redis)
       end
     end
 
