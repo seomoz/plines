@@ -23,6 +23,10 @@ module Plines
       end
     end
 
+    def qless_job
+      pipeline.qless.jobs[jid]
+    end
+
     def pending_external_dependencies
       pending_ext_deps.members
     end

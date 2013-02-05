@@ -33,6 +33,20 @@ module Plines
       end
     end
 
+    describe "#qless_job" do
+      it 'returns the corresponding qless job' do
+        stub_const("P::A", Class.new)
+        jid = pipeline_module.qless.queues["foo"].put(P::A, {})
+        qless_job = EnqueuedJob.new(P, jid).qless_job
+        expect(qless_job).to be_a(Qless::Job)
+        expect(qless_job.klass).to be(P::A)
+      end
+
+      it 'returns nil if no qless job can be found' do
+        expect(EnqueuedJob.new(P, "some_jid").qless_job).to be(nil)
+      end
+    end
+
     describe "#all_external_dependencies" do
       it "returns pending, resolved and timed out external dependencies" do
         job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
