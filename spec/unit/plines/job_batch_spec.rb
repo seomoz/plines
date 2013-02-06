@@ -172,8 +172,9 @@ module Plines
           expired_keys.merge(args)
         end
 
-        batch.add_job("a", "foo")
+        batch.add_job("a", "foo", "bar")
         batch.add_job("b")
+        batch.track_timeout_job("bar", "some_timeout_jid")
 
         expect(P.redis.keys).not_to be_empty
 
@@ -253,6 +254,10 @@ module Plines
       end
     end
 
+    def enqueue_timeout_job
+      pipeline_module.qless.queues["timeouts"].put(Qless::Job, {})
+    end
+
     describe "#resolve_external_dependency" do
       it_behaves_like "updating a job batch external dependency", :resolved_external_dependencies do
         def update_dependency(batch, name)
@@ -274,6 +279,51 @@ module Plines
 
         batch.resolve_external_dependency("foo")
       end
+
+      it 'cancels the timeout jobs for the given dependencies' do
+        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch.add_job("jida", "foo", "bar")
+
+        timeout_jid_1 = enqueue_timeout_job
+        timeout_jid_2 = enqueue_timeout_job
+        timeout_jid_3 = enqueue_timeout_job
+
+        batch.track_timeout_job("foo", timeout_jid_1)
+        batch.track_timeout_job("foo", timeout_jid_2)
+        batch.track_timeout_job("bar", timeout_jid_3)
+
+        batch.resolve_external_dependency("foo")
+
+        expect(pipeline_module.qless.jobs[timeout_jid_1]).to be_nil
+        expect(pipeline_module.qless.jobs[timeout_jid_2]).to be_nil
+        expect(pipeline_module.qless.jobs[timeout_jid_3]).to be_a(Qless::Job)
+      end
+
+      it 'gracefully handle timeout jobs that have already been cancelled' do
+        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch.add_job("jida", "foo")
+
+        timeout_jid = enqueue_timeout_job
+        batch.track_timeout_job("foo", timeout_jid)
+
+        pipeline_module.qless.jobs[timeout_jid].cancel
+
+        expect {
+          batch.resolve_external_dependency("foo")
+        }.to change { batch.timeout_job_jid_sets["foo"].to_a }.to([])
+      end
+
+      it 'clears the timeout job jid set as it is no longer needed' do
+        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch.add_job("jida", "foo")
+
+        timeout_jid = enqueue_timeout_job
+        batch.track_timeout_job("foo", timeout_jid)
+
+        expect {
+          batch.resolve_external_dependency("foo")
+        }.to change { batch.timeout_job_jid_sets["foo"].to_a }.to([])
+      end
     end
 
     describe "#timeout_external_dependency" do
@@ -292,6 +342,18 @@ module Plines
         batch.timeout_external_dependency("foo", "jida")
         expect(jida_job.timed_out_external_dependencies).to include("foo")
         expect(jidb_job.timed_out_external_dependencies).not_to include("foo")
+      end
+
+      it 'does not cancel or delete the timeout job jids' do
+        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch.add_job("jida", "foo")
+
+        timeout_jid = enqueue_timeout_job
+        batch.track_timeout_job("foo", timeout_jid)
+
+        batch.timeout_external_dependency("foo", "jida")
+        expect(pipeline_module.qless.jobs[timeout_jid]).to be_a(Qless::Job)
+        expect(batch.timeout_job_jid_sets["foo"]).to have(1).jid
       end
     end
 

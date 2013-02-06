@@ -321,6 +321,22 @@ describe Plines, :redis do
       expect(MakeThanksgivingDinner.performed_steps.values).to include("pickup_turkey")
     end
 
+    it "does not run the timeout jobs if the external deps are resolved before that time" do
+      MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
+        deps.add "await_turkey_ready_call", wait_up_to: 0.1
+      end
+
+      enqueue_jobs
+      smith_batch.resolve_external_dependency "await_turkey_ready_call"
+      Plines::ExternalDependencyTimeout.stub(:perform) do
+        raise "No timeout jobs should run"
+      end
+
+      process_work # finish the batch
+      sleep 0.2    # allow the timeout period to pass
+      process_work # run any remaining timeouts
+    end
+
     it "supports middleware modules" do
       MakeThanksgivingDinner::PickupTurkey.class_eval do
         include Module.new {

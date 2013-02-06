@@ -115,6 +115,10 @@ module Plines
 
       update_external_dependency \
         dep_name, :resolve_external_dependency, jids
+
+      timeout_job_jid_set = timeout_job_jid_sets[dep_name]
+      timeout_job_jid_set.each { |jid| gracefully_cancel(jid) }
+      timeout_job_jid_set.del
     end
 
     def timeout_external_dependency(dep_name, jids)
@@ -152,6 +156,17 @@ module Plines
       decode(meta[BATCH_DATA_KEY])
     end
 
+    def track_timeout_job(dep_name, jid)
+      timeout_job_jid_sets[dep_name] << jid
+    end
+
+    def timeout_job_jid_sets
+      @timeout_job_jid_sets ||= Hash.new do |hash, dep|
+        key = [key_prefix, "timeout_job_jids", dep].join(':')
+        hash[dep] = Redis::Set.new(key, redis)
+      end
+    end
+
   private
 
     def update_external_dependency(dep_name, meth, jids)
@@ -177,6 +192,7 @@ module Plines
 
         job.all_external_dependencies.each do |dep|
           keys_to_expire << external_dependency_sets[dep].key
+          keys_to_expire << timeout_job_jid_sets[dep].key
         end
       end
 
@@ -210,6 +226,11 @@ module Plines
 
     def decode(string)
       string && JSON.load(string)
+    end
+
+    def gracefully_cancel(jid)
+      job = job_repository[jid]
+      job && job.cancel
     end
   end
 end
