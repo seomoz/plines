@@ -77,3 +77,66 @@ shared_context "redis", :redis do
   end
 end
 
+shared_context "integration helpers" do
+  def create_pipeline_with_step(&block)
+    step_class(:A) do
+      class_eval(&block) if block
+      def perform; end # no-op
+    end
+
+    P.configure do |config|
+      config.batch_list_key { |hash| hash[:id] }
+    end
+  end
+
+  def enqueue_batch
+    P.enqueue_jobs_for(id: 1)
+    P.most_recent_job_batch_for(id: 1).tap do |batch|
+      expect(batch.job_jids.size).to eq(1)
+    end
+  end
+end
+
+RSpec::Matchers.define :move_job do |jid|
+  chain :to_queue do |queue|
+    @queue = queue.to_s
+  end
+
+  define_method :current_queue do
+    pipeline_module.qless.jobs[jid].queue_name.to_s
+  end
+
+  match_for_should do |actual|
+    before_queue = current_queue
+    actual.call
+    after_queue = current_queue
+
+    if @queue
+      after_queue != before_queue &&
+      after_queue == @queue
+    else
+      after_queue != before_queue
+    end
+  end
+
+  match_for_should_not do |actual|
+    before_queue = current_queue
+    actual.call
+    after_queue = current_queue
+
+    after_queue == before_queue
+  end
+
+  failure_message_for_should do
+    "expected block to #{description}"
+  end
+
+  failure_message_for_should_not do
+    "expected block not to #{description}"
+  end
+
+  description do
+    "move job #{jid}#{" to #{@queue}" if @queue}"
+  end
+end
+

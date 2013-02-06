@@ -248,10 +248,8 @@ module Plines
         batch = JobBatch.create(pipeline_module, "foo", {})
         batch.add_job(jid, "foo", "bar")
 
-        update_dependency(batch, "foo")
-        expect(queue_for(jid)).to eq(pipeline_module.awaiting_external_dependency_queue.name)
-        update_dependency(batch, "bar")
-        expect(queue_for(jid)).to eq(P::Klass.processing_queue.name)
+        expect { update_dependency(batch, "foo") }.not_to move_job(jid)
+        expect { update_dependency(batch, "bar") }.to move_job(jid).to_queue(P::Klass.processing_queue.name)
       end
     end
 

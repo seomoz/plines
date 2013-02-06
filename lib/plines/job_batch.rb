@@ -156,12 +156,7 @@ module Plines
 
     def update_external_dependency(dep_name, meth, jids)
       jids.each do |jid|
-        EnqueuedJob.new(pipeline, jid).send(meth, dep_name) do
-          if job = pipeline.qless.jobs[jid]
-            queue = job.klass.processing_queue
-            job.move(queue.name)
-          end
-        end
+        EnqueuedJob.new(pipeline, jid).send(meth, dep_name)
       end
     end
 
