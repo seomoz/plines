@@ -136,6 +136,17 @@ module Plines
 
         expect(step_jobs.map { |j| j.klass.to_s }).to match_array %w[ P::C P::D ]
       end
+
+      it 'ensures the job batch is aware of all the timeout jobs so it can cancel them later' do
+        step_class(:C) { has_external_dependencies "bar", wait_up_to: 3000 }
+        step_class(:D) { has_external_dependencies "bar", wait_up_to: 3001 }
+        step_class(:E) { has_external_dependencies "foo", wait_up_to: 3000 }
+        step_class(:F) { has_external_dependencies "foo", wait_up_to: 3000 }
+
+        enqueuer.enqueue_jobs
+        expect(job_batch.timeout_job_jid_sets["bar"]).to have(2).jids
+        expect(job_batch.timeout_job_jid_sets["foo"]).to have(1).jids
+      end
     end
   end
 end

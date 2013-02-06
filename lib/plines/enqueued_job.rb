@@ -50,15 +50,13 @@ module Plines
     end
 
     def resolve_external_dependency(name)
-      update_external_dependency(
+      update_external_dependency \
         name, resolved_ext_deps, pending_ext_deps, timed_out_ext_deps
-      ) { yield }
     end
 
     def timeout_external_dependency(name)
-      update_external_dependency(
+      update_external_dependency \
         name, timed_out_ext_deps, pending_ext_deps
-      ) { yield }
     end
 
   private
@@ -68,21 +66,40 @@ module Plines
     set :resolved_ext_deps
     set :timed_out_ext_deps
 
+    CannotUpdateExternalDependencyError = Class.new(StandardError)
+
     def update_external_dependency(name, destination_set, *source_sets)
       assert_has_external_dependency!(name)
 
-      pending_start, *_, pending_end = redis.multi do
-        pending_ext_deps.length
+      result = nil
 
-        source_sets.each do |source_set|
-          source_set.move(name, destination_set)
-        end
-
-        pending_ext_deps.length
+      5.times do
+        result = try_to_update(qless_job, name, destination_set, *source_sets)
+        break unless result == :needs_retry
       end
 
-      # Only yield if this update triggered the pending set being emptied.
-      yield if pending_start > 0 && pending_end == 0
+      if result == :needs_retry
+        raise CannotUpdateExternalDependencyError,
+          "Failed to update dependency #{name} after many tries"
+      end
+    end
+
+    def try_to_update(job, name, destination_set, *source_sets)
+      redis.watch(pending_ext_deps.key) do
+        pending_deps = self.pending_external_dependencies
+
+        response = redis.multi do
+          source_sets.each do |source_set|
+            source_set.move(name, destination_set)
+          end
+
+          if job && pending_deps == [name]
+            job.move(job.klass.processing_queue.name)
+          end
+        end
+
+        return :needs_retry unless response
+      end
     end
 
     def assert_has_external_dependency!(name)
