@@ -53,7 +53,7 @@ module Plines
       end
     end
 
-    TIMEOUT_JOB_PRIORITY = -999999 # an arbitrary high priority
+    TIMEOUT_JOB_PRIORITY = 999999 # an arbitrary high priority
 
     def enqueue_external_dependency_timeouts
       external_dep_timeouts.each do |tk, jobs|
