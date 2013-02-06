@@ -91,6 +91,12 @@ module Plines
       end
     end
 
+    def put_qless_job
+      stub_const("P::A", Class.new)
+      P::A.stub(processing_queue: P.qless.queues["processing"])
+      P.awaiting_external_dependency_queue.put(P::A, {})
+    end
+
     shared_examples_for "updating an enqueued job external dependency" do |meth, final_set|
       describe "##{meth}" do
         let(:jid) { "abc" }
@@ -103,12 +109,18 @@ module Plines
           expect(ej.send(final_set)).to eq(["bar"])
         end
 
-        it 'yields when all external dependencies are resolved' do
+        def jobs_queue(jid)
+          pipeline_module.qless.jobs[jid].queue.name
+        end
+
+        it 'moves the job to its proper queue when all dependencies are resolved' do
+          jid = put_qless_job
+
           EnqueuedJob.create(pipeline_module, jid, "foo", "bar")
           ej = EnqueuedJob.new(pipeline_module, jid)
 
-          expect { |b| ej.send(meth, "bar", &b) }.not_to yield_control
-          expect { |b| ej.send(meth, "foo", &b) }.to yield_control
+          expect { ej.send(meth, "bar") }.not_to move_job(jid)
+          expect { ej.send(meth, "foo") }.to move_job(jid).to_queue("processing")
         end
 
         it 'raises an error and does not yield if the given dependency does not exist' do
@@ -128,7 +140,8 @@ module Plines
       :resolve_external_dependency, :resolved_external_dependencies
 
     context 'when resolving a previously timed out dependency' do
-      let(:ej) { EnqueuedJob.create(pipeline_module, "abc", "foo", "bar") }
+      let(:jid) { put_qless_job }
+      let(:ej) { EnqueuedJob.create(pipeline_module, jid, "foo", "bar") }
 
       before { ej.timeout_external_dependency("foo") }
 
@@ -138,17 +151,21 @@ module Plines
         expect(ej.timed_out_external_dependencies).not_to include("foo")
       end
 
-      it 'does not yield since it does not affect the number of pending dependencies' do
-        expect { |b| ej.resolve_external_dependency("foo", &b) }.not_to yield_control
-        ej.timeout_external_dependency("bar") { }
-        expect { |b| ej.resolve_external_dependency("bar", &b) }.not_to yield_control
+      it 'does not move the job since it does not affect the number of pending dependencies' do
+        expect { ej.resolve_external_dependency("foo") }.not_to move_job(jid)
+        ej.timeout_external_dependency("bar")
+        expect { ej.resolve_external_dependency("bar") }.not_to move_job(jid)
       end
     end
 
     it 'cannot timeout a resolved dependency' do
-      ej = EnqueuedJob.create(pipeline_module, "abc", "foo")
-      ej.resolve_external_dependency("foo") { }
-      expect { |b| ej.timeout_external_dependency("foo", &b) }.not_to yield_control
+      jid = put_qless_job
+
+      ej = EnqueuedJob.create(pipeline_module, jid, "foo")
+      ej.resolve_external_dependency("foo")
+
+      expect { ej.timeout_external_dependency("foo") }.not_to move_job(jid)
+
       expect(ej.resolved_external_dependencies).to include("foo")
       expect(ej.timed_out_external_dependencies).not_to include("foo")
     end

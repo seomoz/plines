@@ -3,25 +3,10 @@ require 'plines'
 
 module Plines
   describe Step, :redis do
+    include_context "integration helpers"
+
     context "when performing the job" do
       let(:popped_job) { P.default_queue.pop }
-
-      def create_pipeline
-        step_class(:A) do
-          def perform; end # no-op
-        end
-
-        P.configure do |config|
-          config.batch_list_key { |hash| hash[:id] }
-        end
-      end
-
-      def enqueue_batch
-        P.enqueue_jobs_for(id: 1)
-        P.most_recent_job_batch_for(id: 1).tap do |batch|
-          expect(batch.job_jids.size).to eq(1)
-        end
-      end
 
       def fail_job_on_the_side(job)
         other_instance = P.qless.jobs[job.jid]
@@ -29,7 +14,7 @@ module Plines
       end
 
       it 'marks the job as complete' do
-        create_pipeline
+        create_pipeline_with_step
         batch = enqueue_batch
 
         P::A.perform(popped_job)
@@ -39,7 +24,7 @@ module Plines
       end
 
       it 'does not mark the job complete if something else failed it on the side' do
-        create_pipeline
+        create_pipeline_with_step
         batch = enqueue_batch
 
         job = popped_job
