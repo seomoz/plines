@@ -7,21 +7,22 @@ module Plines
     include Plines::RedisObjectsHelpers
 
     counter :last_batch_num
-    attr_reader :redis
+    attr_reader :qless, :redis
 
     def initialize(pipeline, key)
       super(pipeline, key)
-      @redis = pipeline.redis
+      @qless = pipeline.configuration.qless_client_for(key)
+      @redis = @qless.redis
     end
 
     def most_recent_batch
       batch_num = last_batch_num.value
       return nil if batch_num.zero?
-      JobBatch.find(pipeline, batch_id_for(batch_num))
+      JobBatch.find(qless, pipeline, batch_id_for(batch_num))
     end
 
     def create_new_batch(batch_data)
-      JobBatch.create(pipeline,
+      JobBatch.create(qless, pipeline,
                       batch_id_for(last_batch_num.increment),
                       batch_data)
     end
@@ -30,7 +31,7 @@ module Plines
       return enum_for(:each) unless block_given?
 
       1.upto(last_batch_num.value) do |num|
-        yield JobBatch.find(pipeline, batch_id_for(num))
+        yield JobBatch.find(qless, pipeline, batch_id_for(num))
       end
     end
 

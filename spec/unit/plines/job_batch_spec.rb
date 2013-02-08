@@ -10,31 +10,31 @@ module Plines
   describe JobBatch, :redis do
     describe ".find" do
       it 'finds a previously created job batch' do
-        batch = JobBatch.create(pipeline_module, "a", {})
-        batch2 = JobBatch.find(pipeline_module, "a")
+        batch = JobBatch.create(qless, pipeline_module, "a", {})
+        batch2 = JobBatch.find(qless, pipeline_module, "a")
         expect(batch2).to eq(batch)
       end
 
       it 'raises an error if it cannot find an existing one' do
         expect {
-          JobBatch.find(pipeline_module, "a")
+          JobBatch.find(qless, pipeline_module, "a")
         }.to raise_error(JobBatch::CannotFindExistingJobBatchError)
       end
     end
 
     describe ".create" do
       it 'raises an error if a job batch with the given id has already been created' do
-        batch = JobBatch.create(pipeline_module, "a", {})
+        batch = JobBatch.create(qless, pipeline_module, "a", {})
         expect {
-          JobBatch.create(pipeline_module, "a", {})
+          JobBatch.create(qless, pipeline_module, "a", {})
         }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
       end
     end
 
     it 'is uniquely identified by the id' do
-      j1 = JobBatch.create(pipeline_module, "a", {})
-      j2 = JobBatch.create(pipeline_module, "b", {})
-      j3 = JobBatch.find(pipeline_module, "a")
+      j1 = JobBatch.create(qless, pipeline_module, "a", {})
+      j2 = JobBatch.create(qless, pipeline_module, "b", {})
+      j3 = JobBatch.find(qless, pipeline_module, "a")
 
       expect(j1).to eq(j3)
       expect(j1).to eql(j3)
@@ -47,7 +47,7 @@ module Plines
     end
 
     it 'remembers what pipeline it is for' do
-      j1 = JobBatch.create(pipeline_module, "a", {})
+      j1 = JobBatch.create(qless, pipeline_module, "a", {})
       expect(j1.pipeline).to be(pipeline_module)
     end
 
@@ -55,20 +55,20 @@ module Plines
     let(:t2) { Time.new(2012, 5, 1) }
 
     it 'remembers when it was created' do
-      Timecop.freeze(t1) { JobBatch.create(pipeline_module, "a", {}) }
-      j2 = JobBatch.find(pipeline_module, "a")
+      Timecop.freeze(t1) { JobBatch.create(qless, pipeline_module, "a", {}) }
+      j2 = JobBatch.find(qless, pipeline_module, "a")
 
       expect(j2.created_at).to eq(t1)
     end
 
     it 'remembers the job batch data' do
-      batch = JobBatch.create(pipeline_module, "a", "name" => "Bob", "age" => 13)
+      batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
     end
 
     describe "#data" do
       it 'returns nil if the job batch was created before we stored the batch data' do
-        batch = JobBatch.create(pipeline_module, "a", "name" => "Bob", "age" => 13)
+        batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
         batch.meta.delete(JobBatch::BATCH_DATA_KEY) # simulate it having been saved w/o this
 
         expect(batch.data).to be(nil)
@@ -77,14 +77,14 @@ module Plines
 
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job "abc", "bar", "bazz"
-        expect(pipeline_module.redis.smembers("plines:P:JobBatch:foo:pending_job_jids")).to match_array %w[ abc ]
-        expect(EnqueuedJob.new(pipeline_module, "abc").pending_external_dependencies).to match_array ["bar", "bazz"]
+        expect(redis.smembers("plines:P:JobBatch:foo:pending_job_jids")).to match_array %w[ abc ]
+        expect(EnqueuedJob.new(qless, pipeline_module, "abc").pending_external_dependencies).to match_array ["bar", "bazz"]
       end
 
       it 'returns the newly added job' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         job = batch.add_job "abc", "bar", "bazz"
         expect(job).to be_an(EnqueuedJob)
         expect(job.jid).to eq("abc")
@@ -93,7 +93,7 @@ module Plines
 
     describe "#job_jids" do
       it "returns all job jids, even when some have been completed" do
-        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job("a"); jb.add_job("b"); jb.add_job("c")
         end
 
@@ -105,12 +105,12 @@ module Plines
 
     describe "#qless_jobs" do
       it "returns all the qless job instances" do
-        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job("a")
         end
 
         jobs = fire_double("Qless::ClientJobs")
-        batch.pipeline.qless.stub(jobs: jobs)
+        qless.stub(jobs: jobs)
         jobs.stub(:[]).with("a") { :the_job }
 
         expect(batch.qless_jobs).to eq([:the_job])
@@ -119,7 +119,7 @@ module Plines
 
     describe "#jobs" do
       it "returns all the enqueued job instances" do
-        batch = JobBatch.create(pipeline_module, "foo", {}) do |jb|
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job("a")
         end
 
@@ -130,11 +130,11 @@ module Plines
     end
 
     describe "#mark_job_as_complete" do
-      let!(:batch) { JobBatch.create(pipeline_module, "foo", {}) }
+      let!(:batch) { JobBatch.create(qless, pipeline_module, "foo", {}) }
 
       before do
-        expect(P).to respond_to(:set_expiration_on)
-        P.stub(:set_expiration_on)
+        expect(redis).to respond_to(:pexpire)
+        redis.stub(:pexpire)
       end
 
       it "moves a jid from the pending to the complete set" do
@@ -168,15 +168,15 @@ module Plines
 
       it 'expires the redis keys for the batch data' do
         expired_keys = Set.new
-        P.stub(:set_expiration_on) do |*args|
-          expired_keys.merge(args)
+        redis.stub(:pexpire) do |key, time|
+          expired_keys << key
         end
 
         batch.add_job("a", "foo", "bar")
         batch.add_job("b")
         batch.track_timeout_job("bar", "some_timeout_jid")
 
-        expect(P.redis.keys).not_to be_empty
+        expect(redis.keys).not_to be_empty
 
         batch.resolve_external_dependency("foo")
 
@@ -184,25 +184,25 @@ module Plines
         expect(expired_keys).to be_empty
 
         batch.mark_job_as_complete("b")
-        expect(expired_keys.to_a).to include(*P.redis.keys)
+        expect(expired_keys.to_a).to include(*redis.keys)
       end
     end
 
     describe "#complete?" do
       it 'returns false when there are no pending or completed jobs' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         expect(batch).not_to be_complete
       end
 
       it 'returns false when there are pending jobs and completed jobs' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.pending_job_jids << "a"
         batch.completed_job_jids << "b"
         expect(batch).not_to be_complete
       end
 
       it 'returns true when there are only completed jobs' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.completed_job_jids << "b"
         expect(batch).to be_complete
       end
@@ -210,15 +210,15 @@ module Plines
 
     describe "#pending_jobs" do
       it "shows all pending jobs" do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job("a")
-        expect(batch.pending_qless_jobs).to eq([pipeline_module.qless.jobs["a"]])
+        expect(batch.pending_qless_jobs).to eq([qless.jobs["a"]])
       end
     end
 
     shared_examples_for "updating a job batch external dependency" do |set_name|
       it "updates the dependency resolved on all jobs that have it" do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", "foo")
         jidb_job = batch.add_job("jidb", "foo")
 
@@ -235,7 +235,7 @@ module Plines
       end
 
       def queue_for(jid)
-        pipeline_module.qless.jobs[jid].queue_name
+        qless.jobs[jid].queue_name
       end
 
       step_class(:Klass) do
@@ -245,17 +245,17 @@ module Plines
       end
 
       it "moves the job into it's configured queue when it no longer has pending external dependencies" do
-        jid = pipeline_module.awaiting_external_dependency_queue.put(P::Klass, {})
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        jid = qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].put(P::Klass, {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job(jid, "foo", "bar")
 
         expect { update_dependency(batch, "foo") }.not_to move_job(jid)
-        expect { update_dependency(batch, "bar") }.to move_job(jid).to_queue(P::Klass.processing_queue.name)
+        expect { update_dependency(batch, "bar") }.to move_job(jid).to_queue(P::Klass.processing_queue)
       end
     end
 
     def enqueue_timeout_job
-      pipeline_module.qless.queues["timeouts"].put(Qless::Job, {})
+      qless.queues["timeouts"].put(Qless::Job, {})
     end
 
     describe "#resolve_external_dependency" do
@@ -266,12 +266,12 @@ module Plines
       end
 
       it 'does not attempt to resolve the dependency on jobs that do not have it' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", "foo")
         jidb_job = batch.add_job("jidb")
 
-        EnqueuedJob.stub(:new).with(pipeline_module, "jida") { jida_job }
-        EnqueuedJob.stub(:new).with(pipeline_module, "jidb") { jidb_job }
+        EnqueuedJob.stub(:new).with(qless, pipeline_module, "jida") { jida_job }
+        EnqueuedJob.stub(:new).with(qless, pipeline_module, "jidb") { jidb_job }
 
         expect(jidb_job).to respond_to(:resolve_external_dependency)
         jidb_job.should_not_receive(:resolve_external_dependency)
@@ -281,7 +281,7 @@ module Plines
       end
 
       it 'cancels the timeout jobs for the given dependencies' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job("jida", "foo", "bar")
 
         timeout_jid_1 = enqueue_timeout_job
@@ -294,19 +294,19 @@ module Plines
 
         batch.resolve_external_dependency("foo")
 
-        expect(pipeline_module.qless.jobs[timeout_jid_1]).to be_nil
-        expect(pipeline_module.qless.jobs[timeout_jid_2]).to be_nil
-        expect(pipeline_module.qless.jobs[timeout_jid_3]).to be_a(Qless::Job)
+        expect(qless.jobs[timeout_jid_1]).to be_nil
+        expect(qless.jobs[timeout_jid_2]).to be_nil
+        expect(qless.jobs[timeout_jid_3]).to be_a(Qless::Job)
       end
 
       it 'gracefully handle timeout jobs that have already been cancelled' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job("jida", "foo")
 
         timeout_jid = enqueue_timeout_job
         batch.track_timeout_job("foo", timeout_jid)
 
-        pipeline_module.qless.jobs[timeout_jid].cancel
+        qless.jobs[timeout_jid].cancel
 
         expect {
           batch.resolve_external_dependency("foo")
@@ -314,7 +314,7 @@ module Plines
       end
 
       it 'clears the timeout job jid set as it is no longer needed' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job("jida", "foo")
 
         timeout_jid = enqueue_timeout_job
@@ -335,7 +335,7 @@ module Plines
       end
 
       it 'only times out the dependency on the given jobs' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         jida_job = batch.add_job("jida", "foo")
         jidb_job = batch.add_job("jidb", "foo")
 
@@ -345,20 +345,20 @@ module Plines
       end
 
       it 'does not cancel or delete the timeout job jids' do
-        batch = JobBatch.create(pipeline_module, "foo", {})
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job("jida", "foo")
 
         timeout_jid = enqueue_timeout_job
         batch.track_timeout_job("foo", timeout_jid)
 
         batch.timeout_external_dependency("foo", "jida")
-        expect(pipeline_module.qless.jobs[timeout_jid]).to be_a(Qless::Job)
+        expect(qless.jobs[timeout_jid]).to be_a(Qless::Job)
         expect(batch.timeout_job_jid_sets["foo"]).to have(1).jid
       end
     end
 
     describe "#has_unresolved_external_dependency?" do
-      let(:batch) { JobBatch.create(pipeline_module, "foo", {}) }
+      let(:batch) { JobBatch.create(qless, pipeline_module, "foo", {}) }
 
       it 'returns true if the batch has the given external dependency' do
         batch.add_job("jida", "foo")
@@ -371,7 +371,7 @@ module Plines
 
       it 'does not depend on in-process cached state that is not there for an instance in another process' do
         batch.add_job("jida", "foo")
-        other_instance = JobBatch.find(pipeline_module, batch.id)
+        other_instance = JobBatch.find(qless, pipeline_module, batch.id)
         expect(other_instance).to have_unresolved_external_dependency("foo")
         expect(other_instance).not_to have_unresolved_external_dependency("bar")
       end
@@ -391,25 +391,26 @@ module Plines
 
     describe "#cancel!" do
       step_class(:Foo)
-      let(:jid_1)  { pipeline_module.default_queue.put(P::Foo, {}) }
-      let(:jid_2)  { pipeline_module.default_queue.put(P::Foo, {}) }
+      let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
+      let(:jid_1)  { default_queue.put(P::Foo, {}) }
+      let(:jid_2)  { default_queue.put(P::Foo, {}) }
       let!(:batch) do
-        JobBatch.create(pipeline_module, "foo", {}) do |jb|
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job(jid_1)
           jb.add_job(jid_2)
         end
       end
 
       before do
-        expect(P).to respond_to(:set_expiration_on)
-        P.stub(:set_expiration_on)
+        expect(redis).to respond_to(:pexpire)
+        redis.stub(:pexpire)
       end
 
       it 'cancels all qless jobs, including those that it thinks are complete' do
         batch.mark_job_as_complete(jid_2)
-        expect(pipeline_module.default_queue.length).to be > 0
+        expect(default_queue.length).to be > 0
         batch.cancel!
-        expect(pipeline_module.default_queue.length).to eq(0)
+        expect(default_queue.length).to eq(0)
       end
 
       it 'keeps track of whether or not cancellation has occurred' do
@@ -420,14 +421,14 @@ module Plines
 
       it 'expires the redis keys for the batch data' do
         expired_keys = Set.new
-        P.stub(:set_expiration_on) do |*args|
-          expired_keys.merge(args)
+        redis.stub(:pexpire) do |key, time|
+          expired_keys << key
         end
 
         batch.cancel!
 
-        expect(P.redis.keys).not_to be_empty
-        expect(expired_keys.to_a).to include(*P.redis.keys.grep(/job_batch/))
+        expect(redis.keys).not_to be_empty
+        expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
       end
 
       it 'notifies observers that it has been cancelled' do

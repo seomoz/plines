@@ -13,9 +13,9 @@ module Plines
       list :a_list, marshal: true
       attr_reader :redis
 
-      def initialize(pipeline, id)
+      def initialize(redis, pipeline, id)
         super(pipeline, id)
-        @redis = pipeline.redis
+        @redis = redis
         a_value.set(99) # have to set a value to creat the key
       end
     end
@@ -25,7 +25,7 @@ module Plines
     end
 
     it 'passes additional args to the base redis::object' do
-      obj = DefaultKeyPrefix.new(pipeline_module, '1234')
+      obj = DefaultKeyPrefix.new(redis, pipeline_module, '1234')
 
       lock_options = obj.a_lock.options
       expect(lock_options[:expiration]).to be(900)
@@ -36,9 +36,9 @@ module Plines
     end
 
     it 'contains the pipeline name, class name, and id in the key prefix' do
-      DefaultKeyPrefix.new(pipeline_module, '1234')
+      DefaultKeyPrefix.new(redis, pipeline_module, '1234')
 
-      redis_keys = pipeline_module.redis.keys
+      redis_keys = redis.keys
       expect(redis_keys).to have(1).thing
 
       key_prefix_parts = redis_keys.first.split(':')
@@ -46,9 +46,9 @@ module Plines
     end
 
     it 'uses `plines` as the first part of the key prefix by default' do
-      DefaultKeyPrefix.new(pipeline_module, '1234')
+      DefaultKeyPrefix.new(redis, pipeline_module, '1234')
 
-      redis_keys = pipeline_module.redis.keys
+      redis_keys = redis.keys
       expect(redis_keys).to have(1).thing
 
       key_prefix = redis_keys.first.split(':').first
@@ -56,9 +56,9 @@ module Plines
     end
 
     it 'can override the first part of the key prefix' do
-      OverrideKeyPrefix.new(pipeline_module, '1234')
+      OverrideKeyPrefix.new(redis, pipeline_module, '1234')
 
-      redis_keys = pipeline_module.redis.keys
+      redis_keys = redis.keys
       expect(redis_keys).to have(1).thing
 
       key_prefix = redis_keys.first.split(':').first
@@ -66,10 +66,10 @@ module Plines
     end
 
     it 'overriding the first part of the key prefix in one class does not affect another class' do
-      DefaultKeyPrefix.new(pipeline_module, '1234')
-      OverrideKeyPrefix.new(pipeline_module, '1234')
+      DefaultKeyPrefix.new(redis, pipeline_module, '1234')
+      OverrideKeyPrefix.new(redis, pipeline_module, '1234')
 
-      redis_keys = pipeline_module.redis.keys
+      redis_keys = redis.keys
       expect(redis_keys).to have(2).things
 
       key_prefixes = redis_keys.map {|key| key.split(':').first}

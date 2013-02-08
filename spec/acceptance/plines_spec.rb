@@ -21,6 +21,7 @@ describe Plines, :redis do
 
   before do
     module ::MakeThanksgivingDinner
+      attr_accessor :redis
       extend Plines::Pipeline
       extend self
 
@@ -112,12 +113,23 @@ describe Plines, :redis do
         Redis::List.new("make_thanksgiving_dinner:unresolved_external_dependencies", MakeThanksgivingDinner.redis)
       end
     end
+
+    MakeThanksgivingDinner.redis = redis
   end
 
   after { Object.send(:remove_const, :MakeThanksgivingDinner) }
 
-  let(:grocieries_queue) { MakeThanksgivingDinner.qless.queues[:groceries] }
-  let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
+  def default_queue(client = qless)
+    client.queues[Plines::Pipeline::DEFAULT_QUEUE]
+  end
+
+  def grocieries_queue(client = qless)
+    client.queues[:groceries]
+  end
+
+  def job_reserver(client = qless)
+    Qless::JobReservers::Ordered.new([default_queue(client), grocieries_queue(client)])
+  end
 
   RSpec::Matchers.define :be_before do |expected|
     chain :in do |array|
@@ -157,19 +169,22 @@ describe Plines, :redis do
   end
 
   let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
+  let(:qless) { Qless::Client.new(redis: redis) }
 
-  def enqueue_jobs
+  def enqueue_jobs(options = {})
+    family = options.fetch(:family) { "Smith" }
+
     MakeThanksgivingDinner.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
       plines.qless_job_options do |job|
         { tags: Array(job.data.fetch(:family)) }
       end
-      plines.redis = redis
+      plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
-    MakeThanksgivingDinner.enqueue_jobs_for(family: "Smith", drinks: %w[ champaign water cider ])
+    MakeThanksgivingDinner.enqueue_jobs_for(family: family, drinks: %w[ champaign water cider ])
 
-    expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones")).to be_nil
+    expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
     expect(smith_batch).to have_at_least(10).job_jids
     expect(smith_batch).not_to be_complete
 
@@ -181,18 +196,19 @@ describe Plines, :redis do
     expect(plines_temporary_redis_key_ttls).to eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
   end
 
-  def process_work
+  def process_work(client = qless)
+    worker = self.worker(client)
     worker.extend RedisReconnectMiddleware unless worker.run_as_single_process
     worker.work(0)
-    expect(MakeThanksgivingDinner.qless).to have_no_failures
+    expect(client).to have_no_failures
   end
 
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
   let(:end_time)   { Time.new(2012, 5, 1, 9, 30) }
 
   shared_examples_for 'plines acceptance tests' do |run_as_single_process|
-    let(:worker) do
-      Qless::Worker.new(job_reserver, run_as_single_process: run_as_single_process)
+    define_method :worker do |client = qless|
+      Qless::Worker.new(job_reserver(client), run_as_single_process: run_as_single_process)
     end
 
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
@@ -244,7 +260,7 @@ describe Plines, :redis do
       steps = MakeThanksgivingDinner.performed_steps
       expect(steps).to have_at_most(7).entries
 
-      expect(MakeThanksgivingDinner.default_queue.length).to eq(0)
+      expect(default_queue.length).to eq(0)
       expect(smith_batch).to be_cancelled
 
       cancelled_job_batch = MakeThanksgivingDinner.redis.get('make_thanksgiving_dinner:midstream_cancelled_job_batch')
@@ -356,6 +372,40 @@ describe Plines, :redis do
 
       steps = MakeThanksgivingDinner.performed_steps
       expect(steps.grep(/pickup_turkey/)).to eq(%w[ before_pickup_turkey pickup_turkey after_pickup_turkey ])
+    end
+
+    let(:alternate_redis) do
+      ::Redis.new(url: redis.id.gsub(/\/(\d+)$/) { |num| "#{num.next}" }).tap do |r|
+        r.flushdb # ensure clean slate
+      end
+    end
+
+    it 'can shard redis usage by the job batch key' do
+      alternate_qless = Qless::Client.new(redis: alternate_redis)
+
+      MakeThanksgivingDinner.configure do |c|
+        c.qless_client do |family|
+          family == "Smith" ? qless : alternate_qless
+        end
+      end
+
+      enqueue_jobs(family: "Smith", dont_configure_qless_client: true)
+      enqueue_jobs(family: "Jones", dont_configure_qless_client: true)
+
+      smith_batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith")
+      jones_batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones")
+
+      expect(redis.keys("*Smith*").size).to be > 0
+      expect(redis.keys("*Jones*").size).to eq(0)
+      expect(alternate_redis.keys("*Jones*").size).to be > 0
+      expect(alternate_redis.keys("*Smith*").size).to eq(0)
+
+      process_work(alternate_qless)
+      expect(jones_batch).to be_complete
+      expect(smith_batch).not_to be_complete
+
+      process_work(qless)
+      expect(smith_batch).to be_complete
     end
   end
 

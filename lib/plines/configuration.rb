@@ -7,28 +7,20 @@ module Plines
     TWO_MONTHS_IN_SECONDS = 2 * 30 * 24 * 60 * 60
 
     def initialize
+      qless_client   { raise Error, "qless_client has not been configured" }
       batch_list_key { raise Error, "batch_list_key has not been configured" }
+
       qless_job_options { |job| {} }
       self.data_ttl_in_seconds = TWO_MONTHS_IN_SECONDS
       @callbacks = Hash.new { |h, k| h[k] = [] }
     end
 
-    attr_writer :qless
-    def qless
-      @qless ||= if @redis
-        Qless::Client.new(redis: @redis)
-      else
-        Qless::Client.new
-      end
+    def qless_client(&block)
+      @qless_client_block = block
     end
 
-    attr_writer :redis
-    def redis
-      @redis ||= if @qless
-        @qless.redis
-      else
-        Redis.new
-      end
+    def qless_client_for(key)
+      @qless_client_block[key]
     end
 
     def batch_list_key(&block)

@@ -5,49 +5,20 @@ module Plines
   describe Configuration do
     let(:config) { Configuration.new }
 
-    describe "#qless" do
-      it 'can be assigned' do
-        qless = fire_double("Qless::Client")
-        config.qless = qless
-        expect(config.qless).to be(qless)
+    describe "#qless_client_for" do
+      it 'returns the value returned by the qless_client block' do
+        config.qless_client do |key|
+          fire_double("Redis", id: "redis://host-#{key}:1234/0")
+        end
+
+        expect(config.qless_client_for("foo").id).to include("host-foo")
+        expect(config.qless_client_for("bar").id).to include("host-bar")
       end
 
-      it 'constructs an instance using the assigned redis client' do
-        config.redis = fire_double("Redis")
-
-        qless_client_class = fire_replaced_class_double("Qless::Client")
-        qless_client_class.should_receive(:new)
-                          .with(redis: config.redis)
-                          .and_return(:new_qless)
-
-        expect(config.qless).to be(:new_qless)
-      end
-
-      it 'constructs a default instance if qless and redis are not assigned' do
-        qless_client_class = fire_replaced_class_double("Qless::Client")
-        qless_client_class.should_receive(:new).and_return(:default_client)
-        expect(config.qless).to be(:default_client)
-      end
-    end
-
-    describe "#redis" do
-      it 'can be assigned' do
-        redis = fire_double("Redis")
-        config.redis = redis
-        expect(config.redis).to be(redis)
-      end
-
-      it 'defaults to the redis client used by the assigned qless client' do
-        redis = fire_double("Redis")
-        qless = fire_double("Qless::Client", redis: redis)
-        config.qless = qless
-        expect(config.redis).to be(redis)
-      end
-
-      it 'constructs a default instance if qless and redis are not assigned' do
-        redis_class = fire_replaced_class_double("Redis")
-        redis_class.should_receive(:new).and_return(:new_redis)
-        expect(config.redis).to be(:new_redis)
+      it 'raises an error by default' do
+        expect {
+          config.qless_client_for("foo")
+        }.to raise_error(Plines::Configuration::Error)
       end
     end
 

@@ -30,8 +30,12 @@ module Plines
       @jids ||= {}
     end
 
+    def qless
+      @job_batch.qless
+    end
+
     def enqueue_job_for(step, jid, depends_on)
-      step.klass.enqueue_qless_job \
+      step.klass.enqueue_qless_job qless,
         step.data.merge('_job_batch_id' => @job_batch.id),
         @qless_job_options_block[step].merge(depends: depends_on, jid: jid)
     end
@@ -61,7 +65,7 @@ module Plines
         job_data = ExternalDependencyTimeout.job_data_for \
           @job_batch, tk.dep_name, job_ids
 
-        jid = jobs.first.processing_queue.put \
+        jid = qless.queues[jobs.first.klass.processing_queue].put \
           ExternalDependencyTimeout, job_data,
           delay: tk.timeout, priority: TIMEOUT_JOB_PRIORITY
 

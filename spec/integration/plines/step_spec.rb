@@ -6,10 +6,10 @@ module Plines
     include_context "integration helpers"
 
     context "when performing the job" do
-      let(:popped_job) { P.default_queue.pop }
+      let(:popped_job) { qless.queues[Pipeline::DEFAULT_QUEUE].pop }
 
       def fail_job_on_the_side(job)
-        other_instance = P.qless.jobs[job.jid]
+        other_instance = qless.jobs[job.jid]
         other_instance.fail("boom", caller.join("\n"))
       end
 
