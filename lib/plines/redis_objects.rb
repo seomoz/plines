@@ -35,7 +35,8 @@ module Plines
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Value, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::Value, #{name.inspect}, #{args})
           end
         EOS
       end
@@ -45,7 +46,8 @@ module Plines
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Lock, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::Lock, #{name.inspect}, #{args})
           end
         EOS
       end
@@ -54,7 +56,8 @@ module Plines
         declared_redis_object_names << name
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Set, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::Set, #{name.inspect}, #{args})
           end
         EOS
       end
@@ -64,7 +67,8 @@ module Plines
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::List, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::List, #{name.inspect}, #{args})
           end
         EOS
       end
@@ -74,7 +78,8 @@ module Plines
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::HashKey, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::HashKey, #{name.inspect}, #{args})
           end
         EOS
       end
@@ -84,7 +89,8 @@ module Plines
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Counter, #{name.inspect}, #{args})
+            @#{name} ||= new_redis_object(
+              ::Redis::Counter, #{name.inspect}, #{args})
           end
         EOS
       end
