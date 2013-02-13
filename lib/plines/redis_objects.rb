@@ -11,7 +11,7 @@ module Plines
 
     def key_prefix
       @key_prefix ||= [
-        "plines",
+        self.class.module_key_prefix,
         pipeline.name,
         self.class.name.split('::').last,
         id
@@ -59,6 +59,10 @@ module Plines
 
       def declared_redis_object_names
         @declared_redis_object_names ||= []
+      end
+
+      def module_key_prefix(module_key_prefix = 'plines')
+        @module_key_prefix ||= module_key_prefix
       end
     end
   end
