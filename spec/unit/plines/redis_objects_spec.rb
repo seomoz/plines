@@ -19,10 +19,20 @@ module Plines
     end
 
     class OverrideKeyPrefix < DefaultKeyPrefix
-      module_key_prefix 'override'
+      redis_key_prefix 'override'
     end
 
-    it 'uses `plines` as the default key prefix' do
+    it 'contains the pipeline name, class name, and id in the key prefix' do
+      DefaultKeyPrefix.new(pipeline_module, '1234')
+
+      redis_keys = pipeline_module.redis.keys
+      expect(redis_keys).to have(1).thing
+
+      key_prefix_parts = redis_keys.first.split(':')
+      expect(key_prefix_parts).to include('P', 'DefaultKeyPrefix', '1234')
+    end
+
+    it 'uses `plines` as the first part of the key prefix by default' do
       DefaultKeyPrefix.new(pipeline_module, '1234')
 
       redis_keys = pipeline_module.redis.keys
@@ -32,17 +42,17 @@ module Plines
       expect(key_prefix).to eq('plines')
     end
 
-    it 'can override the default module key prefix' do
+    it 'can override the first part of the key prefix' do
       OverrideKeyPrefix.new(pipeline_module, '1234')
 
       redis_keys = pipeline_module.redis.keys
       expect(redis_keys).to have(1).thing
 
       key_prefix = redis_keys.first.split(':').first
-      expect(key_prefix).to eq  ('override')
+      expect(key_prefix).to eq('override')
     end
 
-    it 'overriding one class does not affect another class' do
+    it 'overriding the first part of the key prefix in one class does not affect another class' do
       DefaultKeyPrefix.new(pipeline_module, '1234')
       OverrideKeyPrefix.new(pipeline_module, '1234')
 

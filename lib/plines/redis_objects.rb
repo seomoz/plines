@@ -14,7 +14,7 @@ module Plines
 
     def key_prefix
       @key_prefix ||= [
-        self.class.module_key_prefix,
+        self.class.redis_key_prefix,
         pipeline.name,
         self.class.name.split('::').last,
         id
@@ -93,8 +93,8 @@ module Plines
         @declared_redis_object_names ||= []
       end
 
-      def module_key_prefix(module_key_prefix = 'plines')
-        @module_key_prefix ||= module_key_prefix
+      def redis_key_prefix(override = nil)
+        (@redis_key_prefix ||= override) || "plines"
       end
     end
   end
