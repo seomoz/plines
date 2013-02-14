@@ -1,17 +1,20 @@
 require 'redis'
+require 'redis/value'
+require 'redis/lock'
 require 'redis/set'
+require 'redis/list'
 require 'redis/hash_key'
 require 'redis/counter'
 
 module Plines
   module RedisObjectsHelpers
-    def new_redis_object(klass, key)
-      klass.new([key_prefix, key].join(':'), redis)
+    def new_redis_object(klass, key, args)
+      klass.new([key_prefix, key].join(':'), redis, *args)
     end
 
     def key_prefix
       @key_prefix ||= [
-        "plines",
+        self.class.redis_key_prefix,
         pipeline.name,
         self.class.name.split('::').last,
         id
@@ -27,38 +30,77 @@ module Plines
     end
 
     module ClassMethods
-      def set(name)
+      def value(name, *args)
         declared_redis_object_names << name
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Set, #{name.inspect})
+            @#{name} ||= new_redis_object(
+              ::Redis::Value, #{name.inspect}, #{args})
           end
         EOS
       end
 
-      def hash_key(name)
+      def lock(name, *args)
         declared_redis_object_names << name
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::HashKey, #{name.inspect})
+            @#{name} ||= new_redis_object(
+              ::Redis::Lock, #{name.inspect}, #{args})
           end
         EOS
       end
 
-      def counter(name)
+      def set(name, *args)
+        declared_redis_object_names << name
+        class_eval <<-EOS, __FILE__, __LINE__ + 1
+          def #{name}
+            @#{name} ||= new_redis_object(
+              ::Redis::Set, #{name.inspect}, #{args})
+          end
+        EOS
+      end
+
+      def list(name, *args)
         declared_redis_object_names << name
 
         class_eval <<-EOS, __FILE__, __LINE__ + 1
           def #{name}
-            @#{name} ||= new_redis_object(::Redis::Counter, #{name.inspect})
+            @#{name} ||= new_redis_object(
+              ::Redis::List, #{name.inspect}, #{args})
+          end
+        EOS
+      end
+
+      def hash_key(name, *args)
+        declared_redis_object_names << name
+
+        class_eval <<-EOS, __FILE__, __LINE__ + 1
+          def #{name}
+            @#{name} ||= new_redis_object(
+              ::Redis::HashKey, #{name.inspect}, #{args})
+          end
+        EOS
+      end
+
+      def counter(name, *args)
+        declared_redis_object_names << name
+
+        class_eval <<-EOS, __FILE__, __LINE__ + 1
+          def #{name}
+            @#{name} ||= new_redis_object(
+              ::Redis::Counter, #{name.inspect}, #{args})
           end
         EOS
       end
 
       def declared_redis_object_names
         @declared_redis_object_names ||= []
+      end
+
+      def redis_key_prefix(override = nil)
+        (@redis_key_prefix ||= override) || "plines"
       end
     end
   end
