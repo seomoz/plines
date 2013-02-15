@@ -1,5 +1,5 @@
 require_relative '../config/setup_load_paths'
-unless ENV['TRAVIS']
+if RUBY_ENGINE == 'ruby' && !ENV['TRAVIS']
   require 'debugger'
 end
 require 'rspec/fire'

@@ -4,6 +4,13 @@ require 'qless/worker'
 require 'timecop'
 require 'redis/list'
 
+supports_forking = begin
+  fork { exit! }
+  true
+rescue NotImplementedError
+  false
+end
+
 describe Plines, :redis do
   module RedisReconnectMiddleware
     def around_perform(job)
@@ -111,10 +118,6 @@ describe Plines, :redis do
 
   let(:grocieries_queue) { MakeThanksgivingDinner.qless.queues[:groceries] }
   let(:job_reserver) { Qless::JobReservers::Ordered.new([MakeThanksgivingDinner.default_queue, grocieries_queue]) }
-
-  before do
-    worker.run_as_single_process = true if RUBY_ENGINE == 'jruby'
-  end
 
   RSpec::Matchers.define :be_before do |expected|
     chain :in do |array|
@@ -362,6 +365,10 @@ describe Plines, :redis do
 
   context 'forked tests' do
     it_behaves_like 'plines acceptance tests', false
+
+    before(:all) do
+      pending "This platform does not support forking"
+    end unless supports_forking
   end
 end
 
