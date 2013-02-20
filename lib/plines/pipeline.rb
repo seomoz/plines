@@ -8,7 +8,7 @@ module Plines
   # to have multiple pipelines.
   module Pipeline
     extend Forwardable
-    def_delegators :configuration#, :qless, :redis
+    def_delegators :configuration
 
     DEFAULT_QUEUE = "plines"
     AWAITING_EXTERNAL_DEPENDENCY_QUEUE = "awaiting_ext_dep"
