@@ -4,18 +4,17 @@ set -e -x
 
 export SPEC_OPTS="--backtrace"
 
-rspec_command='time bin/rspec'
 additional_rspec_opts=$1
 
 echo "Running all..."
 
-$rspec_command spec --format progress --profile -rsimplecov_setup $additional_rspec_opts
+time bin/rspec spec --format progress --profile -rsimplecov_setup $additional_rspec_opts
 
 echo
 echo "--------------------------------------------------------------------"
 echo
 
 for file in `find spec -iname '*_spec.rb'`; do
-  $rspec_command $file --format progress
+  time bin/rspec $file --format progress
 done
 
