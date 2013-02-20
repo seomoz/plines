@@ -13,11 +13,12 @@ module Plines
     set :pending_job_jids
     set :completed_job_jids
     hash_key :meta
-    attr_reader :redis
+    attr_reader :qless, :redis
 
-    def initialize(pipeline, id)
+    def initialize(qless, pipeline, id)
+      @qless = qless
+      @redis = qless.redis
       super(pipeline, id)
-      @redis = pipeline.redis
       yield self if block_given?
     end
 
@@ -29,8 +30,8 @@ module Plines
 
     CannotFindExistingJobBatchError = Class.new(StandardError)
 
-    def self.find(pipeline, id)
-      new(pipeline, id) do |inst|
+    def self.find(qless, pipeline, id)
+      new(qless, pipeline, id) do |inst|
         unless inst.created_at
           raise CannotFindExistingJobBatchError,
             "Cannot find an existing job batch for #{pipeline} / #{id}"
@@ -42,8 +43,8 @@ module Plines
 
     JobBatchAlreadyCreatedError = Class.new(StandardError)
 
-    def self.create(pipeline, id, batch_data)
-      new(pipeline, id) do |inst|
+    def self.create(qless, pipeline, id, batch_data)
+      new(qless, pipeline, id) do |inst|
         if inst.created_at
           raise JobBatchAlreadyCreatedError,
             "Job batch #{pipeline} / #{id} already exists"
@@ -60,7 +61,7 @@ module Plines
       external_dependencies.each do |dep|
         external_dependency_sets[dep] << jid
       end
-      EnqueuedJob.create(pipeline, jid, *external_dependencies)
+      EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
     end
 
     def job_jids
@@ -68,11 +69,11 @@ module Plines
     end
 
     def jobs
-      job_jids.map { |jid| EnqueuedJob.new(pipeline, jid) }
+      job_jids.map { |jid| EnqueuedJob.new(qless, pipeline, jid) }
     end
 
     def job_repository
-      pipeline.qless.jobs
+      qless.jobs
     end
 
     def pending_qless_jobs
@@ -128,7 +129,7 @@ module Plines
 
     def has_unresolved_external_dependency?(dep_name)
       external_dependency_sets[dep_name].any? do |jid|
-        EnqueuedJob.new(pipeline, jid)
+        EnqueuedJob.new(qless, pipeline, jid)
                    .unresolved_external_dependencies.include?(dep_name)
       end
     end
@@ -171,7 +172,7 @@ module Plines
 
     def update_external_dependency(dep_name, meth, jids)
       jids.each do |jid|
-        EnqueuedJob.new(pipeline, jid).send(meth, dep_name)
+        EnqueuedJob.new(qless, pipeline, jid).send(meth, dep_name)
       end
     end
 
@@ -196,18 +197,18 @@ module Plines
         end
       end
 
-      pipeline.set_expiration_on(*keys_to_expire)
+      set_expiration_on(*keys_to_expire)
     end
 
     def each_enqueued_job
       job_jids.each do |jid|
-        yield EnqueuedJob.new(pipeline, jid)
+        yield EnqueuedJob.new(qless, pipeline, jid)
       end
     end
 
     def cancel_job(jid)
       # Cancelled jobs can no longer be fetched.
-      return unless job = pipeline.qless.jobs[jid]
+      return unless job = qless.jobs[jid]
 
       # Qless doesn't let you cancel a job that has dependents,
       # so we must cancel them first, which will "undepend" the
@@ -231,6 +232,12 @@ module Plines
     def gracefully_cancel(jid)
       job = job_repository[jid]
       job && job.cancel
+    end
+
+    def set_expiration_on(*redis_keys)
+      redis_keys.each do |key|
+        redis.pexpire(key, pipeline.configuration.data_ttl_in_milliseconds)
+      end
     end
   end
 end

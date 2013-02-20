@@ -29,7 +29,7 @@ module Plines
 
         expect {
           batch.resolve_external_dependency("blah")
-        }.to move_job(jid).to_queue(P::A.processing_queue.name)
+        }.to move_job(jid).to_queue(P::A.processing_queue)
         expect(batch).not_to have_unresolved_external_dependency("blah")
       end
     end
@@ -69,7 +69,7 @@ module Plines
 
       expect {
         batch.resolve_external_dependency("blah")
-      }.to move_job(batch.pending_job_jids.first).to_queue(P::A.processing_queue.name)
+      }.to move_job(batch.pending_job_jids.first).to_queue(P::A.processing_queue)
 
       expect(batch).not_to have_unresolved_external_dependency("blah")
       expect(num_tries).to eq(3)

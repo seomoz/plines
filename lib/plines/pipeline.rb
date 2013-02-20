@@ -8,15 +8,10 @@ module Plines
   # to have multiple pipelines.
   module Pipeline
     extend Forwardable
-    def_delegators :configuration, :qless, :redis
+    def_delegators :configuration
 
-    def default_queue
-      @default_queue ||= qless.queues["plines"]
-    end
-
-    def awaiting_external_dependency_queue
-      @awaiting_external_dependency_queue ||= qless.queues["awaiting_ext_dep"]
-    end
+    DEFAULT_QUEUE = "plines"
+    AWAITING_EXTERNAL_DEPENDENCY_QUEUE = "awaiting_ext_dep"
 
     def configuration
       @configuration ||= Configuration.new
@@ -72,12 +67,6 @@ module Plines
 
     def root_dependency
       @root_dependency ||= NullRootDependency
-    end
-
-    def set_expiration_on(*redis_keys)
-      redis_keys.each do |key|
-        redis.pexpire(key, configuration.data_ttl_in_milliseconds)
-      end
     end
 
     def job_batch_list_for(batch_data)

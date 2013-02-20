@@ -7,16 +7,17 @@ module Plines
   class EnqueuedJob < Struct.new(:pipeline, :jid)
     include Plines::RedisObjectsHelpers
 
-    attr_reader :redis
+    attr_reader :qless, :redis
 
-    def initialize(pipeline, jid, &block)
-      @redis = pipeline.redis
+    def initialize(qless, pipeline, jid, &block)
+      @qless = qless
+      @redis = qless.redis
       super(pipeline, jid)
       instance_eval(&block) if block
     end
 
-    def self.create(pipeline, jid, *external_dependencies)
-      new(pipeline, jid) do
+    def self.create(qless, pipeline, jid, *external_dependencies)
+      new(qless, pipeline, jid) do
         external_dependencies.each do |dep|
           pending_ext_deps << dep
         end
@@ -24,7 +25,7 @@ module Plines
     end
 
     def qless_job
-      pipeline.qless.jobs[jid]
+      qless.jobs[jid]
     end
 
     def pending_external_dependencies
@@ -94,7 +95,7 @@ module Plines
           end
 
           if job && pending_deps == [name]
-            job.move(job.klass.processing_queue.name)
+            job.move(job.klass.processing_queue)
           end
         end
 

@@ -13,11 +13,13 @@ module Plines
   describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
     let(:graph) { DependencyGraph.new(P.step_classes, batch_data) }
-    let(:job_batch) { JobBatch.create(pipeline_module, "foo:1", {}) }
+    let(:job_batch) { JobBatch.create(qless, pipeline_module, "foo:1", {}) }
 
     let(:enqueuer) { JobEnqueuer.new(graph, job_batch) { |job| { tags: [job.data.fetch("a")] } } }
 
     before { pipeline_module.configuration.batch_list_key { |data| data[:a] } }
+
+    let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
 
     context "enqueing jobs with no timeouts" do
       step_class(:A) { depends_on :B }
@@ -27,7 +29,7 @@ module Plines
       it 'enqueues jobs that have no dependencies with no dependencies' do
         enqueuer.enqueue_jobs
 
-        jobs = P.default_queue.peek(2)
+        jobs = default_queue.peek(2)
         expect(jobs.map { |j| j.klass.to_s }).to match_array %w[ P::B ]
         expect(jobs.map(&:data)).to eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
         expect(jobs.map(&:tags)).to eq([["foo"]])
@@ -36,10 +38,10 @@ module Plines
       it 'sets up job dependencies correctly' do
         enqueuer.enqueue_jobs
 
-        job = P.default_queue.pop
+        job = default_queue.pop
         job.complete
 
-        jobs = P.default_queue.peek(2)
+        jobs = default_queue.peek(2)
         expect(jobs.map { |j| j.klass.to_s }).to match_array %w[ P::A ]
         expect(jobs.map(&:data)).to eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
       end
@@ -47,17 +49,17 @@ module Plines
       it 'sets up external dependencies correctly' do
         enqueuer.enqueue_jobs
 
-        jobs = P.awaiting_external_dependency_queue.peek(2)
+        jobs = qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].peek(2)
         expect(jobs.map { |j| j.klass.to_s }).to eq(["P::C"])
         expect(jobs.map(&:data)).to eq([{ "a" => "foo", "b" => 2, "_job_batch_id" => "foo:1" }])
 
-        expect(EnqueuedJob.new(P, jobs.first.jid).pending_external_dependencies).to eq(["foo"])
+        expect(EnqueuedJob.new(qless, P, jobs.first.jid).pending_external_dependencies).to eq(["foo"])
       end
 
       it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do
         enqueuer.enqueue_jobs
 
-        a = P.default_queue.peek(1).first
+        a = default_queue.peek(1).first
         b_jid = a.dependents.first
         expect(job_batch.job_jids).to include(a.jid, b_jid)
       end
@@ -73,11 +75,11 @@ module Plines
 
     describe "external_dependency timeout scheduling" do
       def scheduled_job_jids
-        P.default_queue.jobs.scheduled
+        default_queue.jobs.scheduled
       end
 
       def job_for(jid)
-        P.qless.jobs[jid]
+        qless.jobs[jid]
       end
 
       it 'enqueues a timeout job with wait_up_to delay' do
@@ -92,10 +94,10 @@ module Plines
         expect(job.klass.to_s).to eq("Plines::ExternalDependencyTimeout")
         expect(job.data.fetch("dep_name")).to eq("bar")
         expect(job.state).to eq("scheduled")
-        expect(P.default_queue.peek).to be_nil
+        expect(default_queue.peek).to be_nil
 
         Time.stub(:now) { now + 3001 }
-        job = P.default_queue.peek
+        job = default_queue.peek
         expect(job.state).to eq("waiting")
         expect(job.jid).to eq(jid)
         expect(scheduled_job_jids).not_to include(jid)

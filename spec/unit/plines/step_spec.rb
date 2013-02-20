@@ -151,27 +151,26 @@ module Plines
     end
 
     describe "#processing_queue", :redis do
-      it 'returns a Qless::Queue object for the configured queue' do
+      it 'returns the configured queue name' do
         step_class(:A) do
           qless_options do |qless|
             qless.queue = "special"
           end
         end
 
-        expect(P::A.processing_queue).to be_a(Qless::Queue)
-        expect(P::A.processing_queue.name).to eq("special")
+        expect(P::A.processing_queue).to eq("special")
       end
     end
 
     describe "#enqueue_qless_job", :redis do
       def enqueue(options = {})
         data = options.delete(:data) || {}
-        jid = P::A.enqueue_qless_job(data, options)
-        P.qless.jobs[jid]
+        jid = P::A.enqueue_qless_job(qless, data, options)
+        qless.jobs[jid]
       end
 
       def queue(name)
-        P.qless.queues[name]
+        qless.queues[name]
       end
 
       it 'enqueues the job with the passed dependencies' do
@@ -204,7 +203,7 @@ module Plines
           end
         end
 
-        expect(enqueue.queue_name).to eq(P.awaiting_external_dependency_queue.name)
+        expect(enqueue.queue_name).to eq(Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE)
       end
 
       it 'enqueues jobs with conditional external dependencies to the correct queue' do
@@ -212,8 +211,8 @@ module Plines
           has_external_dependencies { |deps, data| deps.add "foo" if data[:ext] }
         end
 
-        expect(enqueue(data: { ext: true }).queue_name).to eq(P.awaiting_external_dependency_queue.name)
-        expect(enqueue(data: { ext: false }).queue_name).to eq(P::A.processing_queue.name.to_s)
+        expect(enqueue(data: { ext: true }).queue_name).to eq(Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE)
+        expect(enqueue(data: { ext: false }).queue_name).to eq("plines")
       end
 
       it 'enqueues jobs with conditional external dependencies to the correct queue when a queue option is provided' do
@@ -221,7 +220,7 @@ module Plines
           has_external_dependencies { |deps, data| deps.add "foo" if data[:ext] }
         end
 
-        expect(enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name).to eq(P.awaiting_external_dependency_queue.name)
+        expect(enqueue(data: { ext: true }, queue: 'pipeline_queue').queue_name).to eq(Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE)
         expect(enqueue(data: { ext: false }, queue: 'pipeline_queue').queue_name).to eq('pipeline_queue')
       end
 
@@ -325,7 +324,7 @@ module Plines
 
       it "returns the jid" do
         step_class(:A)
-        expect(P::A.enqueue_qless_job({})).to match(/\A[a-f0-9]{32}\z/)
+        expect(P::A.enqueue_qless_job(qless, {})).to match(/\A[a-f0-9]{32}\z/)
       end
     end
 
@@ -401,7 +400,7 @@ module Plines
       end
 
       describe "QlessJobProxy object", :redis do
-        let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => '1234' }) }
+        let(:qless_job) { fire_double("Qless::Job", client: qless, jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => '1234' }) }
         let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
 
         [:original_retries, :retries_left].each do |meth|
@@ -413,9 +412,9 @@ module Plines
       end
 
       describe "#perform", :redis do
-        let(:qless_job) { fire_double("Qless::Job", jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }, complete: true) }
+        let(:qless_job) { fire_double("Qless::Job", client: qless, jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }, complete: true) }
         let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
-        let(:job_batch) { JobBatch.create(pipeline_module, "abc:1", {}) }
+        let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
         before do
