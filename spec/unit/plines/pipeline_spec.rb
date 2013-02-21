@@ -12,30 +12,14 @@ require 'timecop'
 module Plines
   describe Pipeline, :redis do
     before do
-      redis = self.redis
+      qless = self.qless
       mod = Module.new do
         extend Plines::Pipeline
         configure do |c|
-          c.redis = redis
+          c.qless_client { qless }
         end
       end
       stub_const("MyPipeline", mod)
-    end
-
-    describe ".default_queue" do
-      it "returns the 'plines' queue, memoized" do
-        expect(MyPipeline.default_queue).to be_a(Qless::Queue)
-        expect(MyPipeline.default_queue).to be(MyPipeline.default_queue)
-        expect(MyPipeline.default_queue.name).to eq("plines")
-      end
-    end
-
-    describe ".awaiting_external_dependency_queue" do
-      it "returns the 'awaiting_ext_dep' queue, memoized" do
-        expect(MyPipeline.awaiting_external_dependency_queue).to be_a(Qless::Queue)
-        expect(MyPipeline.awaiting_external_dependency_queue).to be(MyPipeline.awaiting_external_dependency_queue)
-        expect(MyPipeline.awaiting_external_dependency_queue.name).to eq("awaiting_ext_dep")
-      end
     end
 
     describe ".configuration" do
@@ -115,27 +99,6 @@ module Plines
         expect {
           MyPipeline.root_dependency = :B
         }.to raise_error(Pipeline::RootDependencyAlreadySetError)
-      end
-    end
-
-    describe ".set_expiration_on", :redis do
-      it 'sets the configured expiration on the given redis key' do
-        MyPipeline.redis.set "foo", "bar"
-        expect(MyPipeline.redis.ttl("foo")).to eq(-1) # -1 means no TTL is set
-
-        MyPipeline.configuration.data_ttl_in_seconds = 3
-        MyPipeline.set_expiration_on("foo")
-        expect(MyPipeline.redis.ttl("foo")).to eq(3)
-      end
-
-      it 'can expire multiple keys' do
-        MyPipeline.redis.set "foo", "a"
-        MyPipeline.redis.set "bar", "a"
-
-        MyPipeline.configuration.data_ttl_in_seconds = 3
-        MyPipeline.set_expiration_on("foo", "bar")
-        expect(MyPipeline.redis.ttl("foo")).to eq(3)
-        expect(MyPipeline.redis.ttl("bar")).to eq(3)
       end
     end
 

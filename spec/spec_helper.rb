@@ -66,14 +66,18 @@ else
   "redis://localhost:6379/1"
 end
 
+redis = nil
 shared_context "redis", :redis do
-  redis = nil
-  before(:all)  { redis ||= ::Redis.new(url: redis_url) }
+  before(:all) do
+    redis ||= ::Redis.new(url: redis_url)
+  end
+
   let(:redis) { redis }
+  let(:qless) { Qless::Client.new(redis: redis) }
 
   before(:each) do
     redis.flushdb
-    pipeline_module.configuration.redis = redis
+    pipeline_module.configuration.qless_client { qless }
   end
 end
 
@@ -103,7 +107,7 @@ RSpec::Matchers.define :move_job do |jid|
   end
 
   define_method :current_queue do
-    pipeline_module.qless.jobs[jid].queue_name.to_s
+    qless.jobs[jid].queue_name.to_s
   end
 
   match_for_should do |actual|

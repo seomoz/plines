@@ -6,9 +6,9 @@ require 'plines/configuration'
 module Plines
   describe EnqueuedJob, :redis do
     it 'is uniquely identified by the jid' do
-      j1 = EnqueuedJob.new(pipeline_module, "a")
-      j2 = EnqueuedJob.new(pipeline_module, "b")
-      j3 = EnqueuedJob.new(pipeline_module, "a")
+      j1 = EnqueuedJob.new(qless, pipeline_module, "a")
+      j2 = EnqueuedJob.new(qless, pipeline_module, "b")
+      j3 = EnqueuedJob.new(qless, pipeline_module, "a")
 
       expect(j1).to eq(j3)
       expect(j1).to eql(j3)
@@ -21,14 +21,14 @@ module Plines
     end
 
     it 'provides a jid accessor' do
-      j1 = EnqueuedJob.new(pipeline_module, "abc")
+      j1 = EnqueuedJob.new(qless, pipeline_module, "abc")
       expect(j1.jid).to eq("abc")
     end
 
     describe "#create" do
       it "creates an EnqueuedJob with the given external dependencies" do
-        EnqueuedJob.create(pipeline_module, "abc", "foo", "bar")
-        ej = EnqueuedJob.new(pipeline_module, "abc")
+        EnqueuedJob.create(qless, pipeline_module, "abc", "foo", "bar")
+        ej = EnqueuedJob.new(qless, pipeline_module, "abc")
         expect(ej.pending_external_dependencies).to match_array %w[ foo bar ]
       end
     end
@@ -36,20 +36,20 @@ module Plines
     describe "#qless_job" do
       it 'returns the corresponding qless job' do
         stub_const("P::A", Class.new)
-        jid = pipeline_module.qless.queues["foo"].put(P::A, {})
-        qless_job = EnqueuedJob.new(P, jid).qless_job
+        jid = qless.queues["foo"].put(P::A, {})
+        qless_job = EnqueuedJob.new(qless, P, jid).qless_job
         expect(qless_job).to be_a(Qless::Job)
         expect(qless_job.klass).to be(P::A)
       end
 
       it 'returns nil if no qless job can be found' do
-        expect(EnqueuedJob.new(P, "some_jid").qless_job).to be(nil)
+        expect(EnqueuedJob.new(qless, P, "some_jid").qless_job).to be(nil)
       end
     end
 
     describe "#all_external_dependencies" do
       it "returns pending, resolved and timed out external dependencies" do
-        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(qless, pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bazz")
 
@@ -63,7 +63,7 @@ module Plines
 
     describe "#unresolved_external_dependencies" do
       it "returns pending and timed out external dependencies but not resolved ones" do
-        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(qless, pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bazz")
 
@@ -77,7 +77,7 @@ module Plines
 
     describe "#declared_redis_object_keys" do
       it 'returns the keys for each owned object' do
-        job = EnqueuedJob.create(pipeline_module, "abc", "foo", "bar", "bazz")
+        job = EnqueuedJob.create(qless, pipeline_module, "abc", "foo", "bar", "bazz")
         job.resolve_external_dependency("foo")
         job.timeout_external_dependency("bar")
 
@@ -93,8 +93,8 @@ module Plines
 
     def put_qless_job
       stub_const("P::A", Class.new)
-      P::A.stub(processing_queue: P.qless.queues["processing"])
-      P.awaiting_external_dependency_queue.put(P::A, {})
+      P::A.stub(processing_queue: "processing")
+      qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].put(P::A, {})
     end
 
     shared_examples_for "updating an enqueued job external dependency" do |meth, final_set|
@@ -102,22 +102,22 @@ module Plines
         let(:jid) { "abc" }
 
         it "moves the dependency to the #{final_set} set" do
-          EnqueuedJob.create(pipeline_module, jid, "foo", "bar")
-          ej = EnqueuedJob.new(pipeline_module, jid)
+          EnqueuedJob.create(qless, pipeline_module, jid, "foo", "bar")
+          ej = EnqueuedJob.new(qless, pipeline_module, jid)
           ej.send(meth, "bar")
           expect(ej.pending_external_dependencies).to eq(["foo"])
           expect(ej.send(final_set)).to eq(["bar"])
         end
 
         def jobs_queue(jid)
-          pipeline_module.qless.jobs[jid].queue.name
+          qless.jobs[jid].queue.name
         end
 
         it 'moves the job to its proper queue when all dependencies are resolved' do
           jid = put_qless_job
 
-          EnqueuedJob.create(pipeline_module, jid, "foo", "bar")
-          ej = EnqueuedJob.new(pipeline_module, jid)
+          EnqueuedJob.create(qless, pipeline_module, jid, "foo", "bar")
+          ej = EnqueuedJob.new(qless, pipeline_module, jid)
 
           expect { ej.send(meth, "bar") }.not_to move_job(jid)
           expect { ej.send(meth, "foo") }.to move_job(jid).to_queue("processing")
@@ -125,8 +125,8 @@ module Plines
 
         it 'raises an error and does not yield if the given dependency does not exist' do
           yielded = false
-          EnqueuedJob.create(pipeline_module, jid)
-          ej = EnqueuedJob.new(pipeline_module, jid)
+          EnqueuedJob.create(qless, pipeline_module, jid)
+          ej = EnqueuedJob.new(qless, pipeline_module, jid)
           expect { ej.send(meth, "bazz") { yielded = true } }.to raise_error(ArgumentError)
           expect(yielded).to be_false
         end
@@ -141,7 +141,7 @@ module Plines
 
     context 'when resolving a previously timed out dependency' do
       let(:jid) { put_qless_job }
-      let(:ej) { EnqueuedJob.create(pipeline_module, jid, "foo", "bar") }
+      let(:ej) { EnqueuedJob.create(qless, pipeline_module, jid, "foo", "bar") }
 
       before { ej.timeout_external_dependency("foo") }
 
@@ -161,7 +161,7 @@ module Plines
     it 'cannot timeout a resolved dependency' do
       jid = put_qless_job
 
-      ej = EnqueuedJob.create(pipeline_module, jid, "foo")
+      ej = EnqueuedJob.create(qless, pipeline_module, jid, "foo")
       ej.resolve_external_dependency("foo")
 
       expect { ej.timeout_external_dependency("foo") }.not_to move_job(jid)

@@ -117,7 +117,8 @@ module Plines
     end
 
     def perform(qless_job)
-      batch = JobBatch.find(pipeline, qless_job.data.fetch("_job_batch_id"))
+      batch = JobBatch.find(qless_job.client, pipeline,
+                            qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
       qless_job_proxy = QlessJobProxy.new(qless_job)
 
@@ -140,14 +141,16 @@ module Plines
       @qless_options
     end
 
-    def enqueue_qless_job(data, options = {})
-      queue = if has_external_dependencies_for?(data)
-        pipeline.awaiting_external_dependency_queue
-      elsif options[:queue] && qless_options.queue == :plines
-        processing_queue(options[:queue])
+    def enqueue_qless_job(qless, data, options = {})
+      queue_name = if has_external_dependencies_for?(data)
+        Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE
+      elsif options[:queue] && processing_queue == :plines
+        options[:queue]
       else
         processing_queue
       end
+
+      queue = qless.queues[queue_name]
 
       options[:priority] = qless_options.priority if qless_options.priority
       options[:priority] ||= 0
@@ -158,8 +161,8 @@ module Plines
       queue.put(self, data, options)
     end
 
-    def processing_queue(queue_name = qless_options.queue)
-      pipeline.qless.queues[queue_name]
+    def processing_queue
+      qless_options.queue
     end
 
     def pipeline
@@ -205,7 +208,7 @@ module Plines
     # - expose the readers original_retries and retries_left
     QlessJobProxy = Struct.new(:qless_job, :job_retried) do
       extend Forwardable
-      def_delegators "self.qless_job", :original_retries, :retries_left
+      def_delegators "self.qless_job", :original_retries, :retries_left, :client
 
       def initialize(qless_job)
         super
@@ -232,7 +235,8 @@ module Plines
         @job_batch = job_batch
         @job_data = job_data
         @qless_job = qless_job
-        @enqueued_job = EnqueuedJob.new(self.class.pipeline, jid)
+        @enqueued_job = EnqueuedJob.new(qless_job.client,
+                                        self.class.pipeline, jid)
       end
 
     private

@@ -6,14 +6,15 @@ require 'plines/configuration'
 
 module Plines
   describe ExternalDependencyTimeout, :redis do
-    let(:job_batch) { JobBatch.create(pipeline_module, "abc", {}) }
-    let(:job) { fire_double("Qless::Job") }
+    let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc", {}) }
+    let(:qless_client) { fire_double("Qless::Client") }
+    let(:job) { fire_double("Qless::Job", client: qless_client) }
 
     it 'times out the named dependency for the given jobs on the given job batch' do
       data = ExternalDependencyTimeout.job_data_for(job_batch, "foo", ["a", "b"])
       job.stub(data: data)
 
-      Plines::JobBatch.stub(:find).with(job_batch.pipeline, job_batch.id) { job_batch }
+      Plines::JobBatch.stub(:find).with(qless_client, job_batch.pipeline, job_batch.id) { job_batch }
       expect(job_batch).to respond_to(:timeout_external_dependency).with(2).arguments
       job_batch.should_receive(:timeout_external_dependency).with("foo", ["a", "b"])
 
