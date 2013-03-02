@@ -208,7 +208,7 @@ module Plines
     # - expose the readers original_retries and retries_left
     QlessJobProxy = Struct.new(:qless_job, :job_retried) do
       extend Forwardable
-      def_delegators "self.qless_job", :original_retries, :retries_left, :client
+      def_delegators "self.qless_job", :original_retries, :retries_left, :client, :queue
 
       def initialize(qless_job)
         super
