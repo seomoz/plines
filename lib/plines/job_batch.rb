@@ -52,13 +52,29 @@ module Plines
 
         inst.meta["created_at"]   = Time.now.iso8601
         inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
-        yield inst if block_given?
+
+        populate_external_deps_meta do
+          yield inst if block_given?
+        end
       end
+    end
+
+    def self.populate_external_deps_meta(&blk)
+      yielded = yield
+      if yielded && yielded.is_a?(Plines::JobBatch)
+        yielded.meta['ext_dep_keys'] = JSON.dump(yielded.deps.to_a)
+      end
+    end
+
+    def deps
+      @deps ||= Set.new
     end
 
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
+
       external_dependencies.each do |dep|
+        deps << dep
         external_dependency_sets[dep] << jid
       end
       EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
@@ -117,9 +133,7 @@ module Plines
       update_external_dependency \
         dep_name, :resolve_external_dependency, jids
 
-      timeout_job_jid_set = timeout_job_jid_sets[dep_name]
-      timeout_job_jid_set.each { |jid| gracefully_cancel(jid) }
-      timeout_job_jid_set.del
+      cancel_timeout_job_jid_set_for(dep_name)
     end
 
     def timeout_external_dependency(dep_name, jids)
@@ -148,6 +162,13 @@ module Plines
 
     def cancel!
       job_jids.each { |jid| cancel_job(jid) }
+
+      if ext_dep_keys = decode(meta['ext_dep_keys'])
+        ext_dep_keys.each do |key|
+          cancel_timeout_job_jid_set_for(key)
+        end
+      end
+
       meta["cancelled"] = "1"
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
@@ -227,6 +248,12 @@ module Plines
 
     def decode(string)
       string && JSON.load(string)
+    end
+
+    def cancel_timeout_job_jid_set_for(dep_name)
+      timeout_job_jid_set = timeout_job_jid_sets[dep_name]
+      timeout_job_jid_set.each { |jid| gracefully_cancel(jid) }
+      timeout_job_jid_set.del
     end
 
     def gracefully_cancel(jid)
