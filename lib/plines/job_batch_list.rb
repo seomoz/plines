@@ -21,10 +21,10 @@ module Plines
       JobBatch.find(qless, pipeline, batch_id_for(batch_num))
     end
 
-    def create_new_batch(batch_data)
+    def create_new_batch(batch_data, &blk)
       JobBatch.create(qless, pipeline,
                       batch_id_for(last_batch_num.increment),
-                      batch_data)
+                      batch_data, &blk)
     end
 
     def each(&block)
