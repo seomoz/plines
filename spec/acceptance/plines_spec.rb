@@ -449,5 +449,13 @@ describe Plines, :redis do
   context 'single process tests' do
     it_behaves_like 'plines acceptance tests', true
   end
+
+  context 'forked tests' do
+    it_behaves_like 'plines acceptance tests', false
+
+    before(:all) do
+      pending "This platform does not support forking"
+    end unless supports_forking
+  end
 end
 

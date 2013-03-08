@@ -28,8 +28,6 @@ module Plines
       job_batch_list.create_new_batch(batch_data) do |job_batch|
         job_options_block = configuration.qless_job_options_block
         JobEnqueuer.new(graph, job_batch, &job_options_block).enqueue_jobs
-
-        job_batch
       end
     end
 

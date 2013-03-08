@@ -75,11 +75,40 @@ module Plines
       end
     end
 
+    describe '#populate_external_deps_meta' do
+      it 'correctly de-dupes existing and new external dependencies' do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
+        batch.meta[JobBatch::EXT_DEP_KEYS_KEY] = JSON.dump(%w[ bar bazz ])
+        batch.newly_added_external_deps << 'bar' << 'bazz' << 'bat' << 'foo'
+        batch.populate_external_deps_meta {}
+
+        keys = JSON.load(batch.meta[JobBatch::EXT_DEP_KEYS_KEY])
+        expect(keys).to match_array(%w[ foo bar bat bazz ])
+      end
+    end
+
+    describe '#external_deps' do
+      it 'returns an array of external dependencies if there are any' do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+          b.add_job('1234', 'foo', 'bar')
+          b.add_job('2345', 'bar', 'foo', 'bazz')
+        end
+
+        expect(batch.external_deps).to match_array(%w[ foo bar bazz ])
+      end
+
+      it 'returns an empty array where there are no external dependencies' do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
+        expect(batch.external_deps).to eq([])
+      end
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(qless, pipeline_module, "foo", {})
         batch.add_job "abc", "bar", "bazz"
         expect(redis.smembers("plines:P:JobBatch:foo:pending_job_jids")).to match_array %w[ abc ]
+        expect(batch.newly_added_external_deps).to match_array(%w[ bar bazz ])
         expect(EnqueuedJob.new(qless, pipeline_module, "abc").pending_external_dependencies).to match_array ["bar", "bazz"]
       end
 

@@ -23,6 +23,7 @@ module Plines
     end
 
     BATCH_DATA_KEY = "batch_data"
+    EXT_DEP_KEYS_KEY = "ext_dep_keys"
 
     # We use find/create in place of new for both
     # so that the semantics of the two cases are clear.
@@ -53,28 +54,33 @@ module Plines
         inst.meta["created_at"]   = Time.now.iso8601
         inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
 
-        populate_external_deps_meta do
-          yield inst if block_given?
-        end
+        inst.populate_external_deps_meta { yield inst if block_given? }
       end
     end
 
-    def self.populate_external_deps_meta(&blk)
-      yielded = yield
-      if yielded && yielded.is_a?(Plines::JobBatch)
-        yielded.meta['ext_dep_keys'] = JSON.dump(yielded.deps.to_a)
-      end
+    def populate_external_deps_meta
+      yield
+      ext_deps = external_deps | newly_added_external_deps.to_a
+      meta[EXT_DEP_KEYS_KEY] = JSON.dump(ext_deps)
     end
 
-    def deps
-      @deps ||= Set.new
+    def newly_added_external_deps
+      @newly_added_external_deps ||= []
+    end
+
+    def external_deps
+      if keys = meta[EXT_DEP_KEYS_KEY]
+        decode(keys)
+      else
+        []
+      end
     end
 
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
 
       external_dependencies.each do |dep|
-        deps << dep
+        newly_added_external_deps << dep
         external_dependency_sets[dep] << jid
       end
       EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
@@ -163,10 +169,8 @@ module Plines
     def cancel!
       job_jids.each { |jid| cancel_job(jid) }
 
-      if ext_dep_keys = decode(meta['ext_dep_keys'])
-        ext_dep_keys.each do |key|
-          cancel_timeout_job_jid_set_for(key)
-        end
+      external_deps.each do |key|
+        cancel_timeout_job_jid_set_for(key)
       end
 
       meta["cancelled"] = "1"
