@@ -18,11 +18,13 @@ module Plines
     def initialize(qless, pipeline, id)
       @qless = qless
       @redis = qless.redis
+      @allowed_to_add_external_deps = false
       super(pipeline, id)
       yield self if block_given?
     end
 
     BATCH_DATA_KEY = "batch_data"
+    EXT_DEP_KEYS_KEY = "ext_dep_keys"
 
     # We use find/create in place of new for both
     # so that the semantics of the two cases are clear.
@@ -42,6 +44,7 @@ module Plines
     end
 
     JobBatchAlreadyCreatedError = Class.new(StandardError)
+    AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
     def self.create(qless, pipeline, id, batch_data)
       new(qless, pipeline, id) do |inst|
@@ -52,16 +55,46 @@ module Plines
 
         inst.meta["created_at"]   = Time.now.iso8601
         inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
-        yield inst if block_given?
+
+        inst.populate_external_deps_meta { yield inst if block_given? }
+      end
+    end
+
+    def populate_external_deps_meta
+      @allowed_to_add_external_deps = true
+      yield
+      ext_deps = external_deps | newly_added_external_deps.to_a
+      meta[EXT_DEP_KEYS_KEY] = JSON.dump(ext_deps)
+    ensure
+      @allowed_to_add_external_deps = false
+    end
+
+    def newly_added_external_deps
+      @newly_added_external_deps ||= []
+    end
+
+    def external_deps
+      if keys = meta[EXT_DEP_KEYS_KEY]
+        decode(keys)
+      else
+        []
       end
     end
 
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
-      external_dependencies.each do |dep|
-        external_dependency_sets[dep] << jid
+
+      unless @allowed_to_add_external_deps || external_dependencies.none?
+        raise AddingExternalDependencyNotAllowedError, "You cannot add jobs " +
+          "with external dependencies after creating the job batch."
+      else
+        external_dependencies.each do |dep|
+          newly_added_external_deps << dep
+          external_dependency_sets[dep] << jid
+        end
+
+        EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
       end
-      EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
     end
 
     def job_jids
@@ -117,9 +150,7 @@ module Plines
       update_external_dependency \
         dep_name, :resolve_external_dependency, jids
 
-      timeout_job_jid_set = timeout_job_jid_sets[dep_name]
-      timeout_job_jid_set.each { |jid| gracefully_cancel(jid) }
-      timeout_job_jid_set.del
+      cancel_timeout_job_jid_set_for(dep_name)
     end
 
     def timeout_external_dependency(dep_name, jids)
@@ -148,6 +179,11 @@ module Plines
 
     def cancel!
       job_jids.each { |jid| cancel_job(jid) }
+
+      external_deps.each do |key|
+        cancel_timeout_job_jid_set_for(key)
+      end
+
       meta["cancelled"] = "1"
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
@@ -227,6 +263,12 @@ module Plines
 
     def decode(string)
       string && JSON.load(string)
+    end
+
+    def cancel_timeout_job_jid_set_for(dep_name)
+      timeout_job_jid_set = timeout_job_jid_sets[dep_name]
+      timeout_job_jid_set.each { |jid| gracefully_cancel(jid) }
+      timeout_job_jid_set.del
     end
 
     def gracefully_cancel(jid)
