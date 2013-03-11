@@ -13,13 +13,18 @@ module Plines
   describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
     let(:graph) { DependencyGraph.new(P.step_classes, batch_data) }
-    let(:job_batch) { JobBatch.create(qless, pipeline_module, "foo:1", {}) }
-
-    let(:enqueuer) { JobEnqueuer.new(graph, job_batch) { |job| { tags: [job.data.fetch("a")] } } }
 
     before { pipeline_module.configuration.batch_list_key { |data| data[:a] } }
 
     let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
+
+    def enqueue_the_jobs
+      JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
+        enqueuer = JobEnqueuer.new(graph, jb) { |job| { tags: [job.data.fetch("a")] } }
+        enqueuer.enqueue_jobs
+      end
+    end
+
 
     context "enqueing jobs with no timeouts" do
       step_class(:A) { depends_on :B }
@@ -27,7 +32,7 @@ module Plines
       step_class(:C) { has_external_dependencies { |deps| deps.add "foo" } }
 
       it 'enqueues jobs that have no dependencies with no dependencies' do
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         jobs = default_queue.peek(2)
         expect(jobs.map { |j| j.klass.to_s }).to match_array %w[ P::B ]
@@ -36,7 +41,7 @@ module Plines
       end
 
       it 'sets up job dependencies correctly' do
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         job = default_queue.pop
         job.complete
@@ -47,7 +52,7 @@ module Plines
       end
 
       it 'sets up external dependencies correctly' do
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         jobs = qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].peek(2)
         expect(jobs.map { |j| j.klass.to_s }).to eq(["P::C"])
@@ -57,7 +62,7 @@ module Plines
       end
 
       it 'adds the jids to a redis set so that the entire job batch can be easily tracked' do
-        enqueuer.enqueue_jobs
+        job_batch = enqueue_the_jobs
 
         a = default_queue.peek(1).first
         b_jid = a.dependents.first
@@ -65,11 +70,15 @@ module Plines
       end
 
       it 'adds all the jids to the job batch before actually enqueing any jobs' do
-        enqueuer.should_receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
-          expect(job_batch.job_jids).to include(jid, *dependency_jids)
-        end
+        JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
+          enqueuer = JobEnqueuer.new(graph, jb) { |job| { tags: [job.data.fetch("a")] } }
 
-        enqueuer.enqueue_jobs
+          enqueuer.should_receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
+            expect(jb.job_jids).to include(jid, *dependency_jids)
+          end
+
+          enqueuer.enqueue_jobs
+        end
       end
     end
 
@@ -87,7 +96,7 @@ module Plines
         Time.stub(:now) { now }
 
         step_class(:D) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         jid = scheduled_job_jids.first
         job = job_for(jid)
@@ -105,7 +114,7 @@ module Plines
 
       it 'enqueues the timeout jobs with a high priority so that they run right away' do
         step_class(:D) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
         scheduled_job = job_for(scheduled_job_jids.first)
         expect(scheduled_job.priority).to eq(JobEnqueuer::TIMEOUT_JOB_PRIORITY)
       end
@@ -113,7 +122,7 @@ module Plines
       it 'enqueues a single job with multiple jids if multiple steps have the same external dependency and wait_up_to setting' do
         step_class(:C) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
         step_class(:D) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         jid, expected_nil = scheduled_job_jids.first(2)
         expect(expected_nil).to be_nil
@@ -126,7 +135,7 @@ module Plines
       it 'enqueues seperate delays jobs if multiple steps have the same external dependency with different wait_up_to settings' do
         step_class(:C) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
         step_class(:D) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3001 } }
-        enqueuer.enqueue_jobs
+        enqueue_the_jobs
 
         scheduled_jobs = scheduled_job_jids.map { |jid| job_for(jid) }
         expect(scheduled_jobs).to have(2).jobs
@@ -145,7 +154,7 @@ module Plines
         step_class(:E) { has_external_dependencies "foo", wait_up_to: 3000 }
         step_class(:F) { has_external_dependencies "foo", wait_up_to: 3000 }
 
-        enqueuer.enqueue_jobs
+        job_batch = enqueue_the_jobs
         expect(job_batch.timeout_job_jid_sets["bar"]).to have(2).jids
         expect(job_batch.timeout_job_jid_sets["foo"]).to have(1).jids
       end

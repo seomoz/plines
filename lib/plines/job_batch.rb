@@ -43,6 +43,7 @@ module Plines
     end
 
     JobBatchAlreadyCreatedError = Class.new(StandardError)
+    AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
     def self.create(qless, pipeline, id, batch_data)
       new(qless, pipeline, id) do |inst|
@@ -59,7 +60,9 @@ module Plines
     end
 
     def populate_external_deps_meta
+      @allowed_to_add_external_deps = true
       yield
+      @allowed_to_add_external_deps = false
       ext_deps = external_deps | newly_added_external_deps.to_a
       meta[EXT_DEP_KEYS_KEY] = JSON.dump(ext_deps)
     end
@@ -79,11 +82,17 @@ module Plines
     def add_job(jid, *external_dependencies)
       pending_job_jids << jid
 
-      external_dependencies.each do |dep|
-        newly_added_external_deps << dep
-        external_dependency_sets[dep] << jid
+      unless @allowed_to_add_external_deps || external_dependencies.none?
+        raise AddingExternalDependencyNotAllowedError, "You cannot add jobs " +
+          "with external dependencies after creating the job batch."
+      else
+        external_dependencies.each do |dep|
+          newly_added_external_deps << dep
+          external_dependency_sets[dep] << jid
+        end
+
+        EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
       end
-      EnqueuedJob.create(qless, pipeline, jid, *external_dependencies)
     end
 
     def job_jids
