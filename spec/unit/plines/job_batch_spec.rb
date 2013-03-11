@@ -85,6 +85,20 @@ module Plines
         keys = JSON.load(batch.meta[JobBatch::EXT_DEP_KEYS_KEY])
         expect(keys).to match_array(%w[ foo bar bat bazz ])
       end
+
+      context 'when an error is raised while it yields' do
+        it 'does not continue to allow jobs to be added with external dependencies' do
+          batch = JobBatch.create(qless, pipeline_module, "foo", {})
+
+          expect {
+            batch.populate_external_deps_meta { raise "boom" }
+          }.to raise_error("boom")
+
+          expect {
+            batch.add_job "abc", "bar"
+          }.to raise_error(JobBatch::AddingExternalDependencyNotAllowedError)
+        end
+      end
     end
 
     describe '#external_deps' do

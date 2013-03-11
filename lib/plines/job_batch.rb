@@ -18,6 +18,7 @@ module Plines
     def initialize(qless, pipeline, id)
       @qless = qless
       @redis = qless.redis
+      @allowed_to_add_external_deps = false
       super(pipeline, id)
       yield self if block_given?
     end
@@ -62,9 +63,10 @@ module Plines
     def populate_external_deps_meta
       @allowed_to_add_external_deps = true
       yield
-      @allowed_to_add_external_deps = false
       ext_deps = external_deps | newly_added_external_deps.to_a
       meta[EXT_DEP_KEYS_KEY] = JSON.dump(ext_deps)
+    ensure
+      @allowed_to_add_external_deps = false
     end
 
     def newly_added_external_deps
