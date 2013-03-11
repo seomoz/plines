@@ -269,6 +269,43 @@ describe Plines, :redis do
       should_expire_keys
     end
 
+    it 'cancels the timeout jobs when the batch is cancelled in midstream' do
+      MakeThanksgivingDinner::BakeTurkey.has_external_dependencies do |deps, data|
+        deps.add "await_bake_call_proby", wait_up_to: 100000
+      end
+
+      MakeThanksgivingDinner::SetTable.has_external_dependencies do |deps, data|
+        deps.add "await_set_table_call_proby", wait_up_to: 100000
+      end
+
+      enqueue_jobs
+
+      pending_job_keys = MakeThanksgivingDinner.redis.keys('*timeout_job_jids*').size
+      expect(pending_job_keys).to eq(2)
+
+      MakeThanksgivingDinner::StuffTurkey.class_eval do
+        def perform
+          job_batch.cancel!
+          qless_job.retry # so the worker doesn't try to complete it
+        end
+      end
+
+      expect(grocieries_queue.length).to eq(1)
+      expect(smith_batch).not_to be_cancelled
+      process_work
+
+      steps = MakeThanksgivingDinner.performed_steps
+      expect(steps).to have_at_most(7).entries
+
+      expect(default_queue.length).to eq(0)
+      expect(smith_batch).to be_cancelled
+
+      pending_job_keys = MakeThanksgivingDinner.redis.keys('*timeout_job_jids*').size
+      expect(pending_job_keys).to eq(0)
+
+      should_expire_keys
+    end
+
     it "supports external dependencies" do
       MakeThanksgivingDinner::PickupTurkey.class_eval do
         fan_out do |batch_data|
