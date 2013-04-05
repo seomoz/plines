@@ -84,22 +84,30 @@ module Plines
       end
     end
 
-    describe ".root_dependency" do
+    shared_examples_for 'a dependency boundary' do |attr|
       it 'returns a null object implementation by default' do
-        expect(MyPipeline.root_dependency.jobs_for("some" => "data")).to eq([])
+        expect(MyPipeline.send(attr).jobs_for("some" => "data")).to eq([])
       end
 
-      it 'returns the assigned root dependency' do
-        MyPipeline.root_dependency = :my_root_dependency
-        expect(MyPipeline.root_dependency).to be(:my_root_dependency)
+      it 'returns the assigned step' do
+        MyPipeline.send("#{attr}=", :my_step_class)
+        expect(MyPipeline.send(attr)).to be(:my_step_class)
       end
 
-      it 'cannot be re-assigned (since there cannot be multiple root dependencies)' do
-        MyPipeline.root_dependency = :A
+      it 'cannot be re-assigned (since there cannot be multiple of the same boundary)' do
+        MyPipeline.send("#{attr}=", :A)
         expect {
-          MyPipeline.root_dependency = :B
-        }.to raise_error(Pipeline::RootDependencyAlreadySetError)
+          MyPipeline.send("#{attr}=", :B)
+        }.to raise_error(Pipeline::BoundaryStepAlreadySetError)
       end
+    end
+
+    describe ".initial_step" do
+      it_behaves_like 'a dependency boundary', :initial_step
+    end
+
+    describe '.terminal_step' do
+      it_behaves_like 'a dependency boundary', :terminal_step
     end
 
     describe ".matching_older_unfinished_job_batches", :redis do

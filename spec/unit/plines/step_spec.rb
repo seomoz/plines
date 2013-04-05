@@ -78,28 +78,28 @@ module Plines
         expect(P::StepFoo.dependencies_for(stub_job, :data).to_a).to eq([])
       end
 
-      it "includes the root dependency if there are no other declared dependency" do
+      it "includes the inital step if there are no other declared dependencies" do
         step_class(:Foo)
         step_class(:Bar)
 
-        P.root_dependency = P::Bar
+        P.initial_step = P::Bar
         expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).to eq([P::Bar])
       end
 
-      it "does not include the root dependency if there are other declared depenencies" do
+      it "does not include the initial step if there are other declared depenencies" do
         step_class(:Foo) { depends_on :Bar }
         step_class(:Bar)
         step_class(:Bazz)
 
-        P.root_dependency = P::Bazz
+        P.initial_step = P::Bazz
         expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).not_to include(P::Bazz)
       end
 
-      it "does not include the root dependency if it is the root dependency" do
+      it "does not include the initial step if it is the initial step" do
         step_class(:Foo)
         step_class(:Bar)
 
-        P.root_dependency = P::Bar
+        P.initial_step = P::Bar
         expect(P::Bar.dependencies_for(stub_job, {}).map(&:klass)).to eq([])
       end
 
@@ -329,11 +329,11 @@ module Plines
     end
 
     describe "#depended_on_by_all_steps" do
-      it "sets itself as the pipline's root dependency" do
+      it "sets itself as the pipline's initial step" do
         step_class(:A)
-        expect(P.root_dependency).not_to be(P::A)
+        expect(P.initial_step).not_to be(P::A)
         P::A.depended_on_by_all_steps
-        expect(P.root_dependency).to be(P::A)
+        expect(P.initial_step).to be(P::A)
       end
     end
 
