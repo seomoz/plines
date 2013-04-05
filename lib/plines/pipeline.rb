@@ -68,6 +68,7 @@ module Plines
         instance_variable_set(:"@#{name}", NullStep)
       end
     end
+    private_class_method :define_boundary_step
 
     define_boundary_step :initial_step
     define_boundary_step :terminal_step
