@@ -178,7 +178,7 @@ module Plines
     end
 
     def cancel!
-      job_jids.each { |jid| cancel_job(jid) }
+      qless.bulk_cancel(job_jids)
 
       external_deps.each do |key|
         cancel_timeout_job_jid_set_for(key)
@@ -240,18 +240,6 @@ module Plines
       job_jids.each do |jid|
         yield EnqueuedJob.new(qless, pipeline, jid)
       end
-    end
-
-    def cancel_job(jid)
-      # Cancelled jobs can no longer be fetched.
-      return unless job = qless.jobs[jid]
-
-      # Qless doesn't let you cancel a job that has dependents,
-      # so we must cancel them first, which will "undepend" the
-      # job automatically.
-      job.dependents.each { |dep_jid| cancel_job(dep_jid) }
-
-      job.cancel
     end
 
     def external_dependency_sets
