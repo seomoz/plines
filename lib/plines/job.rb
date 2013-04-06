@@ -5,7 +5,7 @@ module Plines
   Job = Struct.new(:klass, :data) do
     extend Forwardable
     attr_reader :dependencies, :dependents
-    def_delegators :klass, :qless_queue, :processing_queue
+    def_delegators :klass, :qless_queue, :processing_queue, :terminal_step?
 
     def initialize(*args)
       super
@@ -18,7 +18,14 @@ module Plines
     def add_dependency(step)
       dependencies << step
       step.dependents << self
-      self
+    end
+
+    RemoveNonexistentDependencyError = Class.new(StandardError)
+    def remove_dependency(step)
+      unless dependencies.delete?(step) && step.dependents.delete?(self)
+        raise RemoveNonexistentDependencyError,
+          "Attempted to remove nonexistent dependency #{step} from #{self}"
+      end
     end
 
     def add_dependencies_for(batch_data)

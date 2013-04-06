@@ -70,6 +70,18 @@ module Plines
       end
     end
 
+    describe '#terminal_step?' do
+      it 'returns false by default' do
+        step_class(:Foo)
+        expect(P::Foo.terminal_step?).to be(false)
+      end
+
+      it 'returns true if the step depends_on_all_steps' do
+        step_class(:Foo) { depends_on_all_steps }
+        expect(P::Foo.terminal_step?).to be(true)
+      end
+    end
+
     describe "#dependencies_for" do
       let(:stub_job) { fire_double("Plines::Job", :data => { "a" => 3 }) }
 

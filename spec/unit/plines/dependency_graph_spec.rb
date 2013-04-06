@@ -107,6 +107,16 @@ module Plines
         expect { graph }.to raise_error(DependencyGraph::CircularDependencyError)
       end
 
+      it 'removes extra dependencies on the terminal step' do
+        step_class(:A)
+        step_class(:B)  { depends_on :A }
+        step_class(:C)  { depends_on :A }
+        step_class(:D)  { depends_on :B }
+        step_class(:Terminal) { depends_on_all_steps }
+
+        expect(step(P::Terminal).dependencies.to_a).to match_array([step(P::D), step(P::C)])
+      end
+
       it 'can return the steps in correct dependency order via an enumerable' do
         step_class(:A) { depends_on :B, :C, :D }
         step_class(:B) { depends_on :E }

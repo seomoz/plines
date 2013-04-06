@@ -59,6 +59,7 @@ module Plines
     def depends_on_all_steps
       extend DependsOnAllSteps
       pipeline.terminal_step = self
+      @terminal_step = true
     end
 
     def fan_out(&block)
@@ -172,6 +173,10 @@ module Plines
         namespaces.pop # ignore the last one
         namespaces.inject(Object) { |ns, mod| ns.const_get(mod) }
       end
+    end
+
+    def terminal_step?
+      !!@terminal_step
     end
 
   private

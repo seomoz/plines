@@ -7,11 +7,13 @@ module Plines
   describe Job do
     step_class(:StepA)
     step_class(:StepB)
+    step_class(:StepC)
 
     let(:a1_1) { Job.build(P::StepA, a: 1) }
     let(:a1_2) { Job.build(P::StepA, a: 1) }
     let(:a2)   { Job.build(P::StepA, a: 2) }
     let(:b)    { Job.build(P::StepB, a: 1) }
+    let(:c)    { Job.build(P::StepC, a: 1) }
 
     it 'is uniquely identified by the class/data combination' do
       steps = Set.new
@@ -37,10 +39,35 @@ module Plines
       expect(b.dependents.to_a).to eq([a2])
     end
 
+    it 'modifies the dependency and dependent when a dependency is removed' do
+      a2.add_dependency(b)
+      a2.add_dependency(c)
+      c.add_dependency(b)
+      a2.remove_dependency(b)
+      expect(a2.dependencies.to_a).to eq([c])
+      expect(b.dependents.to_a).to eq([c])
+    end
+
+    it 'raises a helpful error if a nonexistent dependency is removed' do
+      expect(a2.dependencies).not_to include(b)
+      expect {
+        a2.remove_dependency(b)
+      }.to raise_error(/attempted to remove nonexistent dependency/i)
+    end
+
     it 'yields when constructed if passed a block' do
       yielded_object = nil
       si = Job.build(P::StepA, a: 5) { |a| yielded_object = a }
       expect(yielded_object).to be(si)
+    end
+
+    it 'can return whether the step class is a terminal step' do
+      step_class(:TerminalStep) { depends_on_all_steps }
+      step_class(:NonTerminalStep)
+
+      expect(Job.build(P::TerminalStep, {}   ).terminal_step?).to be_true
+      expect(Job.build(P::NonTerminalStep, {}).terminal_step?).to be_false
+
     end
 
     it 'does not allow consumers to construct instances using .new (since we need accumulation behavior and we cannot override .new)' do

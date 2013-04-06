@@ -19,7 +19,9 @@ module Plines
         end
       end
 
-      detect_circular_dependencies!
+      @terminal_job = @steps.find(&:terminal_step?)
+
+      cleanup_and_validate_dependencies!
     end
 
     def ordered_steps
@@ -33,7 +35,7 @@ module Plines
 
   private
 
-    def detect_circular_dependencies!
+    def cleanup_and_validate_dependencies!
       @visited_steps = Set.new
 
       @steps.each do |step|
@@ -44,6 +46,7 @@ module Plines
 
     def depth_first_search_from(step, current_stack=Set.new)
       @visited_steps << step
+      delete_redundant_terminal_step_dependencies(step) if @terminal_job
 
       if current_stack.include?(step)
         raise CircularDependencyError,
@@ -53,6 +56,12 @@ module Plines
 
       step.dependencies.each do |dep|
         depth_first_search_from(dep, current_stack | [step])
+      end
+    end
+
+    def delete_redundant_terminal_step_dependencies(job)
+      if job.dependents.size > 1 && job.dependents.include?(@terminal_job)
+        @terminal_job.remove_dependency(job)
       end
     end
 
