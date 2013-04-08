@@ -7,7 +7,7 @@ require 'plines/step'
 module Plines
   describe DependencyGraph do
     describe ".new" do
-      let(:graph) { DependencyGraph.new(P.step_classes, a: 10) }
+      let(:graph) { DependencyGraph.new(P, a: 10) }
 
       let(:steps_by) do
         Hash.new do |h, (klass, data)|
@@ -105,6 +105,22 @@ module Plines
         step_class(:Z) { depends_on :W }
 
         expect { graph }.to raise_error(DependencyGraph::CircularDependencyError)
+      end
+
+      it 'adds the correct dependencies to all terminal jobs' do
+        step_class(:A)
+        step_class(:B)  { depends_on :A }
+        step_class(:C)  { depends_on :A }
+        step_class(:D)  { depends_on :B }
+        step_class(:Terminal) do
+          depends_on_all_steps
+          fan_out do |data|
+            [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
+          end
+        end
+
+        expect(step(P::Terminal, 11).dependencies.to_a).to match_array([step(P::D), step(P::C)])
+        expect(step(P::Terminal, 12).dependencies.to_a).to match_array([step(P::D), step(P::C)])
       end
 
       it 'can return the steps in correct dependency order via an enumerable' do

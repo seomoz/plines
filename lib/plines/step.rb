@@ -53,11 +53,11 @@ module Plines
     end
 
     def depended_on_by_all_steps
-      pipeline.root_dependency = self
+      pipeline.initial_step = self
     end
 
     def depends_on_all_steps
-      extend DependsOnAllSteps
+      pipeline.terminal_step = self
     end
 
     def fan_out(&block)
@@ -104,7 +104,7 @@ module Plines
           yielder.yield job
         end
 
-        each_root_dependency_job_for(job, batch_data) do |job|
+        each_initial_step_job_for(job, batch_data) do |job|
           yielder.yield job
         end unless has_dependencies
       end
@@ -192,10 +192,10 @@ module Plines
       end
     end
 
-    def each_root_dependency_job_for(job, batch_data)
-      return if pipeline.root_dependency == self
+    def each_initial_step_job_for(job, batch_data)
+      return if pipeline.initial_step == self
 
-      pipeline.root_dependency.jobs_for(batch_data).each do |dependency|
+      pipeline.initial_step.jobs_for(batch_data).each do |dependency|
         yield dependency
       end
     end
@@ -261,17 +261,6 @@ module Plines
 
       def tag=(value)
         self.tags = Array(value)
-      end
-    end
-
-    module DependsOnAllSteps
-    private
-      def dependency_filters
-        pipeline.step_classes.each_with_object({}) do |klass, hash|
-          next if klass == self
-          klass_name = klass.name.split('::').last
-          hash[klass_name] = default_dependency_filter
-        end
       end
     end
   end

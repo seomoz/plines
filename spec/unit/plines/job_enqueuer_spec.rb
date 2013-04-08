@@ -12,7 +12,7 @@ require 'plines/external_dependency_timeout'
 module Plines
   describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
-    let(:graph) { DependencyGraph.new(P.step_classes, batch_data) }
+    let(:graph) { DependencyGraph.new(P, batch_data) }
 
     before { pipeline_module.configuration.batch_list_key { |data| data[:a] } }
 
