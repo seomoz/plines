@@ -10,16 +10,19 @@ module Plines
     # Raised when a circular dependency is detected.
     class CircularDependencyError < StandardError; end
 
-    def initialize(step_classes, batch_data)
+    def initialize(pipeline, batch_data)
+      step_classes = pipeline.step_classes
       @steps = Job.accumulate_instances do
         step_classes.each do |step_klass|
           step_klass.jobs_for(batch_data).each do |job|
             job.add_dependencies_for(batch_data)
           end
         end
+
+        @terminal_jobs = pipeline.terminal_step.jobs_for(batch_data)
       end
 
-      detect_circular_dependencies!
+      cleanup_and_validate_dependencies!
     end
 
     def ordered_steps
@@ -33,7 +36,7 @@ module Plines
 
   private
 
-    def detect_circular_dependencies!
+    def cleanup_and_validate_dependencies!
       @visited_steps = Set.new
 
       @steps.each do |step|
@@ -44,6 +47,7 @@ module Plines
 
     def depth_first_search_from(step, current_stack=Set.new)
       @visited_steps << step
+      add_terminal_job_dependencies(step)
 
       if current_stack.include?(step)
         raise CircularDependencyError,
@@ -53,6 +57,12 @@ module Plines
 
       step.dependencies.each do |dep|
         depth_first_search_from(dep, current_stack | [step])
+      end
+    end
+
+    def add_terminal_job_dependencies(job)
+      if job.dependents.none? && !@terminal_jobs.include?(job)
+        @terminal_jobs.each { |term_job| term_job.add_dependency(job) }
       end
     end
 

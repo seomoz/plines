@@ -7,11 +7,13 @@ module Plines
   describe Job do
     step_class(:StepA)
     step_class(:StepB)
+    step_class(:StepC)
 
     let(:a1_1) { Job.build(P::StepA, a: 1) }
     let(:a1_2) { Job.build(P::StepA, a: 1) }
     let(:a2)   { Job.build(P::StepA, a: 2) }
     let(:b)    { Job.build(P::StepB, a: 1) }
+    let(:c)    { Job.build(P::StepC, a: 1) }
 
     it 'is uniquely identified by the class/data combination' do
       steps = Set.new
@@ -35,6 +37,22 @@ module Plines
       a2.add_dependency(b)
       expect(a2.dependencies.to_a).to eq([b])
       expect(b.dependents.to_a).to eq([a2])
+    end
+
+    it 'modifies the dependency and dependent when a dependency is removed' do
+      a2.add_dependency(b)
+      a2.add_dependency(c)
+      c.add_dependency(b)
+      a2.remove_dependency(b)
+      expect(a2.dependencies.to_a).to eq([c])
+      expect(b.dependents.to_a).to eq([c])
+    end
+
+    it 'raises a helpful error if a nonexistent dependency is removed' do
+      expect(a2.dependencies).not_to include(b)
+      expect {
+        a2.remove_dependency(b)
+      }.to raise_error(/attempted to remove nonexistent dependency/i)
     end
 
     it 'yields when constructed if passed a block' do

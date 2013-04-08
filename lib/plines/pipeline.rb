@@ -22,7 +22,7 @@ module Plines
     end
 
     def enqueue_jobs_for(batch_data)
-      graph = DependencyGraph.new(step_classes, batch_data)
+      graph = DependencyGraph.new(self, batch_data)
       job_batch_list = job_batch_list_for(batch_data)
 
       job_batch_list.create_new_batch(batch_data) do |job_batch|
@@ -39,35 +39,39 @@ module Plines
       @step_classes ||= []
     end
 
-    # Null Object pattern implementation of the root dependency
-    # object so we don't need nil checks on #root_dependency
-    class NullRootDependency
+    # Null Object pattern implementation of a step class
+    class NullStep
       def self.jobs_for(*args)
         []
       end
+    end
 
-      def self.nil?
-        true
+    # Error raised when two steps are declared as the same boundary step.
+    # Having more than one initial or terminal step is not well defined.
+    class BoundaryStepAlreadySetError < StandardError; end
+
+    def self.define_boundary_step(name)
+      define_method "#{name}=" do |value|
+        current_value = public_send(name)
+        if current_value == NullStep
+          instance_variable_set(:"@#{name}", value)
+        else
+          raise BoundaryStepAlreadySetError,
+            "The #{name} for pipeline #{self} is already set. " +
+            "Multiple of these boundary steps are not supported."
+        end
+      end
+
+      define_method name do
+        current_value = instance_variable_get(:"@#{name}")
+        return current_value if current_value
+        instance_variable_set(:"@#{name}", NullStep)
       end
     end
+    private_class_method :define_boundary_step
 
-    # Error raised when two steps declare `depended_on_by_all_steps`;
-    # This cannot be allowed or there would be a circular dependency.
-    class RootDependencyAlreadySetError < StandardError; end
-
-    def root_dependency=(value)
-      if root_dependency.nil?
-        @root_dependency = value
-      else
-        raise RootDependencyAlreadySetError,
-          "The root dependency for pipeline #{self} is already set. " +
-          "Multiple root dependencies are not supported."
-      end
-    end
-
-    def root_dependency
-      @root_dependency ||= NullRootDependency
-    end
+    define_boundary_step :initial_step
+    define_boundary_step :terminal_step
 
     def job_batch_list_for(batch_data)
       key = configuration.batch_list_key_for(batch_data)
