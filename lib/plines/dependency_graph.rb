@@ -10,16 +10,17 @@ module Plines
     # Raised when a circular dependency is detected.
     class CircularDependencyError < StandardError; end
 
-    def initialize(step_classes, batch_data)
+    def initialize(pipeline, batch_data)
+      step_classes = pipeline.step_classes
       @steps = Job.accumulate_instances do
         step_classes.each do |step_klass|
           step_klass.jobs_for(batch_data).each do |job|
             job.add_dependencies_for(batch_data)
           end
         end
-      end
 
-      @terminal_job = @steps.find(&:terminal_step?)
+        @terminal_jobs = pipeline.terminal_step.jobs_for(batch_data)
+      end
 
       cleanup_and_validate_dependencies!
     end
@@ -46,7 +47,7 @@ module Plines
 
     def depth_first_search_from(step, current_stack=Set.new)
       @visited_steps << step
-      delete_redundant_terminal_step_dependencies(step) if @terminal_job
+      add_terminal_job_dependencies(step)
 
       if current_stack.include?(step)
         raise CircularDependencyError,
@@ -59,9 +60,9 @@ module Plines
       end
     end
 
-    def delete_redundant_terminal_step_dependencies(job)
-      if job.dependents.size > 1 && job.dependents.include?(@terminal_job)
-        @terminal_job.remove_dependency(job)
+    def add_terminal_job_dependencies(job)
+      if job.dependents.none? && !@terminal_jobs.include?(job)
+        @terminal_jobs.each { |term_job| term_job.add_dependency(job) }
       end
     end
 

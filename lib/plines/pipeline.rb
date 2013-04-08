@@ -22,7 +22,7 @@ module Plines
     end
 
     def enqueue_jobs_for(batch_data)
-      graph = DependencyGraph.new(step_classes, batch_data)
+      graph = DependencyGraph.new(self, batch_data)
       job_batch_list = job_batch_list_for(batch_data)
 
       job_batch_list.create_new_batch(batch_data) do |job_batch|

@@ -61,15 +61,6 @@ module Plines
       expect(yielded_object).to be(si)
     end
 
-    it 'can return whether the step class is a terminal step' do
-      step_class(:TerminalStep) { depends_on_all_steps }
-      step_class(:NonTerminalStep)
-
-      expect(Job.build(P::TerminalStep, {}   ).terminal_step?).to be_true
-      expect(Job.build(P::NonTerminalStep, {}).terminal_step?).to be_false
-
-    end
-
     it 'does not allow consumers to construct instances using .new (since we need accumulation behavior and we cannot override .new)' do
       expect { Job.new(P::StepA, a: 3) }.to raise_error(NoMethodError)
     end

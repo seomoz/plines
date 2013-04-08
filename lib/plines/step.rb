@@ -57,9 +57,7 @@ module Plines
     end
 
     def depends_on_all_steps
-      extend DependsOnAllSteps
       pipeline.terminal_step = self
-      @terminal_step = true
     end
 
     def fan_out(&block)
@@ -175,10 +173,6 @@ module Plines
       end
     end
 
-    def terminal_step?
-      !!@terminal_step
-    end
-
   private
 
     def dependency_filters
@@ -267,17 +261,6 @@ module Plines
 
       def tag=(value)
         self.tags = Array(value)
-      end
-    end
-
-    module DependsOnAllSteps
-    private
-      def dependency_filters
-        pipeline.step_classes.each_with_object({}) do |klass, hash|
-          next if klass == self
-          klass_name = klass.name.split('::').last
-          hash[klass_name] = default_dependency_filter
-        end
       end
     end
   end

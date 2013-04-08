@@ -70,18 +70,6 @@ module Plines
       end
     end
 
-    describe '#terminal_step?' do
-      it 'returns false by default' do
-        step_class(:Foo)
-        expect(P::Foo.terminal_step?).to be(false)
-      end
-
-      it 'returns true if the step depends_on_all_steps' do
-        step_class(:Foo) { depends_on_all_steps }
-        expect(P::Foo.terminal_step?).to be(true)
-      end
-    end
-
     describe "#dependencies_for" do
       let(:stub_job) { fire_double("Plines::Job", :data => { "a" => 3 }) }
 
@@ -115,12 +103,10 @@ module Plines
         expect(P::Bar.dependencies_for(stub_job, {}).map(&:klass)).to eq([])
       end
 
-      it 'includes all but itself when `depends_on_all_steps` is declared' do
+      it "sets the pipeline's terminal_step to itself `#depends_on_all_steps` is declared" do
         step_class(:Foo) { depends_on_all_steps }
-        step_class(:Bar)
-        step_class(:Bazz)
 
-        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).to eq([P::Bar, P::Bazz])
+        expect(P.terminal_step).to be(P::Foo)
       end
     end
 
