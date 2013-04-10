@@ -64,6 +64,15 @@ module Plines
       expect(foo.map(&:id)).to eq(%w[ foo:1 foo:2 ])
     end
 
+    it 'does not allow CannotFindExistingJobBatchError errors to propagate' do
+      foo.create_new_batch({})
+      foo.last_batch_num.increment
+      foo.create_new_batch({})
+      foo.last_batch_num.increment
+
+      expect(foo.map(&:id)).to eq(%w[ foo:1 foo:3 ])
+    end
+
     it 'can return a lazy enumerator' do
       foo.create_new_batch({})
       foo.create_new_batch({})

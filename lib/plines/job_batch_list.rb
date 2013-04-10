@@ -31,7 +31,11 @@ module Plines
       return enum_for(:each) unless block_given?
 
       1.upto(last_batch_num.value) do |num|
-        yield JobBatch.find(qless, pipeline, batch_id_for(num))
+        begin
+          yield JobBatch.find(qless, pipeline, batch_id_for(num))
+        rescue JobBatch::CannotFindExistingJobBatchError
+          # We can't yield a batch we can't find!
+        end
       end
     end
 
