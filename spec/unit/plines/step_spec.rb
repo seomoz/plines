@@ -397,21 +397,18 @@ module Plines
         end
       end
 
-      describe "QlessJobProxy object", :redis do
-        let(:qless_job) { fire_double("Qless::Job", client: qless, jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => '1234' }) }
-        let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
-
-        [:original_retries, :retries_left].each do |meth|
-          it "forwards ##{meth} onto the underlying qless job object" do
-            qless_job.should_receive(meth)
-            qless_job_proxy.send(meth)
-          end
-        end
-      end
-
       describe "#perform", :redis do
-        let(:qless_job) { fire_double("Qless::Job", client: qless, jid: "my-jid", data: { "foo" => "bar", "_job_batch_id" => job_batch.id }, complete: true) }
-        let(:qless_job_proxy) { Plines::Step::QlessJobProxy.new(qless_job) }
+        step_class(:Other)
+
+        let(:qless_job) do
+          qless.queues["jobs"].put(P::Other,
+            { "foo" => "bar", "_job_batch_id" => job_batch.id },
+            jid: "my-jid"
+          )
+
+          qless.queues["jobs"].pop
+        end
+
         let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
@@ -435,7 +432,7 @@ module Plines
           expect(foo).to eq("bar")
         end
 
-        it "makes the job_batch and proxied qless_job available in the perform instance method" do
+        it "makes the job_batch and qless_job available in the perform instance method" do
           j_batch = data_hash = nil
           qljob = nil
           step_class(:A) do
@@ -450,7 +447,7 @@ module Plines
           expect(j_batch).to eq(job_batch)
           expect(data_hash).to have_key("_job_batch_id")
 
-          expect(qljob).to eq(qless_job_proxy)
+          expect(qljob).to eq(qless_job)
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
@@ -472,12 +469,14 @@ module Plines
           expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
 
           step_class(:A) do
-            def perform; end
+            def perform
+              qless_job.complete # simulate the job completing
+            end
           end
 
           P::A.perform(qless_job)
-          expect(job_batch.pending_job_jids).not_to include(qless_job.jid)
-          expect(job_batch.completed_job_jids).to include(qless_job.jid)
+          expect(job_batch.pending_job_jids.to_a).not_to include(qless_job.jid)
+          expect(job_batch.completed_job_jids.to_a).to include(qless_job.jid)
         end
 
         it "does not mark the job as complete in the job batch if the job was retried" do
