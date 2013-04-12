@@ -120,15 +120,13 @@ module Plines
       batch = JobBatch.find(qless_job.client, pipeline,
                             qless_job.data.fetch("_job_batch_id"))
       job_data = DynamicStruct.new(qless_job.data)
-      qless_job_proxy = QlessJobProxy.new(qless_job)
 
-      new(batch, job_data, qless_job.jid, qless_job_proxy)
-        .send(:around_perform)
-
-      if qless_job_proxy.can_complete?
-        qless_job.complete
+      qless_job.after_complete do
         batch.mark_job_as_complete(qless_job.jid)
       end
+
+      new(batch, job_data, qless_job)
+        .send(:around_perform)
     end
 
     def external_dependency_definitions
@@ -200,44 +198,17 @@ module Plines
       end
     end
 
-    # We only want to selectively expose core qless functionality
-    # to users so that plines and qless can maintain a consistent state.
-    # Right now we only want to:
-    # - expose the ability to safely retry jobs
-    #     (while keeping plines state consistent)
-    # - expose the readers original_retries and retries_left
-    QlessJobProxy = Struct.new(:qless_job, :job_retried) do
-      extend Forwardable
-      def_delegators :qless_job, :original_retries, :retries_left,
-                     :client, :queue
-
-      def initialize(qless_job)
-        super
-        self.qless_job = qless_job
-        self.job_retried = false
-      end
-
-      def retry(delay=0)
-        self.qless_job.retry(delay)
-        self.job_retried = true
-      end
-
-      def can_complete?
-        !self.job_retried
-      end
-    end
-
     module InstanceMethods
       extend Forwardable
       attr_reader :job_data, :job_batch, :qless_job
       def_delegator "self.class", :enqueue_qless_job
 
-      def initialize(job_batch, job_data, jid, qless_job)
+      def initialize(job_batch, job_data, qless_job)
         @job_batch = job_batch
         @job_data = job_data
         @qless_job = qless_job
         @enqueued_job = EnqueuedJob.new(qless_job.client,
-                                        self.class.pipeline, jid)
+                                        self.class.pipeline, qless_job.jid)
       end
 
     private
