@@ -169,10 +169,17 @@ module Plines
           jb.add_job("a")
         end
 
-        jobs = fire_double("Qless::ClientJobs")
-        qless.stub(jobs: jobs)
-        jobs.stub(:[]).with("a") { :the_job }
+        qless.stub(jobs: { "a" => :the_job })
+        expect(batch.qless_jobs).to eq([:the_job])
+      end
 
+      it 'ignores nil jobs' do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
+          jb.add_job("a")
+          jb.add_job("b")
+        end
+
+        qless.stub(jobs: { "a" => nil, "b" => :the_job })
         expect(batch.qless_jobs).to eq([:the_job])
       end
     end
@@ -275,11 +282,32 @@ module Plines
       end
     end
 
-    describe "#pending_jobs" do
-      it "shows all pending jobs" do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {})
-        batch.add_job("a")
-        expect(batch.pending_qless_jobs).to eq([qless.jobs["a"]])
+    describe "#pending_qless_jobs" do
+      let(:batch) do
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+          b.add_job("a")
+          b.add_job("b")
+          b.add_job("c")
+        end
+      end
+
+      before do
+        qless.stub(jobs: { "a" => "job a", "b" => "job b", "c" => "job c" })
+      end
+
+      it "returns qless job instances" do
+        expect(batch.pending_qless_jobs).to match_array(["job a", "job b", "job c"])
+      end
+
+      it "ignores non-pending jids" do
+        batch.mark_job_as_complete("a")
+        expect(batch.pending_qless_jobs).to match_array(["job b", "job c"])
+      end
+
+      it 'ignores nil jobs' do
+        qless.jobs.delete("a")
+        qless.jobs.delete("c")
+        expect(batch.pending_qless_jobs).to match_array(["job b"])
       end
     end
 
