@@ -112,13 +112,13 @@ module Plines
     def pending_qless_jobs
       pending_job_jids.map do |jid|
         job_repository[jid]
-      end
+      end.compact
     end
 
     def qless_jobs
       job_jids.map do |jid|
         job_repository[jid]
-      end
+      end.compact
     end
 
     def mark_job_as_complete(jid)
