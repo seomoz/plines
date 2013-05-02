@@ -177,16 +177,20 @@ module Plines
       meta["cancelled"] == "1"
     end
 
-    def cancel!
-      qless.bulk_cancel(job_jids)
+    CannotCancelError = Class.new(StandardError)
 
-      external_deps.each do |key|
-        cancel_timeout_job_jid_set_for(key)
+    def cancel!
+      if complete?
+        raise CannotCancelError,
+          "JobBatch #{id} is already complete and cannot be cancelled"
       end
 
-      meta["cancelled"] = "1"
-      set_expiration!
-      pipeline.configuration.notify(:after_job_batch_cancellation, self)
+      perform_cancellation
+    end
+
+    def cancel
+      return false if complete?
+      perform_cancellation
     end
 
     def data
@@ -205,6 +209,18 @@ module Plines
     end
 
   private
+
+    def perform_cancellation
+      qless.bulk_cancel(job_jids)
+
+      external_deps.each do |key|
+        cancel_timeout_job_jid_set_for(key)
+      end
+
+      meta["cancelled"] = "1"
+      set_expiration!
+      pipeline.configuration.notify(:after_job_batch_cancellation, self)
+    end
 
     def update_external_dependency(dep_name, meth, jids)
       jids.each do |jid|
