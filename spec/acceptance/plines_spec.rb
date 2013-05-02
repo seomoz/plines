@@ -269,6 +269,28 @@ describe Plines, :redis do
       should_expire_keys
     end
 
+    it 'does not allow a complete job batch to be cancelled' do
+      enqueue_jobs
+
+      MakeThanksgivingDinner.configure do |plines|
+        plines.after_job_batch_cancellation do |job_batch|
+          MakeThanksgivingDinner.redis.set('make_thanksgiving_dinner:midstream_cancelled_job_batch', job_batch)
+        end
+      end
+
+      expect(grocieries_queue.length).to eq(1)
+      expect(smith_batch).not_to be_cancelled
+      process_work
+
+      steps = MakeThanksgivingDinner.performed_steps
+      expect(steps).to have(10).entries
+
+      expect(smith_batch).to be_complete
+      expect {
+        smith_batch.cancel
+      }.not_to change { smith_batch.cancelled? }.from(false)
+    end
+
     it 'cancels the timeout jobs when the batch is cancelled in midstream' do
       MakeThanksgivingDinner::BakeTurkey.has_external_dependencies do |deps, data|
         deps.add "await_bake_call_proby", wait_up_to: 100000

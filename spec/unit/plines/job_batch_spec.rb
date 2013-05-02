@@ -495,7 +495,7 @@ module Plines
       end
     end
 
-    describe "#cancel!" do
+    shared_examples_for "a cancellation method" do |method|
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
       let(:jid_1)  { default_queue.put(P::Foo, {}) }
@@ -512,17 +512,25 @@ module Plines
         redis.stub(:pexpire)
       end
 
+      define_method :cancel do
+        batch.public_send(method)
+      end
+
       it 'cancels all qless jobs, including those that it thinks are complete' do
         batch.mark_job_as_complete(jid_2)
         expect(default_queue.length).to be > 0
-        batch.cancel!
+        cancel
         expect(default_queue.length).to eq(0)
       end
 
       it 'keeps track of whether or not cancellation has occurred' do
         expect(batch).not_to be_cancelled
-        batch.cancel!
+        cancel
         expect(batch).to be_cancelled
+      end
+
+      it 'returns a truthy value' do
+        expect(cancel).to be_true
       end
 
       it 'expires the redis keys for the batch data' do
@@ -531,7 +539,7 @@ module Plines
           expired_keys << key
         end
 
-        batch.cancel!
+        cancel
 
         expect(redis.keys).not_to be_empty
         expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
@@ -543,7 +551,36 @@ module Plines
           notified_batch = jb
         end
 
-        expect { batch.cancel! }.to change { notified_batch }.from(nil).to(batch)
+        expect { cancel }.to change { notified_batch }.from(nil).to(batch)
+      end
+
+      def complete_batch
+        batch.mark_job_as_complete(jid_1)
+        batch.mark_job_as_complete(jid_2)
+
+        expect(batch).to be_complete
+      end
+    end
+
+    describe "#cancel!" do
+      it_behaves_like "a cancellation method", :cancel! do
+        it 'raises an error when the job is already complete' do
+          complete_batch
+          expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
+          expect(batch).to be_complete
+          expect(batch).not_to be_cancelled
+        end
+      end
+    end
+
+    describe "cancel" do
+      it_behaves_like "a cancellation method", :cancel do
+        it 'returns false and does not cancel when the jobs is already complete' do
+          complete_batch
+          expect(batch.cancel).to be_false
+          expect(batch).to be_complete
+          expect(batch).not_to be_cancelled
+        end
       end
     end
   end
