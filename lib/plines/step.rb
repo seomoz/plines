@@ -61,7 +61,8 @@ module Plines
     end
 
     def fan_out(&block)
-      @fan_out_block = block
+      @fan_out_blocks ||= []
+      @fan_out_blocks << block
     end
 
     def has_external_dependencies(*args, &block)
@@ -111,7 +112,9 @@ module Plines
     end
 
     def jobs_for(batch_data)
-      @fan_out_block.call(batch_data).map do |job_data|
+      @fan_out_blocks.inject([batch_data]) do |job_data_hashes, fan_out_block|
+        job_data_hashes.flat_map { |job_data| fan_out_block.call(job_data) }
+      end.map do |job_data|
         Job.build(self, job_data)
       end
     end

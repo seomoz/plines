@@ -57,7 +57,7 @@ module Plines
         expect(instances.map(&:data)).to eq([a: 1])
       end
 
-      it 'returns one instance per array entry returned by the fan_out block' do
+      it 'returns one instance per array entry returned by a fan_out block' do
         step_class(:A) do
           fan_out do |data|
             [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
@@ -67,6 +67,42 @@ module Plines
         instances = P::A.jobs_for(a: 3)
         expect(instances.map(&:klass)).to eq([P::A, P::A])
         expect(instances.map(&:data)).to eq([{ a: 4 }, { a: 5 }])
+      end
+
+      it 'processes each fan_out block in the order they appear' do
+        step_class(:A) do
+          fan_out do |data|
+            [ { a: data[:a] + 10 }, { a: data[:a] + 20 } ]
+          end
+
+          fan_out do |data|
+            [ { a: data[:a] + 100 }, { a: data[:a] + 200 } ]
+          end
+        end
+
+        instances = P::A.jobs_for(a: 1)
+        expect(instances.map(&:klass)).to eq([P::A] * 4)
+        expect(instances.map(&:data)).to eq([{a: 111}, {a: 211}, {a: 121}, {a: 221}])
+      end
+
+      it 'allows fan_out blocks to conditionally eliminate jobs' do
+        step_class(:A) do
+          fan_out do |data|
+            [ { a: data[:a], b: 0 }, { a: data[:a] + 2, c: 0 } ]
+          end
+
+          fan_out do |data|
+            if data.has_key?(:b)
+              []
+            else
+              [data]
+            end
+          end
+        end
+
+        instances = P::A.jobs_for(a: 1)
+        expect(instances.map(&:klass)).to eq([P::A])
+        expect(instances.map(&:data)).to eq([{a: 3, c: 0}])
       end
     end
 
