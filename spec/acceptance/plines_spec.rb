@@ -477,6 +477,45 @@ describe Plines, :redis do
       process_work(qless)
       expect(smith_batch).to be_complete
     end
+
+    it 'keeps track of all batches that timed out a particular external dependency' do
+      pending "WIP"
+
+      MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
+        deps.add "await_turkey_ready_call", wait_up_to: 0.1
+      end
+
+      enqueue_jobs(family: "Smith", num: 1)
+      enqueue_jobs(family: "Smith", num: 2)
+
+      sleep 0.11
+      process_work # so it times out for 2 of them...
+
+      enqueue_jobs(family: "Smith", num: 3)
+      enqueue_jobs(family: "Smith", num: 4)
+
+      batch_list = MakeThanksgivingDinner.job_batch_list_for(family: "Smith")
+      batch_list.each do |batch|
+        # Resolve the dependency on some batches, in order to create a batch
+        # in each of these 4 states
+        #
+        # - timed out / not resolved (#1)
+        # - timed out / resolved (#2)
+        # - not timed out / not resolved (#3)
+        # - not timed out / resolved (#4)
+        if batch.data["num"].even?
+          batch.resolve_external_dependency("await_turkey_ready_call")
+        end
+      end
+
+      timeouts = batch_list.map(&:timed_out_external_dependencies)
+      expect(timeouts).to eq([
+        ['await_turkey_ready_call'], ['await_turkey_ready_call'], [], []
+      ])
+
+      batches = batch_list.all_with_external_dependency_timeout('await_turkey_ready_call')
+      expect(batches.map { |b| b.data.fetch("num") }).to eq([1, 2])
+    end
   end
 
   context 'single process tests' do
