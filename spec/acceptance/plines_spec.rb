@@ -185,11 +185,17 @@ describe Plines, :redis do
     MakeThanksgivingDinner.enqueue_jobs_for(family: family, drinks: %w[ champaign water cider ])
 
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
-    expect(smith_batch).to have_at_least(10).job_jids
-    expect(smith_batch).not_to be_complete
 
-    expect(MakeThanksgivingDinner.performed_steps).to eq([])
-    expect(MakeThanksgivingDinner.poured_drinks).to eq([])
+    batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: family)
+    expect(batch).to have_at_least(10).job_jids
+    expect(batch).not_to be_complete
+
+    unless @already_enqueued_a_batch
+      expect(MakeThanksgivingDinner.performed_steps).to eq([])
+      expect(MakeThanksgivingDinner.poured_drinks).to eq([])
+    end
+
+    @already_enqueued_a_batch = true
   end
 
   def should_expire_keys
