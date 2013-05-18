@@ -479,8 +479,6 @@ describe Plines, :redis do
     end
 
     it 'keeps track of all batches that timed out a particular external dependency' do
-      pending "WIP"
-
       MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
         deps.add "await_turkey_ready_call", wait_up_to: 0.1
       end

@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/job_batch'
 require 'plines/job_batch_list'
+require 'plines/enqueued_job'
 require 'plines/configuration'
 
 module Plines
@@ -79,6 +80,20 @@ module Plines
 
       list = foo.each
       expect(list.map(&:id)).to eq(%w[ foo:1 foo:2 ])
+    end
+
+    it 'can return a list of batches that timed out a particular dependency' do
+      b1, b2, b3 = 3.times.map do
+        foo.create_new_batch({}) do |batch|
+          batch.add_job("a", "foo")
+        end
+      end
+
+      b1.timeout_external_dependency("foo", "a")
+      b3.timeout_external_dependency("foo", "a")
+
+      expect(foo.all_with_external_dependency_timeout('foo')).to eq([b1, b3])
+      expect(foo.all_with_external_dependency_timeout('bar')).to eq([])
     end
   end
 end
