@@ -174,6 +174,11 @@ describe Plines, :redis do
   def enqueue_jobs(options = {})
     family = options.fetch(:family) { "Smith" }
 
+    batch_data = {
+      family: family,
+      drinks: %w[ champaign water cider ]
+    }.merge(options)
+
     MakeThanksgivingDinner.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
       plines.qless_job_options do |job|
@@ -182,7 +187,7 @@ describe Plines, :redis do
       plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
-    MakeThanksgivingDinner.enqueue_jobs_for(family: family, drinks: %w[ champaign water cider ])
+    MakeThanksgivingDinner.enqueue_jobs_for(batch_data)
 
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
 
