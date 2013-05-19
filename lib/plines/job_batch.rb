@@ -218,6 +218,11 @@ module Plines
       end
     end
 
+    def spawn_copy(overrides = {})
+      overrides = JSON.parse(JSON.dump overrides)
+      pipeline.enqueue_jobs_for(data.merge overrides)
+    end
+
   private
 
     def perform_cancellation

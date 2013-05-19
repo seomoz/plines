@@ -144,6 +144,32 @@ module Plines
       end
     end
 
+    describe "#spawn_copy" do
+      let(:batch) { JobBatch.create(qless, pipeline_module, "a",
+                                    { "num" => 2, 'b' => 1 }) }
+
+      it 'enqueues a new job batch with the same data as this batch' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 2, 'b' => 1)
+
+        batch.spawn_copy
+      end
+
+      it 'merges the provided data with the batch data' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+
+        batch.spawn_copy('num' => 3, 'foo' => 4)
+      end
+
+      it 'merges properly when the overrides hash uses symbols' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+
+        batch.spawn_copy(num: 3, foo: 4)
+      end
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
