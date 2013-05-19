@@ -12,6 +12,8 @@ module Plines
 
     set :pending_job_jids
     set :completed_job_jids
+    set :timed_out_external_deps
+
     hash_key :meta
     attr_reader :qless, :redis
 
@@ -156,6 +158,8 @@ module Plines
     def timeout_external_dependency(dep_name, jids)
       update_external_dependency \
         dep_name, :timeout_external_dependency, Array(jids)
+
+      timed_out_external_deps << dep_name
     end
 
     def has_unresolved_external_dependency?(dep_name)
@@ -163,6 +167,10 @@ module Plines
         EnqueuedJob.new(qless, pipeline, jid)
                    .unresolved_external_dependencies.include?(dep_name)
       end
+    end
+
+    def timed_out_external_dependencies
+      timed_out_external_deps.to_a
     end
 
     def created_at

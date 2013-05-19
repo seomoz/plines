@@ -117,6 +117,28 @@ module Plines
       end
     end
 
+    describe "#timed_out_external_dependencies" do
+      let(:batch) do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+          b.add_job('1234', 'foo', 'bar')
+          b.add_job('2345', 'bazz')
+        end
+      end
+
+      it 'returns a blank array by default' do
+        expect(batch.timed_out_external_dependencies).to eq([])
+      end
+
+      it 'includes any dependencies that have timed out' do
+        batch.timeout_external_dependency('bar', '1234')
+        expect(batch.timed_out_external_dependencies).to eq(['bar'])
+
+        batch.timeout_external_dependency('bar', '1234') # should not add another entry
+        batch.timeout_external_dependency('foo', '1234')
+        expect(batch.timed_out_external_dependencies).to match_array(['bar', 'foo'])
+      end
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
