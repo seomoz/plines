@@ -20,15 +20,15 @@ module Plines
 
       indif = Hash.new { |hash, key| hash[key.to_s] if Symbol === key }
 
-      original.each_with_object(indif) do |(key, value), hash|
+      original.each do |key, value|
         key = key.to_s
 
-        if hash.has_key?(key)
+        if indif.has_key?(key)
           raise ConflictingEntriesError,
             "Hash has conflicting entries for #{key}: #{original}"
         end
 
-        hash[key] = indifferent(value)
+        indif[key] = indifferent(value)
       end
 
       new(indif)
