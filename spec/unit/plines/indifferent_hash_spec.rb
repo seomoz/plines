@@ -20,6 +20,12 @@ module Plines
       expect(hash.fetch :b).to eq(2)
     end
 
+    it 'raises an error if a the hash has conflicting string/symbol entries' do
+      expect {
+        IndifferentHash.from('a' => 1, a: 2)
+      }.to raise_error(IndifferentHash::ConflictingEntriesError)
+    end
+
     it 'fails with an expected error if a non-existant symbol key is fetched' do
       msg = ({}.fetch(:a) rescue $!).message
       hash = IndifferentHash.from({})
@@ -90,6 +96,32 @@ module Plines
       expect {
         IndifferentHash.new('a' => 3)
       }.to raise_error(NoMethodError)
+    end
+
+    it 'returns an indifferent hash when merged' do
+      h1 = IndifferentHash.from('a' => 3)
+      h2 = h1.merge('b' => 4)
+
+      expect(h2['a']).to eq(3)
+      expect(h2[:a]).to eq(3)
+      expect(h2['b']).to eq(4)
+      expect(h2[:b]).to eq(4)
+
+      expect(h2.fetch :a).to eq(3)
+      expect(h2.fetch 'a').to eq(3)
+      expect(h2.fetch :b).to eq(4)
+      expect(h2.fetch 'b').to eq(4)
+    end
+
+    it 'overrides entries properly when merged' do
+      h1 = IndifferentHash.from('a' => 3)
+      h2 = h1.merge(a: 4)
+
+      expect(h2['a']).to eq(4)
+      expect(h2[:a]).to eq(4)
+
+      expect(h2.fetch :a).to eq(4)
+      expect(h2.fetch 'a').to eq(4)
     end
   end
 end
