@@ -22,14 +22,15 @@ module Plines
       yield configuration
     end
 
-    def enqueue_jobs_for(batch_data)
+    def enqueue_jobs_for(batch_data, timeout_reduction = 0)
       batch_data = IndifferentHash.from(batch_data)
       graph = DependencyGraph.new(self, batch_data)
       job_batch_list = job_batch_list_for(batch_data)
 
       job_batch_list.create_new_batch(batch_data) do |job_batch|
         job_options_block = configuration.qless_job_options_block
-        JobEnqueuer.new(graph, job_batch, &job_options_block).enqueue_jobs
+        JobEnqueuer.new(graph, job_batch, timeout_reduction,
+                        &job_options_block).enqueue_jobs
       end
     end
 

@@ -150,23 +150,48 @@ module Plines
 
       it 'enqueues a new job batch with the same data as this batch' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with("num" => 2, 'b' => 1)
+                       .with({ "num" => 2, 'b' => 1 }, anything)
 
         batch.spawn_copy
       end
 
       it 'merges the provided data with the batch data' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+                       .with({ "num" => 3, 'b' => 1, 'foo' => 4 }, anything)
 
-        batch.spawn_copy('num' => 3, 'foo' => 4)
+        batch.spawn_copy do |options|
+          options.data_overrides = { 'num' => 3, 'foo' => 4 }
+        end
       end
 
       it 'merges properly when the overrides hash uses symbols' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+                       .with({ "num" => 3, 'b' => 1, 'foo' => 4 }, anything)
 
-        batch.spawn_copy(num: 3, foo: 4)
+        batch.spawn_copy do |options|
+          options.data_overrides = { num: 3, foo: 4 }
+        end
+      end
+
+      it 'passes along the configured timeout reduction' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with(anything, 23)
+
+        batch.spawn_copy do |options|
+          options.timeout_reduction = 23
+        end
+      end
+
+      it 'passes along a default timeout reduction of 0 when none is set' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with(anything, 0)
+
+        batch.spawn_copy
+      end
+
+      it 'returns the new job batch' do
+        pipeline_module.stub(:enqueue_jobs_for) { :the_new_batch }
+        expect(batch.spawn_copy).to eq(:the_new_batch)
       end
     end
 
