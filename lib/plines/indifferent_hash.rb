@@ -34,14 +34,11 @@ module Plines
       end
     end
 
-    def fetch(key, &block)
+    def fetch(key)
       super
     rescue KeyError => error
-      if Symbol === key && has_key?(key.to_s)
-        super(key.to_s)
-      else
-        raise
-      end
+      raise unless Symbol === key && has_key?(key.to_s)
+      super(key.to_s)
     end
   end
 end
