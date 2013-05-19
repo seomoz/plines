@@ -66,6 +66,11 @@ module Plines
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
     end
 
+    it 'exposes the data as an indifferent hash' do
+      batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
+      expect(batch.data[:name]).to eq("Bob")
+    end
+
     describe "#data" do
       it 'returns nil if the job batch was created before we stored the batch data' do
         batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
@@ -136,6 +141,32 @@ module Plines
         batch.timeout_external_dependency('bar', '1234') # should not add another entry
         batch.timeout_external_dependency('foo', '1234')
         expect(batch.timed_out_external_dependencies).to match_array(['bar', 'foo'])
+      end
+    end
+
+    describe "#spawn_copy" do
+      let(:batch) { JobBatch.create(qless, pipeline_module, "a",
+                                    { "num" => 2, 'b' => 1 }) }
+
+      it 'enqueues a new job batch with the same data as this batch' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 2, 'b' => 1)
+
+        batch.spawn_copy
+      end
+
+      it 'merges the provided data with the batch data' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+
+        batch.spawn_copy('num' => 3, 'foo' => 4)
+      end
+
+      it 'merges properly when the overrides hash uses symbols' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with("num" => 3, 'b' => 1, 'foo' => 4)
+
+        batch.spawn_copy(num: 3, foo: 4)
       end
     end
 

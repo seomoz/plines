@@ -1,5 +1,6 @@
 require 'qless'
 require 'forwardable'
+require 'plines/indifferent_hash'
 
 module Plines
   # This module should be extended onto a class or module in order
@@ -22,6 +23,7 @@ module Plines
     end
 
     def enqueue_jobs_for(batch_data)
+      batch_data = IndifferentHash.from(batch_data)
       graph = DependencyGraph.new(self, batch_data)
       job_batch_list = job_batch_list_for(batch_data)
 
