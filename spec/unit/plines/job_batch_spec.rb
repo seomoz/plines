@@ -172,6 +172,11 @@ module Plines
           options.data_overrides = { num: 3, foo: 4 }
         end
       end
+
+      it 'returns the new job batch' do
+        pipeline_module.stub(:enqueue_jobs_for) { :the_new_batch }
+        expect(batch.spawn_copy).to eq(:the_new_batch)
+      end
     end
 
     describe "#add_job" do
