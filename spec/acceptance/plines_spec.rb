@@ -531,6 +531,25 @@ describe Plines, :redis do
       expect(batches.map { |b| b.data["num"] }).to eq([1, 2])
       expect(batches.map { |b| b.data["copy"] }).to eq([nil, true])
     end
+
+    it 'can reduce the timeouts when spawning a copy' do
+      MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
+        deps.add "await_turkey_ready_call", wait_up_to: 1
+      end
+
+      batch = enqueue_jobs(family: "Smith")
+      sleep 0.5
+
+      spawned = batch.spawn_copy do |options|
+        options.timeout_reduction = Time.now - batch.created_at
+      end
+
+      sleep 0.6
+
+      process_work
+      expect(batch.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
+      expect(spawned.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
+    end
   end
 
   context 'single process tests' do
