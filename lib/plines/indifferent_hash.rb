@@ -1,7 +1,7 @@
 require 'delegate'
 
 module Plines
-  # Provides a hash that can be accessed by symbol or key.
+  # Provides a hash that can be accessed by symbol or string keys.
   # This is useful because a plines job batch data hash is commonly
   # provided with symbol keys, but after round-tripping through
   # JSON it is converted to strings. We can't safely convert all
@@ -9,6 +9,7 @@ module Plines
   # use this for the data hash.
   class IndifferentHash < DelegateClass(Hash)
     NotAHashError = Class.new(TypeError)
+    ConflictingEntriesError = Class.new(ArgumentError)
 
     private_class_method :new
 
@@ -20,7 +21,14 @@ module Plines
       indif = Hash.new { |hash, key| hash[key.to_s] if Symbol === key }
 
       original.each_with_object(indif) do |(key, value), hash|
-        hash[key.to_s] = indifferent(value)
+        key = key.to_s
+
+        if hash.has_key?(key)
+          raise ConflictingEntriesError,
+            "Hash has conflicting entries for #{key}: #{original}"
+        end
+
+        hash[key] = indifferent(value)
       end
 
       new(indif)
@@ -40,6 +48,10 @@ module Plines
       end
 
       super
+    end
+
+    def merge(other)
+      IndifferentHash.from super(IndifferentHash.from other)
     end
   end
 end
