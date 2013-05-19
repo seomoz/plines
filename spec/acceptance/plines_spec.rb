@@ -176,7 +176,7 @@ describe Plines, :redis do
 
     batch_data = {
       family: family,
-      drinks: %w[ champaign water cider ]
+      drinks: %w[ champagne water cider ]
     }.merge(options)
 
     MakeThanksgivingDinner.configure do |plines|
@@ -241,7 +241,7 @@ describe Plines, :redis do
       expect("brine_turkey").to be_before("stuff_turkey").in(steps)
       expect("stuff_turkey").to be_before("bake_turkey").in(steps)
 
-      expect(MakeThanksgivingDinner.poured_drinks.values).to match_array %w[ champaign water cider ]
+      expect(MakeThanksgivingDinner.poured_drinks.values).to match_array %w[ champagne water cider ]
 
       expect(smith_batch).to be_complete
       expect(smith_batch.created_at).to eq(start_time)
