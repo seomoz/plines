@@ -226,7 +226,7 @@ module Plines
   private
 
     def perform_cancellation
-      return if cancelled?
+      return true if cancelled?
 
       qless.bulk_cancel(job_jids)
 

@@ -614,14 +614,18 @@ module Plines
         expect(batch).to be_complete
       end
 
+      it 'returns true when it succeeds' do
+        expect(cancel).to be_true
+      end
+
       it 'is a no-op when it has already been cancelled' do
         notified_count = 0
         pipeline_module.configuration.after_job_batch_cancellation do |jb|
           notified_count += 1
         end
 
-        expect { cancel }.to change { notified_count }.by(1)
-        expect { cancel }.not_to change { notified_count }
+        expect { expect(cancel).to be_true }.to change { notified_count }.by(1)
+        expect { expect(cancel).to be_true }.not_to change { notified_count }
       end
     end
 
