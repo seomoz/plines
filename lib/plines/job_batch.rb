@@ -226,6 +226,8 @@ module Plines
   private
 
     def perform_cancellation
+      return if cancelled?
+
       qless.bulk_cancel(job_jids)
 
       external_deps.each do |key|
