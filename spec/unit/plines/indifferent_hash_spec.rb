@@ -34,6 +34,17 @@ module Plines
       expect { hash.fetch 'a' }.to raise_error(KeyError, msg)
     end
 
+    it 'supports a normal fetch block' do
+      hash = IndifferentHash.from({})
+      expect(hash.fetch('a') { 5 }).to eq(5)
+      expect(hash.fetch(:a) { 5 }).to eq(5)
+    end
+
+    it 'does not use the fetch block if the key is available in the other form' do
+      hash = IndifferentHash.from('a' => 3)
+      expect(hash.fetch(:a) { raise "should not get here" }).to eq(3)
+    end
+
     it 'does not add to the symbol table' do
       key = SecureRandom.hex
 

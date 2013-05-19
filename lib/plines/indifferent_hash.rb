@@ -35,10 +35,11 @@ module Plines
     end
 
     def fetch(key)
+      if !has_key?(key) && Symbol === key && has_key?(key.to_s)
+        key = key.to_s
+      end
+
       super
-    rescue KeyError => error
-      raise unless Symbol === key && has_key?(key.to_s)
-      super(key.to_s)
     end
   end
 end
