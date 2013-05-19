@@ -78,6 +78,22 @@ module Plines
         MyPipeline.enqueue_jobs_for("a" => "foo")
       end
 
+      it 'enqueues jobs with a default timeout_reduction of 0' do
+        Plines::JobEnqueuer.should_receive(:new)
+                           .with(anything, anything, 0)
+                           .and_return(double.as_null_object)
+
+        MyPipeline.enqueue_jobs_for("a" => "foo")
+      end
+
+      it 'passes through the timeout reduction when provided' do
+        Plines::JobEnqueuer.should_receive(:new)
+                           .with(anything, anything, 80)
+                           .and_return(double.as_null_object)
+
+        MyPipeline.enqueue_jobs_for({ "a" => "foo" }, 80)
+      end
+
       it 'returns the job batch' do
         batch = MyPipeline.enqueue_jobs_for("a" => "foo")
         expect(batch).to be_a(JobBatch)

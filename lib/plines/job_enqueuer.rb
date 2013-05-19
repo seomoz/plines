@@ -3,10 +3,11 @@ require 'set'
 module Plines
   # Responsible for enqueing Qless jobs based on the given dependency graph.
   class JobEnqueuer
-    def initialize(dependency_graph, job_batch, &qless_job_options_block)
+    def initialize(dependency_graph, job_batch, timeout_reduction, &block)
       @dependency_graph = dependency_graph
       @job_batch = job_batch
-      @qless_job_options_block = qless_job_options_block
+      @qless_job_options_block = block
+      @timeout_reduction = timeout_reduction
     end
 
     def enqueue_jobs
@@ -43,7 +44,10 @@ module Plines
     def setup_external_dep_timeouts_for(step)
       step.external_dependencies.each do |dependency|
         next unless timeout = dependency.options[:wait_up_to]
-        external_dep_timeouts[TimeoutKey.new(dependency.name, timeout)] << step
+
+        timeout_key = TimeoutKey.new(dependency.name,
+                                     timeout - @timeout_reduction)
+        external_dep_timeouts[timeout_key] << step
       end
     end
 

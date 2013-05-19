@@ -18,13 +18,15 @@ module Plines
 
     let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
 
-    def enqueue_the_jobs
+    def enqueue_the_jobs(timeout_reduction = 0)
       JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
-        enqueuer = JobEnqueuer.new(graph, jb) { |job| { tags: [job.data.fetch("a")] } }
+        enqueuer = JobEnqueuer.new(graph, jb, timeout_reduction) do |job|
+          { tags: [job.data.fetch("a")] }
+        end
+
         enqueuer.enqueue_jobs
       end
     end
-
 
     context "enqueing jobs with no timeouts" do
       step_class(:A) { depends_on :B }
@@ -71,7 +73,9 @@ module Plines
 
       it 'adds all the jids to the job batch before actually enqueing any jobs' do
         JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
-          enqueuer = JobEnqueuer.new(graph, jb) { |job| { tags: [job.data.fetch("a")] } }
+          enqueuer = JobEnqueuer.new(graph, jb, 0) do |job|
+            { tags: [job.data.fetch("a")] }
+          end
 
           enqueuer.should_receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
             expect(jb.job_jids).to include(jid, *dependency_jids)
@@ -91,11 +95,14 @@ module Plines
         qless.jobs[jid]
       end
 
-      it 'enqueues a timeout job with wait_up_to delay' do
-        now  = Time.now
-        Time.stub(:now) { now }
+      def stub_now
+        Time.now.tap { |now| Time.stub(:now) { now } }
+      end
 
-        step_class(:D) { has_external_dependencies { |deps| deps.add "bar", wait_up_to: 3000 } }
+      it 'enqueues a timeout job with wait_up_to delay' do
+        now = stub_now
+
+        step_class(:D) { has_external_dependencies 'bar', wait_up_to: 3000 }
         enqueue_the_jobs
 
         jid = scheduled_job_jids.first
@@ -105,11 +112,37 @@ module Plines
         expect(job.state).to eq("scheduled")
         expect(default_queue.peek).to be_nil
 
+        Time.stub(:now) { now + 2990 }
+        expect(default_queue.peek).to be_nil
+
         Time.stub(:now) { now + 3001 }
         job = default_queue.peek
         expect(job.state).to eq("waiting")
         expect(job.jid).to eq(jid)
         expect(scheduled_job_jids).not_to include(jid)
+      end
+
+      it 'reduces the timeout by the provided timeout reduction' do
+        now = stub_now
+
+        step_class(:D) { has_external_dependencies 'bar', wait_up_to: 3000 }
+        enqueue_the_jobs(2000)
+
+        Time.stub(:now) { now + 999 }
+        expect(default_queue.peek).to be_nil
+
+        Time.stub(:now) { now + 1001 }
+        expect(default_queue.peek).to be_a(Qless::Job)
+      end
+
+      it 'makes the timeout happen immediately when the timeout reduction ' +
+         'is greater than the configured timeout' do
+        now = stub_now
+
+        step_class(:D) { has_external_dependencies 'bar', wait_up_to: 3000 }
+        enqueue_the_jobs(3001)
+
+        expect(default_queue.peek).to be_a(Qless::Job)
       end
 
       it 'enqueues the timeout jobs with a high priority so that they run right away' do
