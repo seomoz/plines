@@ -582,6 +582,16 @@ module Plines
 
         expect(batch).to be_complete
       end
+
+      it 'is a no-op when it has already been cancelled' do
+        notified_count = 0
+        pipeline_module.configuration.after_job_batch_cancellation do |jb|
+          notified_count += 1
+        end
+
+        expect { cancel }.to change { notified_count }.by(1)
+        expect { cancel }.not_to change { notified_count }
+      end
     end
 
     describe "#cancel!" do
@@ -591,11 +601,6 @@ module Plines
           expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
           expect(batch).to be_complete
           expect(batch).not_to be_cancelled
-        end
-
-        it 'raises an error when the batch is already cancelled' do
-          batch.cancel!
-          expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
         end
       end
     end
@@ -607,11 +612,6 @@ module Plines
           expect(batch.cancel).to be_false
           expect(batch).to be_complete
           expect(batch).not_to be_cancelled
-        end
-
-        it 'returns false when the batch is already cancelled' do
-          batch.cancel
-          expect(batch.cancel).to be_false
         end
       end
     end
