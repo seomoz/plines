@@ -52,9 +52,9 @@ module Plines
     describe "#jobs_for" do
       it 'returns just 1 instance w/ the given data by default' do
         step_class(:A)
-        instances = P::A.jobs_for(a: 1)
+        instances = P::A.jobs_for('a' => 1)
         expect(instances.map(&:klass)).to eq([P::A])
-        expect(instances.map(&:data)).to eq([a: 1])
+        expect(instances.map(&:data)).to eq(['a' => 1])
       end
 
       it 'returns one instance per array entry returned by a fan_out block' do
@@ -64,9 +64,9 @@ module Plines
           end
         end
 
-        instances = P::A.jobs_for(a: 3)
+        instances = P::A.jobs_for(IndifferentHash.from a: 3)
         expect(instances.map(&:klass)).to eq([P::A, P::A])
-        expect(instances.map(&:data)).to eq([{ a: 4 }, { a: 5 }])
+        expect(instances.map(&:data)).to eq([{ 'a' => 4 }, { 'a' => 5 }])
       end
 
       it 'processes each fan_out block in the order they appear' do
@@ -80,9 +80,11 @@ module Plines
           end
         end
 
-        instances = P::A.jobs_for(a: 1)
+        instances = P::A.jobs_for(IndifferentHash.from 'a' => 1)
         expect(instances.map(&:klass)).to eq([P::A] * 4)
-        expect(instances.map(&:data)).to eq([{a: 111}, {a: 211}, {a: 121}, {a: 221}])
+        expect(instances.map(&:data)).to eq([
+         { 'a' => 111 }, { 'a' => 211 }, { 'a' => 121 }, { 'a' => 221 }
+        ])
       end
 
       it 'allows fan_out blocks to conditionally eliminate jobs' do
@@ -100,9 +102,9 @@ module Plines
           end
         end
 
-        instances = P::A.jobs_for(a: 1)
+        instances = P::A.jobs_for(IndifferentHash.from a: 1)
         expect(instances.map(&:klass)).to eq([P::A])
-        expect(instances.map(&:data)).to eq([{a: 3, c: 0}])
+        expect(instances.map(&:data)).to eq([ 'a' => 3, 'c' => 0 ])
       end
     end
 
@@ -383,7 +385,7 @@ module Plines
 
         dependencies = P::StepC.dependencies_for(stub_job, { a: 1 })
         expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
-        expect(dependencies.map(&:data)).to eq([{ a: 1 }, { a: 1 }])
+        expect(dependencies.map(&:data)).to eq([{ 'a' => 1 }, { 'a' => 1 }])
       end
 
       it "resolves step class names in the enclosing module" do
@@ -419,7 +421,9 @@ module Plines
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
-          expect(dependencies.map(&:data)).to eq([{ a: 18 }, { a: 19 }, { a: 20 }])
+          expect(dependencies.map(&:data)).to eq([
+            { 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }
+          ])
         end
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
@@ -429,7 +433,7 @@ module Plines
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
-          expect(dependencies.map(&:data)).to eq([{ a: 18 }, { a: 20 }])
+          expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
       end
 

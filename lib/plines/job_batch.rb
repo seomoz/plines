@@ -1,6 +1,7 @@
 require 'time'
 require 'json'
 require 'plines/redis_objects'
+require 'plines/indifferent_hash'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -202,7 +203,8 @@ module Plines
     end
 
     def data
-      decode(meta[BATCH_DATA_KEY])
+      data = decode(meta[BATCH_DATA_KEY])
+      data && IndifferentHash.from(data)
     end
 
     def track_timeout_job(dep_name, jid)

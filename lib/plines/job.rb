@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'plines/indifferent_hash'
 
 module Plines
   # An instance of a Step: a step class paired with some data for the job.
@@ -7,9 +8,8 @@ module Plines
     attr_reader :dependencies, :dependents
     def_delegators :klass, :qless_queue, :processing_queue
 
-    def initialize(*args)
-      super
-      raise ArgumentError.new, "data must be a hash" unless data.is_a?(Hash)
+    def initialize(klass, data)
+      super(klass, IndifferentHash.from(data))
       @dependencies = Set.new
       @dependents = Set.new
       yield self if block_given?

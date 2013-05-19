@@ -57,6 +57,10 @@ module Plines
     end
 
     describe ".enqueue_jobs_for" do
+      before do
+        MyPipeline.configuration.batch_list_key { |data| data["a"] }
+      end
+
       it 'enqueues jobs for the given batch data' do
         qless_job_block_called = false
         MyPipeline.configuration.qless_job_options { |job| qless_job_block_called = true; {} }
@@ -71,16 +75,26 @@ module Plines
         end
 
         enqueuer.should_receive(:enqueue_jobs)
-
-        MyPipeline.configuration.batch_list_key { |data| data["a"] }
         MyPipeline.enqueue_jobs_for("a" => "foo")
       end
 
       it 'returns the job batch' do
-        MyPipeline.configuration.batch_list_key { |data| data["a"] }
         batch = MyPipeline.enqueue_jobs_for("a" => "foo")
         expect(batch).to be_a(JobBatch)
         expect(batch.data).to eq("a" => "foo")
+      end
+
+      it 'converts the data to an indifferent hash so the step callbacks ' +
+         'can uniformly access the hash using symbol keys' do
+        data = { "a" => 3 }
+        graph = DependencyGraph.new(MyPipeline, IndifferentHash.from(data))
+
+        DependencyGraph.should_receive(:new) do |pipeline, data|
+          expect(data).to be_an(IndifferentHash)
+          graph
+        end
+
+        MyPipeline.enqueue_jobs_for(data)
       end
     end
 

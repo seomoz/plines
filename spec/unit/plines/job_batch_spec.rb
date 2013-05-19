@@ -66,6 +66,11 @@ module Plines
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
     end
 
+    it 'exposes the data as an indifferent hash' do
+      batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
+      expect(batch.data[:name]).to eq("Bob")
+    end
+
     describe "#data" do
       it 'returns nil if the job batch was created before we stored the batch data' do
         batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
