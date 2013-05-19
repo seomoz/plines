@@ -218,8 +218,12 @@ module Plines
       end
     end
 
-    def spawn_copy(overrides = {})
-      overrides = JSON.parse(JSON.dump overrides)
+    SpawnOptions = Struct.new(:data_overrides)
+
+    def spawn_copy
+      options = SpawnOptions.new({})
+      yield options if block_given?
+      overrides = JSON.parse(JSON.dump options.data_overrides)
       pipeline.enqueue_jobs_for(data.merge overrides)
     end
 

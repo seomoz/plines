@@ -159,14 +159,18 @@ module Plines
         pipeline_module.should_receive(:enqueue_jobs_for)
                        .with("num" => 3, 'b' => 1, 'foo' => 4)
 
-        batch.spawn_copy('num' => 3, 'foo' => 4)
+        batch.spawn_copy do |options|
+          options.data_overrides = { 'num' => 3, 'foo' => 4 }
+        end
       end
 
       it 'merges properly when the overrides hash uses symbols' do
         pipeline_module.should_receive(:enqueue_jobs_for)
                        .with("num" => 3, 'b' => 1, 'foo' => 4)
 
-        batch.spawn_copy(num: 3, foo: 4)
+        batch.spawn_copy do |options|
+          options.data_overrides = { num: 3, foo: 4 }
+        end
       end
     end
 

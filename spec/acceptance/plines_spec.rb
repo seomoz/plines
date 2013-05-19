@@ -518,7 +518,9 @@ describe Plines, :redis do
 
     it 'can spawn a copy of a job batch with overrides' do
       batch = enqueue_jobs(family: "Smith", num: 1)
-      batch.spawn_copy(num: 2, copy: true)
+      batch.spawn_copy do |options|
+        options.data_overrides = { num: 2, copy: true }
+      end
 
       process_work
 
