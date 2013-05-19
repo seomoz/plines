@@ -23,7 +23,14 @@ module Plines
     end
 
     it 'raises an error if given data that is not a hash' do
-      expect { Job.build(P::StepA, 5) }.to raise_error(ArgumentError)
+      expect {
+        Job.build(P::StepA, 5)
+      }.to raise_error(IndifferentHash::NotAHashError)
+    end
+
+    it 'exposes #data as an indifferent hash' do
+      expect(b.data[:a]).to eq(1)
+      expect(b.data["a"]).to eq(1)
     end
 
     it 'initializes #dependencies and #dependents to empty sets' do

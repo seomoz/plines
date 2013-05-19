@@ -201,6 +201,7 @@ describe Plines, :redis do
     end
 
     @already_enqueued_a_batch = true
+    batch
   end
 
   def should_expire_keys
@@ -513,6 +514,20 @@ describe Plines, :redis do
 
       batches = batch_list.all_with_external_dependency_timeout('await_turkey_ready_call')
       expect(batches.map { |b| b.data.fetch("num") }).to eq([1, 2])
+    end
+
+    it 'can spawn a copy of a job batch with overrides' do
+      batch = enqueue_jobs(family: "Smith", num: 1)
+      batch.spawn_copy(num: 2, copy: true)
+
+      process_work
+
+      batch_list = MakeThanksgivingDinner.job_batch_list_for(family: "Smith")
+      batches = batch_list.each.to_a
+
+      expect(batches.map(&:complete?)).to eq([true, true])
+      expect(batches.map { |b| b.data["num"] }).to eq([1, 2])
+      expect(batches.map { |b| b.data["copy"] }).to eq([nil, true])
     end
   end
 
