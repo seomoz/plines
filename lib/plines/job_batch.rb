@@ -188,16 +188,17 @@ module Plines
     CannotCancelError = Class.new(StandardError)
 
     def cancel!
-      if complete?
+      if (_complete = complete?) || cancelled?
+        state = _complete ? "complete" : "cancelled"
         raise CannotCancelError,
-          "JobBatch #{id} is already complete and cannot be cancelled"
+          "JobBatch #{id} is already #{state} and cannot be cancelled"
       end
 
       perform_cancellation
     end
 
     def cancel
-      return false if complete?
+      return false if complete? || cancelled?
       perform_cancellation
     end
 

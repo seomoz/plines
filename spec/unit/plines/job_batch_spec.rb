@@ -592,6 +592,11 @@ module Plines
           expect(batch).to be_complete
           expect(batch).not_to be_cancelled
         end
+
+        it 'raises an error when the batch is already cancelled' do
+          batch.cancel!
+          expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
+        end
       end
     end
 
@@ -602,6 +607,11 @@ module Plines
           expect(batch.cancel).to be_false
           expect(batch).to be_complete
           expect(batch).not_to be_cancelled
+        end
+
+        it 'returns false when the batch is already cancelled' do
+          batch.cancel
+          expect(batch.cancel).to be_false
         end
       end
     end
