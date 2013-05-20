@@ -549,6 +549,9 @@ describe Plines, :redis do
       process_work
       expect(batch.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
       expect(spawned.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
+
+      expect(batch.timeout_reduction).to eq(0)
+      expect(spawned.timeout_reduction).to be > 0
     end
   end
 

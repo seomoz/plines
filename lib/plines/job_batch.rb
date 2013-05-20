@@ -49,7 +49,7 @@ module Plines
     JobBatchAlreadyCreatedError = Class.new(StandardError)
     AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
-    def self.create(qless, pipeline, id, batch_data)
+    def self.create(qless, pipeline, id, batch_data, options = {})
       new(qless, pipeline, id) do |inst|
         if inst.created_at
           raise JobBatchAlreadyCreatedError,
@@ -58,6 +58,10 @@ module Plines
 
         inst.meta["created_at"]   = Time.now.iso8601
         inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
+
+        timeout_reduction = options[:timeout_reduction] || 0
+        inst.meta["timeout_reduction"] = timeout_reduction
+        inst.instance_variable_set(:@timeout_reduction, timeout_reduction)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
       end
@@ -186,6 +190,10 @@ module Plines
       meta["cancelled"] == "1"
     end
 
+    def timeout_reduction
+      @timeout_reduction ||= meta["timeout_reduction"].to_i
+    end
+
     CannotCancelError = Class.new(StandardError)
 
     def cancel!
@@ -225,8 +233,9 @@ module Plines
       yield options if block_given?
       overrides = JSON.parse(JSON.dump options.data_overrides)
 
-      pipeline.enqueue_jobs_for(data.merge(overrides),
-                                options.timeout_reduction || 0)
+      pipeline.enqueue_jobs_for(data.merge(overrides), {
+        timeout_reduction: options.timeout_reduction || 0
+      })
     end
 
   private

@@ -144,6 +144,38 @@ module Plines
       end
     end
 
+    describe "#timeout_reduction" do
+      it 'persists between redis roundtrips' do
+        created = JobBatch.create(qless, pipeline_module, "a", {},
+                                  timeout_reduction: 12)
+        found = JobBatch.find(qless, pipeline_module, "a")
+        expect(found.timeout_reduction).to eq(12)
+      end
+
+      it 'defaults to 0' do
+        created = JobBatch.create(qless, pipeline_module, "a", {})
+        expect(created.timeout_reduction).to eq(0)
+      end
+
+      it 'has a value of 0 when there is no record in redis (such as for ' +
+         'in-flight batches created before this feature was added)' do
+        created = JobBatch.create(qless, pipeline_module, "a", {})
+        expect(created.meta.keys).to include("timeout_reduction")
+        created.meta.delete("timeout_reduction")
+
+        found = JobBatch.find(qless, pipeline_module, "a")
+        expect(found.timeout_reduction).to eq(0)
+      end
+
+      it 'does not require a redis call for a newly created job batch' do
+        created = JobBatch.create(qless, pipeline_module, "a", {},
+                                  timeout_reduction: 3)
+        created.stub(meta: double)
+
+        expect(created.timeout_reduction).to eq(3)
+      end
+    end
+
     describe "#spawn_copy" do
       let(:batch) { JobBatch.create(qless, pipeline_module, "a",
                                     { "num" => 2, 'b' => 1 }) }
@@ -175,7 +207,7 @@ module Plines
 
       it 'passes along the configured timeout reduction' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with(anything, 23)
+                       .with(anything, timeout_reduction: 23)
 
         batch.spawn_copy do |options|
           options.timeout_reduction = 23
@@ -184,7 +216,7 @@ module Plines
 
       it 'passes along a default timeout reduction of 0 when none is set' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with(anything, 0)
+                       .with(anything, timeout_reduction: 0)
 
         batch.spawn_copy
       end
