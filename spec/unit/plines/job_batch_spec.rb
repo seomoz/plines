@@ -170,7 +170,7 @@ module Plines
       it 'does not require a redis call for a newly created job batch' do
         created = JobBatch.create(qless, pipeline_module, "a", {},
                                   timeout_reduction: 3)
-        created.stub(meta: double)
+        created.should_not_receive(:meta) # meta is how it interfaces to redis for this data
 
         expect(created.timeout_reduction).to eq(3)
       end
