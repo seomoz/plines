@@ -207,7 +207,7 @@ module Plines
 
       it 'passes along the configured timeout reduction' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with(anything, timeout_reduction: 23)
+                       .with(anything, hash_including(timeout_reduction: 23))
 
         batch.spawn_copy do |options|
           options.timeout_reduction = 23
@@ -216,7 +216,14 @@ module Plines
 
       it 'passes along a default timeout reduction of 0 when none is set' do
         pipeline_module.should_receive(:enqueue_jobs_for)
-                       .with(anything, timeout_reduction: 0)
+                       .with(anything, hash_including(timeout_reduction: 0))
+
+        batch.spawn_copy
+      end
+
+      it 'passes its id through as the spawned_from_id' do
+        pipeline_module.should_receive(:enqueue_jobs_for)
+                       .with(anything, hash_including(spawned_from_id: batch.id))
 
         batch.spawn_copy
       end
@@ -224,6 +231,33 @@ module Plines
       it 'returns the new job batch' do
         pipeline_module.stub(:enqueue_jobs_for) { :the_new_batch }
         expect(batch.spawn_copy).to eq(:the_new_batch)
+      end
+    end
+
+    describe "#spawned_from" do
+      it 'returns nil by default' do
+        batch = JobBatch.create(qless, pipeline_module, "a", {})
+        expect(batch.spawned_from).to be_nil
+      end
+
+      def create_batches
+        b1 = JobBatch.create(qless, pipeline_module, "1", {})
+        b2 = JobBatch.create(qless, pipeline_module, "2", {}, spawned_from_id: b1.id)
+
+        return b1, b2
+      end
+
+      it 'returns the job batch instance corresponding to the originally ' +
+         'provided spawned_from_id' do
+        b1, b2 = create_batches
+
+        expect(b2.spawned_from).to eq(b1)
+      end
+
+      it 'is memoized' do
+        _, b2 = create_batches
+
+        expect(b2.spawned_from).to be(b2.spawned_from)
       end
     end
 

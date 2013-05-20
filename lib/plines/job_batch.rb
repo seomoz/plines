@@ -60,7 +60,8 @@ module Plines
         inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
 
         timeout_reduction = options[:timeout_reduction] || 0
-        inst.meta["timeout_reduction"] = timeout_reduction
+        inst.meta.fill(options)
+        inst.meta["timeout_reduction"] ||= timeout_reduction
         inst.instance_variable_set(:@timeout_reduction, timeout_reduction)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
@@ -194,6 +195,16 @@ module Plines
       @timeout_reduction ||= meta["timeout_reduction"].to_i
     end
 
+    def spawned_from
+      return @spawned_from if defined?(@spawned_from)
+
+      if id = meta["spawned_from_id"]
+        @spawned_from = self.class.find(qless, pipeline, id)
+      else
+        @spawned_from = nil
+      end
+    end
+
     CannotCancelError = Class.new(StandardError)
 
     def cancel!
@@ -234,6 +245,7 @@ module Plines
       overrides = JSON.parse(JSON.dump options.data_overrides)
 
       pipeline.enqueue_jobs_for(data.merge(overrides), {
+        spawned_from_id: id,
         timeout_reduction: options.timeout_reduction || 0
       })
     end
