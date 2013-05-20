@@ -56,13 +56,7 @@ module Plines
             "Job batch #{pipeline} / #{id} already exists"
         end
 
-        inst.meta["created_at"]   = Time.now.iso8601
-        inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
-
-        timeout_reduction = options[:timeout_reduction] || 0
-        inst.meta.fill(options)
-        inst.meta["timeout_reduction"] ||= timeout_reduction
-        inst.instance_variable_set(:@timeout_reduction, timeout_reduction)
+        inst.send(:populate_meta_for_create, batch_data, options)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
       end
@@ -251,6 +245,17 @@ module Plines
     end
 
   private
+
+    def populate_meta_for_create(batch_data, options)
+      metadata = {
+        created_at: Time.now.getutc.iso8601,
+        timeout_reduction: 0,
+        BATCH_DATA_KEY => JSON.dump(batch_data)
+      }.merge(options)
+
+      meta.fill(metadata)
+      @timeout_reduction = metadata.fetch(:timeout_reduction)
+    end
 
     def perform_cancellation
       return true if cancelled?
