@@ -518,7 +518,7 @@ describe Plines, :redis do
 
     it 'can spawn a copy of a job batch with overrides' do
       batch = enqueue_jobs(family: "Smith", num: 1)
-      batch.spawn_copy do |options|
+      spawned = batch.spawn_copy do |options|
         options.data_overrides = { num: 2, copy: true }
       end
 
@@ -530,6 +530,8 @@ describe Plines, :redis do
       expect(batches.map(&:complete?)).to eq([true, true])
       expect(batches.map { |b| b.data["num"] }).to eq([1, 2])
       expect(batches.map { |b| b.data["copy"] }).to eq([nil, true])
+
+      expect(spawned.spawned_from).to eq(batch)
     end
 
     it 'can reduce the timeouts when spawning a copy' do
@@ -549,6 +551,9 @@ describe Plines, :redis do
       process_work
       expect(batch.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
       expect(spawned.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
+
+      expect(batch.timeout_reduction).to eq(0)
+      expect(spawned.timeout_reduction).to be > 0
     end
   end
 
