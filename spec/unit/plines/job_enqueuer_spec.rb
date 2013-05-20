@@ -19,8 +19,9 @@ module Plines
     let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
 
     def enqueue_the_jobs(timeout_reduction = 0)
-      JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
-        enqueuer = JobEnqueuer.new(graph, jb, timeout_reduction) do |job|
+      options = { timeout_reduction: timeout_reduction }
+      JobBatch.create(qless, pipeline_module, "foo:1", {}, options) do |jb|
+        enqueuer = JobEnqueuer.new(graph, jb) do |job|
           { tags: [job.data.fetch("a")] }
         end
 
@@ -73,7 +74,7 @@ module Plines
 
       it 'adds all the jids to the job batch before actually enqueing any jobs' do
         JobBatch.create(qless, pipeline_module, "foo:1", {}) do |jb|
-          enqueuer = JobEnqueuer.new(graph, jb, 0) do |job|
+          enqueuer = JobEnqueuer.new(graph, jb) do |job|
             { tags: [job.data.fetch("a")] }
           end
 

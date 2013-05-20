@@ -3,11 +3,11 @@ require 'set'
 module Plines
   # Responsible for enqueing Qless jobs based on the given dependency graph.
   class JobEnqueuer
-    def initialize(dependency_graph, job_batch, timeout_reduction, &block)
+    def initialize(dependency_graph, job_batch, &block)
       @dependency_graph = dependency_graph
       @job_batch = job_batch
       @qless_job_options_block = block
-      @timeout_reduction = timeout_reduction
+      @timeout_reduction = job_batch.timeout_reduction
     end
 
     def enqueue_jobs

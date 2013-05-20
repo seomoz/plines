@@ -49,15 +49,14 @@ module Plines
     JobBatchAlreadyCreatedError = Class.new(StandardError)
     AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
-    def self.create(qless, pipeline, id, batch_data)
+    def self.create(qless, pipeline, id, batch_data, options = {})
       new(qless, pipeline, id) do |inst|
         if inst.created_at
           raise JobBatchAlreadyCreatedError,
             "Job batch #{pipeline} / #{id} already exists"
         end
 
-        inst.meta["created_at"]   = Time.now.iso8601
-        inst.meta[BATCH_DATA_KEY] = JSON.dump(batch_data)
+        inst.send(:populate_meta_for_create, batch_data, options)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
       end
@@ -186,6 +185,20 @@ module Plines
       meta["cancelled"] == "1"
     end
 
+    def timeout_reduction
+      @timeout_reduction ||= meta["timeout_reduction"].to_i
+    end
+
+    def spawned_from
+      return @spawned_from if defined?(@spawned_from)
+
+      if id = meta["spawned_from_id"]
+        @spawned_from = self.class.find(qless, pipeline, id)
+      else
+        @spawned_from = nil
+      end
+    end
+
     CannotCancelError = Class.new(StandardError)
 
     def cancel!
@@ -225,11 +238,24 @@ module Plines
       yield options if block_given?
       overrides = JSON.parse(JSON.dump options.data_overrides)
 
-      pipeline.enqueue_jobs_for(data.merge(overrides),
-                                options.timeout_reduction || 0)
+      pipeline.enqueue_jobs_for(data.merge(overrides), {
+        spawned_from_id: id,
+        timeout_reduction: options.timeout_reduction || 0
+      })
     end
 
   private
+
+    def populate_meta_for_create(batch_data, options)
+      metadata = {
+        created_at: Time.now.getutc.iso8601,
+        timeout_reduction: 0,
+        BATCH_DATA_KEY => JSON.dump(batch_data)
+      }.merge(options)
+
+      meta.fill(metadata)
+      @timeout_reduction = metadata.fetch(:timeout_reduction)
+    end
 
     def perform_cancellation
       return true if cancelled?
