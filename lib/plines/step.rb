@@ -60,6 +60,16 @@ module Plines
       pipeline.terminal_step = self
     end
 
+    def run_jobs_in_serial
+      depends_on step_name do |data|
+        prior_data = data.my_data_hashes.each_cons(2) do |(prior, current)|
+          break prior if current == data.my_data
+        end
+
+        data.their_data == prior_data
+      end
+    end
+
     def fan_out(&block)
       @fan_out_blocks ||= []
       @fan_out_blocks << block
@@ -174,6 +184,10 @@ module Plines
       end
     end
 
+    def step_name
+      @step_name ||= name.split('::').last.to_sym
+    end
+
   private
 
     def dependency_filters
@@ -184,11 +198,22 @@ module Plines
       Proc.new { true }
     end
 
-    def each_declared_dependency_job_for(job, batch_data)
+    DependencyData = Struct.new(:my_data,        :their_data,
+                                :my_data_hashes, :their_data_hashes)
+
+    def each_declared_dependency_job_for(my_job, batch_data)
+      my_data_hashes = jobs_for(batch_data).map(&:data)
+
       dependency_filters.each do |klass, filter|
         klass = pipeline.const_get(klass)
-        klass.jobs_for(batch_data).each do |dependency|
-          yield dependency if filter[job.data, dependency.data]
+        their_jobs = klass.jobs_for(batch_data)
+        their_data_hashes = their_jobs.map(&:data)
+
+        their_jobs.each do |their_job|
+          yield their_job if filter.call(DependencyData.new(
+            my_job.data,    their_job.data,
+            my_data_hashes, their_data_hashes
+          ))
         end
       end
     end

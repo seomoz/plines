@@ -76,8 +76,8 @@ module Plines
           end
         end
 
-        P::A.depends_on :B do |a_data, b_data|
-          a_data == b_data
+        P::A.depends_on :B do |data|
+          data.my_data == data.their_data
         end
 
         expect(graph.steps).to eq([
