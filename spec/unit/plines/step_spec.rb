@@ -49,6 +49,14 @@ module Plines
       end
     end
 
+    describe '#step_name' do
+      it 'returns the class name relative to the pipeline' do
+        step_class(:A); step_class(:B)
+        expect(P::A.step_name).to eq(:A)
+        expect(P::B.step_name).to eq(:B)
+      end
+    end
+
     describe "#jobs_for" do
       it 'returns just 1 instance w/ the given data by default' do
         step_class(:A)

@@ -174,6 +174,10 @@ module Plines
       end
     end
 
+    def step_name
+      @step_name ||= name.split('::').last.to_sym
+    end
+
   private
 
     def dependency_filters
