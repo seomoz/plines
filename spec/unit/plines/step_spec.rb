@@ -381,6 +381,31 @@ module Plines
       end
     end
 
+    describe "#run_jobs_in_serial" do
+      def stub_job(move)
+        fire_double("Plines::Job", data: { "move" => move })
+      end
+
+      def self_dependency_for(move)
+        dependencies = P::StepC.dependencies_for(stub_job(move), {}).to_a
+        expect(dependencies.map(&:klass)).to eq([P::StepC] * dependencies.size)
+        expect(dependencies.size).to be < 2
+        return nil if dependencies.none?
+        dependencies.first.data.fetch "move"
+      end
+
+      it "adds dependencies to make the job instances run serially" do
+        step_class(:StepC) do
+          fan_out { %w[ rock paper scissors ].map { |move| { move: move } } }
+          run_jobs_in_serial
+        end
+
+        expect(self_dependency_for "rock").to be_nil
+        expect(self_dependency_for "paper").to eq("rock")
+        expect(self_dependency_for "scissors").to eq("paper")
+      end
+    end
+
     describe "#depends_on" do
       let(:stub_job) { fire_double("Plines::Job", data: { a: 1 }) }
       step_class(:StepA)

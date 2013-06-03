@@ -171,12 +171,14 @@ describe Plines, :redis do
   let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
   let(:qless) { Qless::Client.new(redis: redis) }
 
+  DEFAULT_DRINKS = %w[ champagne water cider ]
+
   def enqueue_jobs(options = {})
     family = options.fetch(:family) { "Smith" }
 
     batch_data = {
       family: family,
-      drinks: %w[ champagne water cider ]
+      drinks: DEFAULT_DRINKS
     }.merge(options)
 
     MakeThanksgivingDinner.configure do |plines|
@@ -564,6 +566,23 @@ describe Plines, :redis do
 
       expect(batch.timeout_reduction).to eq(0)
       expect(spawned.timeout_reduction).to be > 0
+    end
+
+    def set_pour_drink_priorities_in_descending_order(batch)
+      jobs = batch.qless_jobs.select { |j| j.klass == MakeThanksgivingDinner::PourDrinks }
+      jobs.each do |j|
+        # Make the first drink's job run last and last first
+        j.priority = DEFAULT_DRINKS.index(j.data.fetch "drink")
+      end
+    end
+
+    it 'can runs jobs of a particular type in serial' do
+      MakeThanksgivingDinner::PourDrinks.run_jobs_in_serial
+      batch = enqueue_jobs(family: "Smith")
+      set_pour_drink_priorities_in_descending_order(batch)
+      process_work
+
+      expect(MakeThanksgivingDinner.poured_drinks.to_a).to eq(DEFAULT_DRINKS)
     end
   end
 
