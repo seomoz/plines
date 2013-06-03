@@ -188,11 +188,22 @@ module Plines
       Proc.new { true }
     end
 
-    def each_declared_dependency_job_for(job, batch_data)
+    DependencyData = Struct.new(:my_data,        :their_data,
+                                :my_data_hashes, :their_data_hashes)
+
+    def each_declared_dependency_job_for(my_job, batch_data)
+      my_data_hashes = jobs_for(batch_data).map(&:data)
+
       dependency_filters.each do |klass, filter|
         klass = pipeline.const_get(klass)
-        klass.jobs_for(batch_data).each do |dependency|
-          yield dependency if filter[job.data, dependency.data]
+        their_jobs = klass.jobs_for(batch_data)
+        their_data_hashes = their_jobs.map(&:data)
+
+        their_jobs.each do |their_job|
+          yield their_job if filter.call(DependencyData.new(
+            my_job.data,    their_job.data,
+            my_data_hashes, their_data_hashes
+          ))
         end
       end
     end

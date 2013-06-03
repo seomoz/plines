@@ -121,7 +121,7 @@ module Plines
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        expect(P::StepFoo.dependencies_for(stub_job, :data).to_a).to eq([])
+        expect(P::StepFoo.dependencies_for(stub_job, {}).to_a).to eq([])
       end
 
       it "includes the inital step if there are no other declared dependencies" do
@@ -436,12 +436,25 @@ module Plines
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
           step_class(:StepY) do
-            depends_on(:StepX) { |y_data, x_data| x_data[:a].even? }
+            depends_on(:StepX) { |data| data.their_data[:a].even? }
           end
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
+        end
+
+        it 'includes the list of job data hashes in the yielded arg' do
+          arg = nil
+
+          step_class(:StepY) do
+            fan_out { |d| ['a', 'b'].map { |v| { b: v } } }
+            depends_on(:StepX) { |a| arg = a }
+          end
+
+          dependencies = P::StepY.dependencies_for(stub_job, a: 17).to_a
+          expect(arg.my_data_hashes).to eq([{ 'b' => 'a' }, { 'b' => 'b' }])
+          expect(arg.their_data_hashes).to eq([{ 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }])
         end
       end
 
