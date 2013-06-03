@@ -171,12 +171,14 @@ describe Plines, :redis do
   let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
   let(:qless) { Qless::Client.new(redis: redis) }
 
+  DEFAULT_DRINKS = %w[ champagne water cider ]
+
   def enqueue_jobs(options = {})
     family = options.fetch(:family) { "Smith" }
 
     batch_data = {
       family: family,
-      drinks: %w[ champagne water cider ]
+      drinks: DEFAULT_DRINKS
     }.merge(options)
 
     MakeThanksgivingDinner.configure do |plines|
@@ -217,6 +219,12 @@ describe Plines, :redis do
 
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
   let(:end_time)   { Time.new(2012, 5, 1, 9, 30) }
+
+  after { Timecop.return }
+
+  def wait_for_seconds(seconds)
+    Timecop.freeze(Time.now + seconds)
+  end
 
   shared_examples_for 'plines acceptance tests' do |run_as_single_process|
     define_method :worker do |client = qless|
@@ -383,7 +391,7 @@ describe Plines, :redis do
 
     it "can timeout external dependencies" do
       MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
-        deps.add "await_turkey_ready_call", wait_up_to: 0.3
+        deps.add "await_turkey_ready_call", wait_up_to: 300
       end
 
       MakeThanksgivingDinner::PickupTurkey.class_eval do
@@ -398,13 +406,14 @@ describe Plines, :redis do
         }
       end
 
+      Timecop.freeze(Time.now)
       enqueue_jobs
       process_work
 
       expect(MakeThanksgivingDinner.unresolved_external_dependencies.values).not_to include("await_turkey_ready_call")
       expect(MakeThanksgivingDinner.performed_steps.values).not_to include("pickup_turkey")
 
-      sleep 0.3 # so the timeout occurs
+      wait_for_seconds(301)
       process_work
 
       expect(MakeThanksgivingDinner.unresolved_external_dependencies.values).to include("await_turkey_ready_call")
@@ -413,9 +422,10 @@ describe Plines, :redis do
 
     it "does not run the timeout jobs if the external deps are resolved before that time" do
       MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
-        deps.add "await_turkey_ready_call", wait_up_to: 0.1
+        deps.add "await_turkey_ready_call", wait_up_to: 100
       end
 
+      Timecop.freeze(Time.now)
       enqueue_jobs
       smith_batch.resolve_external_dependency "await_turkey_ready_call"
       Plines::ExternalDependencyTimeout.stub(:perform) do
@@ -423,7 +433,7 @@ describe Plines, :redis do
       end
 
       process_work # finish the batch
-      sleep 0.2    # allow the timeout period to pass
+      wait_for_seconds 101
       process_work # run any remaining timeouts
     end
 
@@ -481,13 +491,14 @@ describe Plines, :redis do
 
     it 'keeps track of all batches that timed out a particular external dependency' do
       MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
-        deps.add "await_turkey_ready_call", wait_up_to: 0.1
+        deps.add "await_turkey_ready_call", wait_up_to: 10
       end
 
+      Timecop.freeze(Time.now)
       enqueue_jobs(family: "Smith", num: 1)
       enqueue_jobs(family: "Smith", num: 2)
 
-      sleep 0.11
+      wait_for_seconds 11
       process_work # so it times out for 2 of them...
 
       enqueue_jobs(family: "Smith", num: 3)
@@ -536,17 +547,18 @@ describe Plines, :redis do
 
     it 'can reduce the timeouts when spawning a copy' do
       MakeThanksgivingDinner::PickupTurkey.has_external_dependencies do |deps, data|
-        deps.add "await_turkey_ready_call", wait_up_to: 1
+        deps.add "await_turkey_ready_call", wait_up_to: 10
       end
 
+      Timecop.freeze(Time.now)
       batch = enqueue_jobs(family: "Smith")
-      sleep 0.5
+      wait_for_seconds 5
 
       spawned = batch.spawn_copy do |options|
         options.timeout_reduction = Time.now - batch.created_at
       end
 
-      sleep 0.6
+      wait_for_seconds 6
 
       process_work
       expect(batch.timed_out_external_dependencies).to eq(['await_turkey_ready_call'])
@@ -554,6 +566,23 @@ describe Plines, :redis do
 
       expect(batch.timeout_reduction).to eq(0)
       expect(spawned.timeout_reduction).to be > 0
+    end
+
+    def set_pour_drink_priorities_in_descending_order(batch)
+      jobs = batch.qless_jobs.select { |j| j.klass == MakeThanksgivingDinner::PourDrinks }
+      jobs.each do |j|
+        # Make the first drink's job run last and last first
+        j.priority = DEFAULT_DRINKS.index(j.data.fetch "drink")
+      end
+    end
+
+    it 'can runs jobs of a particular type in serial' do
+      MakeThanksgivingDinner::PourDrinks.run_jobs_in_serial
+      batch = enqueue_jobs(family: "Smith")
+      set_pour_drink_priorities_in_descending_order(batch)
+      process_work
+
+      expect(MakeThanksgivingDinner.poured_drinks.to_a).to eq(DEFAULT_DRINKS)
     end
   end
 

@@ -49,6 +49,14 @@ module Plines
       end
     end
 
+    describe '#step_name' do
+      it 'returns the class name relative to the pipeline' do
+        step_class(:A); step_class(:B)
+        expect(P::A.step_name).to eq(:A)
+        expect(P::B.step_name).to eq(:B)
+      end
+    end
+
     describe "#jobs_for" do
       it 'returns just 1 instance w/ the given data by default' do
         step_class(:A)
@@ -113,7 +121,7 @@ module Plines
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        expect(P::StepFoo.dependencies_for(stub_job, :data).to_a).to eq([])
+        expect(P::StepFoo.dependencies_for(stub_job, {}).to_a).to eq([])
       end
 
       it "includes the inital step if there are no other declared dependencies" do
@@ -373,6 +381,31 @@ module Plines
       end
     end
 
+    describe "#run_jobs_in_serial" do
+      def stub_job(move)
+        fire_double("Plines::Job", data: { "move" => move })
+      end
+
+      def self_dependency_for(move)
+        dependencies = P::StepC.dependencies_for(stub_job(move), {}).to_a
+        expect(dependencies.map(&:klass)).to eq([P::StepC] * dependencies.size)
+        expect(dependencies.size).to be < 2
+        return nil if dependencies.none?
+        dependencies.first.data.fetch "move"
+      end
+
+      it "adds dependencies to make the job instances run serially" do
+        step_class(:StepC) do
+          fan_out { %w[ rock paper scissors ].map { |move| { move: move } } }
+          run_jobs_in_serial
+        end
+
+        expect(self_dependency_for "rock").to be_nil
+        expect(self_dependency_for "paper").to eq("rock")
+        expect(self_dependency_for "scissors").to eq("paper")
+      end
+    end
+
     describe "#depends_on" do
       let(:stub_job) { fire_double("Plines::Job", data: { a: 1 }) }
       step_class(:StepA)
@@ -428,12 +461,25 @@ module Plines
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
           step_class(:StepY) do
-            depends_on(:StepX) { |y_data, x_data| x_data[:a].even? }
+            depends_on(:StepX) { |data| data.their_data[:a].even? }
           end
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
+        end
+
+        it 'includes the list of job data hashes in the yielded arg' do
+          arg = nil
+
+          step_class(:StepY) do
+            fan_out { |d| ['a', 'b'].map { |v| { b: v } } }
+            depends_on(:StepX) { |a| arg = a }
+          end
+
+          dependencies = P::StepY.dependencies_for(stub_job, a: 17).to_a
+          expect(arg.my_data_hashes).to eq([{ 'b' => 'a' }, { 'b' => 'b' }])
+          expect(arg.their_data_hashes).to eq([{ 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }])
         end
       end
 
