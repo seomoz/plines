@@ -257,10 +257,13 @@ module Plines
       @timeout_reduction = metadata.fetch(:timeout_reduction)
     end
 
+    SomeJobsFailedToCancelError = Class.new(StandardError)
+
     def perform_cancellation
       return true if cancelled?
 
       qless.bulk_cancel(job_jids)
+      verify_all_jobs_cancelled
 
       external_deps.each do |key|
         cancel_timeout_job_jid_set_for(key)
@@ -269,6 +272,14 @@ module Plines
       meta["cancelled"] = "1"
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
+    end
+
+    def verify_all_jobs_cancelled
+      jobs = qless_jobs.reject { |j| j.state == "complete" }
+      return if jobs.none?
+
+      raise SomeJobsFailedToCancelError,
+        "#{jobs.size} jobs failed to cancel: #{jobs.inspect}"
     end
 
     def update_external_dependency(dep_name, meth, jids)

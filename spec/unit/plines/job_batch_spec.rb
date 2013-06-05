@@ -667,6 +667,20 @@ module Plines
         expect(default_queue.length).to eq(0)
       end
 
+      context 'when Qless silently fails to cancel some jobs' do
+        it 'raises an error to indicate the cancellation failure' do
+          qless.stub(:bulk_cancel) # to make it silent no-op
+          expect {
+            cancel
+          }.to raise_error(JobBatch::SomeJobsFailedToCancelError)
+        end
+      end
+
+      it 'does not consider a complete job to be a failed cancellation' do
+        default_queue.pop.complete
+        expect { cancel }.not_to raise_error
+      end
+
       it 'keeps track of whether or not cancellation has occurred' do
         expect(batch).not_to be_cancelled
         cancel
