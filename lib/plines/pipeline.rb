@@ -38,7 +38,7 @@ module Plines
     end
 
     def find_job_batch(id)
-      key = id[/\A(.*):\d+\z/, 1]
+      key = id[/\A(.*):\d+\z/, 1] # http://rubular.com/r/fMGv1TaZZA
       qless = configuration.qless_client_for(key)
       Plines::JobBatch.find(qless, self, id)
     end
