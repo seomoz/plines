@@ -56,6 +56,21 @@ module Plines
       end
     end
 
+    describe ".find_job_batch" do
+      before do
+        MyPipeline.configure do |config|
+          config.batch_list_key { |data| data.fetch(:a) }
+          config.qless_client { |key| key == "foo" ? qless : double }
+        end
+      end
+
+      it 'returns the named job batch, using the appropriate qless client' do
+        batch = MyPipeline.enqueue_jobs_for(a: "foo")
+        expect(batch).to be_a(Plines::JobBatch)
+        expect(MyPipeline.find_job_batch(batch.id)).to eq(batch)
+      end
+    end
+
     describe ".enqueue_jobs_for" do
       before do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
