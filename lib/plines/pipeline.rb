@@ -37,6 +37,12 @@ module Plines
       job_batch_list_for(batch_data).most_recent_batch
     end
 
+    def find_job_batch(id)
+      key = id[/\A(.*):\d+\z/, 1]
+      qless = configuration.qless_client_for(key)
+      Plines::JobBatch.find(qless, self, id)
+    end
+
     def step_classes
       @step_classes ||= []
     end
