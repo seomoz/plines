@@ -46,9 +46,11 @@ module Plines
       end
     end
 
+    DEFAULT_DEPENDENCY_FILTER = Proc.new { true }
+
     def depends_on(*klasses, &block)
       klasses.each do |klass|
-        dependency_filters[klass] = (block || default_dependency_filter)
+        dependency_filters[klass] = (block || DEFAULT_DEPENDENCY_FILTER)
       end
     end
 
@@ -192,10 +194,6 @@ module Plines
 
     def dependency_filters
       @dependency_filters ||= {}
-    end
-
-    def default_dependency_filter
-      Proc.new { true }
     end
 
     DependencyData = Struct.new(:my_data,        :their_data,
