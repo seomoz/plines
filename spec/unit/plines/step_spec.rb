@@ -320,9 +320,10 @@ module Plines
         expect(enqueue(retries: 12).original_retries).to eq(12)
       end
 
-      it 'enqueues the job with a retry count of 0 if none is passed or configured' do
+      it 'enqueues the job with the default retry count if none is passed or configured' do
         step_class(:A)
-        expect(enqueue.original_retries).to eq(0)
+        # 5 is the Qless default for retries
+        expect(enqueue.original_retries).to eq(5)
       end
 
       it 'enqueues the job with the configured priority' do

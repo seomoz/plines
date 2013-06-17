@@ -166,9 +166,7 @@ module Plines
       queue = qless.queues[queue_name]
 
       options[:priority] = qless_options.priority if qless_options.priority
-      options[:priority] ||= 0
       options[:retries] = qless_options.retries if qless_options.retries
-      options[:retries] ||= 0
       options[:tags] = Array(options[:tags]) | qless_options.tags
 
       queue.put(self, data, options)
