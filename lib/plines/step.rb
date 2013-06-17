@@ -46,9 +46,11 @@ module Plines
       end
     end
 
+    DEFAULT_DEPENDENCY_FILTER = Proc.new { true }
+
     def depends_on(*klasses, &block)
       klasses.each do |klass|
-        dependency_filters[klass] = (block || default_dependency_filter)
+        dependency_filters[klass] = (block || DEFAULT_DEPENDENCY_FILTER)
       end
     end
 
@@ -164,9 +166,7 @@ module Plines
       queue = qless.queues[queue_name]
 
       options[:priority] = qless_options.priority if qless_options.priority
-      options[:priority] ||= 0
       options[:retries] = qless_options.retries if qless_options.retries
-      options[:retries] ||= 0
       options[:tags] = Array(options[:tags]) | qless_options.tags
 
       queue.put(self, data, options)
@@ -192,10 +192,6 @@ module Plines
 
     def dependency_filters
       @dependency_filters ||= {}
-    end
-
-    def default_dependency_filter
-      Proc.new { true }
     end
 
     DependencyData = Struct.new(:my_data,        :their_data,
