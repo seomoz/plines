@@ -59,6 +59,7 @@ module Plines
         inst.send(:populate_meta_for_create, batch_data, options)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
+        inst.meta.delete(:creation_in_progress)
       end
     end
 
@@ -185,6 +186,10 @@ module Plines
       meta["cancelled"] == "1"
     end
 
+    def creation_in_progress?
+      meta["creation_in_progress"] == "1"
+    end
+
     def timeout_reduction
       @timeout_reduction ||= meta["timeout_reduction"].to_i
     end
@@ -250,7 +255,8 @@ module Plines
       metadata = {
         created_at: Time.now.getutc.iso8601,
         timeout_reduction: 0,
-        BATCH_DATA_KEY => JSON.dump(batch_data)
+        BATCH_DATA_KEY => JSON.dump(batch_data),
+        creation_in_progress: 1
       }.merge(options)
 
       meta.fill(metadata)
@@ -258,9 +264,16 @@ module Plines
     end
 
     SomeJobsFailedToCancelError = Class.new(StandardError)
+    CreationInStillInProgressError = Class.new(StandardError)
 
     def perform_cancellation
       return true if cancelled?
+
+      if creation_in_progress?
+        raise CreationInStillInProgressError,
+          "#{id} is still being created (started " +
+          "#{Time.now - created_at} seconds ago)"
+      end
 
       qless.bulk_cancel(job_jids)
       verify_all_jobs_cancelled
