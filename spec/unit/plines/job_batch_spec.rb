@@ -29,6 +29,20 @@ module Plines
           JobBatch.create(qless, pipeline_module, "a", {})
         }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
       end
+
+      it 'stores some state indicating the create is in progress' do
+        value_in_block = nil
+        JobBatch.create(qless, pipeline_module, "a", {}) do
+          # Use a different instance to demonstrate the state is persistent
+          batch = JobBatch.find(qless, pipeline_module, "a")
+          value_in_block = batch.creation_in_progress?
+        end
+
+        expect(value_in_block).to be_true
+
+        batch = JobBatch.find(qless, pipeline_module, "a")
+        expect(batch.creation_in_progress?).to be_false
+      end
     end
 
     it 'is uniquely identified by the id' do
@@ -731,6 +745,15 @@ module Plines
 
         expect { expect(cancel).to be_true }.to change { notified_count }.by(1)
         expect { expect(cancel).to be_true }.not_to change { notified_count }
+      end
+
+      it 'raises an error if the create is currently in progress' do
+        expect {
+          JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+            jb.add_job(jid_2)
+            jb.public_send(method)
+          end
+        }.to raise_error(JobBatch::CreationInStillInProgressError)
       end
     end
 

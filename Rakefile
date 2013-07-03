@@ -34,7 +34,7 @@ if RUBY_ENGINE == 'ruby'
   desc "Run cane to check quality metrics"
   Cane::RakeTask.new(:quality) do |cane|
     cane.style_glob = "lib/**/*.rb"
-    cane.abc_max = 15
+    cane.abc_max = 16
     cane.add_threshold 'coverage/coverage_percent.txt', :>=, 100
   end
 else
