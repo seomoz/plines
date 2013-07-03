@@ -84,11 +84,25 @@ module MyProcessingPipeline
     # to find the most recent existing job batch based on this key.
     config.batch_list_key { |batch_data| batch_data.fetch(:user_id) }
 
+    # Sets the Qless client to use. If you have only one Qless server,
+    # have the block return a client for it. If you're sharding your
+    # Qless usage, you can have the block return a client based on the
+    # given batch list key.
+    config.qless_client do |user_id|
+      Qless::Client.new(redis: RedisShard.for(user_id))
+    end
+
     # Determines how long the Plines job batch data will be kept around
     # in redis after the batch reaches a final state (cancelled or
     # completed). By default, this is set to 6 months, but you
     # will probably want to set it to something shorter (like 2 weeks)
     config.data_ttl_in_seconds = 14 * 24 * 60 * 60
+
+    # Provides a hook that gets called when job batches are cancelled.
+    # Use this to perform any cleanup in your system.
+    config.after_job_batch_cancellation do |job_batch|
+      # do some cleanup
+    end
 
     # Use this callback to set additional global qless job
     # options (such as queue, tags and priority). You can also set
@@ -172,6 +186,12 @@ module MakeThanksgivingDinner
         { 'pie_type' => type, 'family' => batch_data['family'] }
       end
     end
+
+    # Makes each instance of this step depend on the prior one,
+    # to ensure no two instances run in parallel. This isn't usually
+    # needed, but is occasionally useful to prevent resource contention
+    # when these jobs operate on a common resource.
+    run_jobs_in_serial
   end
 
   class AddWhipCreamToPie
@@ -278,6 +298,9 @@ Once you have a job batch, there are several things you can do with it:
 # returns whether or not the job batch is finished.
 job_batch.complete?
 
+# returns the data hash that was used to enqueue the job batch
+job_batch.data
+
 # cancels all remaining jobs in this batch
 job_batch.cancel!
 
@@ -318,40 +341,6 @@ With this configuration, Plines will schedule a Qless job to run in
 3 hours that will timeout the `"my_async_service"` external dependency,
 allowing the `MyStep` job to run without the dependency being resolved.
 
-## Step Dependency Timeouts (TODO)
-
-Plines does not yet support step dependency timeouts; however,
-Patrick and I (Myron) have thought a fair bit about it and have
-come up with what we think is the right way to do it.  I'm documenting
-it here so that I can move on to work on other things, but retain
-the design we came up with.
-
-Step dependency timeouts are declared similarly to external dependency timeouts:
-
-``` ruby
-module MyPipeline
-  class MyStep
-    extend Plines::Step
-    depends_on :SomeOtherStep, wait_up_to: 2.hours
-    qless_options do |qless|
-      qless.queue = :awesome
-    end
-  end
-end
-```
-
-Step dependency timeouts work in a similar fashion to external
-dependency timeouts (e.g. by scheduling a job at a high priority
-that will time out the dependency once the delay elapses). However,
-we don't want timeouts to occur because the `:awesome` queue is
-backed up more than 2 hours. The timeout should only occur because the
-job itself took too long to run, or failed and did not get retried, or
-failed all of its retries. Thus, the scheduled timeout job should not be
-enqueued until SomeOtherStep is popped off the queue.  Right before the
-`#perform` method is called, Plines will enqueue a scheduled timeout
-job. If the perform method completes successfully, the scheduled job
-will get cancelled.
-
 ## Performing Work
 
 When a job gets run, the `#perform` instance method of your step class
@@ -371,6 +360,9 @@ module MakeThanksgivingDinner
       # The job_batch instance this job is a part of is available as
       # well, so you can do things like cancel the batch.
       job_batch.cancel!
+
+      # The underlying qless job is available as `qless_job`
+      qless_job.heartbeat
 
       # External dependencies may be unresolved if it timed out (see above).
       # #unresolved_external_dependencies returns an array of symbols,
@@ -417,13 +409,6 @@ end
 ```
 
 You can include as many middleware modules as you like.
-
-## TODO
-
-* Implement the step dependency timeout schema described above.
-* Open source this! It's currently a private github repo, but I think we
-  should plan to open source it.  However, it probably makes sense to
-  actually use it in production first :).
 
 ## Contributing
 
