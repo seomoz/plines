@@ -1,5 +1,7 @@
 #!/usr/bin/env rake
 require_relative 'config/setup_load_paths'
+require 'bundler/gem_helper'
+Bundler::GemHelper.install_tasks
 
 require 'qless/tasks'
 namespace :qless do
