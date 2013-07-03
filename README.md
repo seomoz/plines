@@ -1,5 +1,7 @@
 # Plines
 
+[![Build Status](https://travis-ci.org/seomoz/plines.png?branch=master)](https://travis-ci.org/seomoz/plines)
+
 Plines creates job pipelines out of a complex set of step dependencies.
 It's intended to maximize the efficiency and throughput of the jobs
 (ensuring jobs are run as soon as their dependencies have been met)
