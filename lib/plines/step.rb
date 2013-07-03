@@ -134,6 +134,12 @@ module Plines
     def perform(qless_job)
       batch = JobBatch.find(qless_job.client, pipeline,
                             qless_job.data.fetch("_job_batch_id"))
+
+      if batch.creation_in_progress?
+        qless_job.move(qless_job.queue_name, delay: 2)
+        return
+      end
+
       job_data = DynamicStruct.new(qless_job.data)
 
       qless_job.after_complete do

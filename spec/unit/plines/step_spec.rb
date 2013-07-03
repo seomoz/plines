@@ -507,6 +507,24 @@ module Plines
           Plines::EnqueuedJob.stub(new: enqueued_job)
         end
 
+        context "when the job batch is still being created" do
+          before do
+            job_batch.meta[:creation_in_progress] = 1
+            expect(job_batch.creation_in_progress?).to be_true
+          end
+
+          it "schedules the job to be tried again later" do
+            step_class(:A) do
+              def perform; raise "should not be called"; end
+            end
+
+            P::A.perform(qless_job)
+            reloaded = qless.jobs[qless_job.jid]
+            expect(reloaded.state).to eq("scheduled")
+            expect(reloaded.queue_name).to eq(qless_job.queue_name)
+          end
+        end
+
         it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
           foo = nil
           step_class(:A) do
