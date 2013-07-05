@@ -1,0 +1,3 @@
+[submodule "lib/plines/lua/qless-core"]
+	path = lib/plines/lua/qless-core
+	url = git@github.com:seomoz/qless-core.git
