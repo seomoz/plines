@@ -59,3 +59,53 @@ end
 desc "Run CI build"
 task ci: %w[ ci:spec quality ]
 
+
+namespace :qless do
+  qless_core_dir = "./lib/plines/lua/qless-core"
+
+  desc "Builds the qless-core lua script"
+  task :build do
+    Dir.chdir(qless_core_dir) do
+      sh "make clean && make"
+      sh "cp qless-lib.lua .."
+    end
+  end
+
+  task :update_submodule do
+    sh "git submodule update"
+  end
+
+  desc "Updates qless-core and rebuilds it"
+  task update: [:update_submodule, :build]
+
+  namespace :verify do
+    script_file = "lib/plines/lua/qless-lib.lua"
+
+    desc "Verifies the script has no uncommitted changes"
+    task :clean do
+      git_status = `git status -- #{script_file}`
+      unless /working directory clean/.match(git_status)
+        raise "#{script_file} is dirty: \n\n#{git_status}\n\n"
+      end
+    end
+
+    desc "Verifies the script is current"
+    task :current do
+      require 'digest/md5'
+      our_md5 = Digest::MD5.hexdigest(File.read script_file)
+
+      canonical_md5 = Dir.chdir(qless_core_dir) do
+        sh "make clean && make"
+        Digest::MD5.hexdigest(File.read "qless-lib.lua")
+      end
+
+      unless our_md5 == canonical_md5
+        raise "The current script is out of date with qless-core's lib script"
+      end
+    end
+  end
+
+  desc "Verifies the committed script is current"
+  task verify: %w[ verify:clean verify:current ]
+end
+
