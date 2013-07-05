@@ -77,7 +77,7 @@ shared_context "redis", :redis do
 
   before(:each) do
     redis.flushdb
-    pipeline_module.configuration.qless_client { qless }
+    pipeline_module.configuration.qless_client { qless } if defined?(Plines::Pipeline)
   end
 end
 
