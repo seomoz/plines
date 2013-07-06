@@ -354,12 +354,13 @@ module Plines
       end
     end
 
-    describe "#mark_job_as_complete" do
-      before do
-        expect(redis).to respond_to(:pexpire)
-        redis.stub(:pexpire)
+    def expired_keys
+      redis.keys.select do |key|
+        redis.pttl(key) != -1
       end
+    end
 
+    describe "#mark_job_as_complete" do
       it "moves a jid from the pending to the complete set" do
         batch = JobBatch.create(qless, pipeline_module, "foo", {})
 
@@ -396,11 +397,6 @@ module Plines
       end
 
       it 'expires the redis keys for the batch data' do
-        expired_keys = Set.new
-        redis.stub(:pexpire) do |key, time|
-          expired_keys << key
-        end
-
         batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job("a", "foo", "bar")
           jb.add_job("b")
@@ -665,11 +661,6 @@ module Plines
         end
       end
 
-      before do
-        expect(redis).to respond_to(:pexpire)
-        redis.stub(:pexpire)
-      end
-
       define_method :cancel do
         batch.public_send(method)
       end
@@ -706,11 +697,7 @@ module Plines
       end
 
       it 'expires the redis keys for the batch data' do
-        expired_keys = Set.new
-        redis.stub(:pexpire) do |key, time|
-          expired_keys << key
-        end
-
+        expect(expired_keys).to be_empty
         cancel
 
         expect(redis.keys).not_to be_empty
