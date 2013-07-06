@@ -1,7 +1,8 @@
 local PlinesAPI = {}
 
-function PlinesAPI.complete_job(now, ...)
-  error "called it"
+function PlinesAPI.complete_job(now, jid, job_batch_id, worker, queue, data, ...)
+  Qless.job(jid):complete(now, worker, queue, data)
+  error(redis.keys)
 end
 
 -- Dispatch code. This must go last in the script.

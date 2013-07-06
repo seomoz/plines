@@ -1,4 +1,5 @@
 require 'forwardable'
+require 'plines/lua'
 
 module Plines
   ExternalDependency = Struct.new(:name, :options)
@@ -142,12 +143,13 @@ module Plines
 
       job_data = DynamicStruct.new(qless_job.data)
 
-      qless_job.after_complete do
-        batch.mark_job_as_complete(qless_job.jid)
-      end
+      #qless_job.after_complete do
+        #batch.mark_job_as_complete(qless_job.jid)
+      #end
 
-      new(batch, job_data, qless_job)
-        .send(:around_perform)
+      new(batch, job_data, qless_job).send(:around_perform)
+
+      Plines::Lua.new(qless_job.client.redis).complete_job(qless_job, batch)
     end
 
     def external_dependency_definitions

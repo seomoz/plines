@@ -569,13 +569,12 @@ module Plines
           expect(unresolved_ext_deps).to eq(["foo", "bar"])
         end
 
-        it "marks the job as complete in the job batch" do
+        it "marks the job as complete in the job batch", :f do
           expect(job_batch.pending_job_jids).to include(qless_job.jid)
           expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
 
           step_class(:A) do
             def perform
-              qless_job.complete # simulate the job completing
             end
           end
 

@@ -6,8 +6,11 @@ module Plines
       @redis = redis
     end
 
-    def complete_job
-      call :complete_job
+    def complete_job(qless_job, job_batch)
+      call :complete_job,
+           qless_job.jid, job_batch.id,
+           Qless.worker_name, qless_job.queue_name,
+           JSON.dump(qless_job.data)
     end
 
   private
