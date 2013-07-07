@@ -2,6 +2,7 @@ require 'time'
 require 'json'
 require 'plines/redis_objects'
 require 'plines/indifferent_hash'
+require 'plines/lua'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -311,24 +312,7 @@ module Plines
     end
 
     def set_expiration!
-      keys_to_expire = declared_redis_object_keys.to_set
-
-      each_enqueued_job do |job|
-        keys_to_expire.merge(job.declared_redis_object_keys)
-
-        job.all_external_dependencies.each do |dep|
-          keys_to_expire << external_dependency_sets[dep].key
-          keys_to_expire << timeout_job_jid_sets[dep].key
-        end
-      end
-
-      set_expiration_on(*keys_to_expire)
-    end
-
-    def each_enqueued_job
-      job_jids.each do |jid|
-        yield EnqueuedJob.new(qless, pipeline, jid)
-      end
+      lua.expire_job_batch(self)
     end
 
     def external_dependency_sets
@@ -353,10 +337,8 @@ module Plines
       job && job.cancel
     end
 
-    def set_expiration_on(*redis_keys)
-      redis_keys.each do |key|
-        redis.pexpire(key, pipeline.configuration.data_ttl_in_milliseconds)
-      end
+    def lua
+      @lua ||= Plines::Lua.new(qless.redis)
     end
   end
 end
