@@ -125,8 +125,10 @@ module Plines
       end.compact
     end
 
-    def mark_job_as_complete(qless_job)
-      lua.complete_job(self, qless_job)
+    def complete_job(qless_job)
+      qless_job.note_state_change(:complete) do
+        lua.complete_job(self, qless_job)
+      end
     end
 
     def complete?

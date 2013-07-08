@@ -6,6 +6,7 @@ require 'plines/job_batch'
 require 'plines/dynamic_struct'
 require 'plines/job'
 require 'plines/configuration'
+require 'plines/enqueued_job'
 
 module Plines
   describe ExternalDependencyList do
@@ -500,8 +501,6 @@ module Plines
         let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
 
         before do
-          fire_replaced_class_double("Plines::EnqueuedJob") # so we don't have to load it
-
           job_batch.pending_job_jids << qless_job.jid
           JobBatch.any_instance.stub(:set_expiration!)
           Plines::EnqueuedJob.stub(new: enqueued_job)
@@ -574,9 +573,7 @@ module Plines
           expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
 
           step_class(:A) do
-            def perform
-              qless_job.complete # simulate the job completing
-            end
+            def perform; end
           end
 
           P::A.perform(qless_job)
@@ -587,8 +584,7 @@ module Plines
         it "does not mark the job as complete in the job batch if the job was retried" do
           expect(job_batch.pending_job_jids).to include(qless_job.jid)
           expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
-          qless_job.stub(:retry)
-          qless_job.should_receive(:retry)
+          qless_job.should_receive(:retry).and_call_original
 
           step_class(:A) do
             def perform

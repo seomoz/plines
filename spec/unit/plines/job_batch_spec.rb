@@ -316,7 +316,7 @@ module Plines
         end
 
         expect(batch.job_jids.to_a).to match_array %w[ a b c ]
-        batch.mark_job_as_complete(qless_job_for "a")
+        batch.complete_job(qless_job_for "a")
         expect(batch.job_jids.to_a).to match_array %w[ a b c ]
       end
     end
@@ -360,17 +360,56 @@ module Plines
       end
     end
 
-    describe "#mark_job_as_complete" do
-      it "moves a jid from the pending to the complete set" do
+    describe "#complete_job" do
+      def create_batch_with_job
         batch = JobBatch.create(qless, pipeline_module, "foo", {})
-
         batch.add_job("a")
+        job = qless_job_for("a")
+
+        return batch, job
+      end
+
+      it 'completes the Qless job' do
+        batch, job = create_batch_with_job
+        expect(job.state).to eq("running")
+
+        expect {
+          batch.complete_job(job)
+        }.to change { job.state_changed? }.from(false).to(true)
+
+        expect(qless.jobs[job.jid].state).to eq("complete")
+      end
+
+      it 'raises an error if the job cannot be completed' do
+        batch, job = create_batch_with_job
+
+        job.complete
+
+        expect {
+          batch.complete_job(job)
+        }.to raise_error(Qless::Job::CantCompleteError)
+      end
+
+      it 'triggers job complete callbacks' do
+        events = []
+
+        batch, job = create_batch_with_job
+
+        job.before_complete { events << :before_complete }
+        job.after_complete { events << :after_complete }
+
+        batch.complete_job(job)
+
+        expect(events).to eq([:before_complete, :after_complete])
+      end
+
+      it "moves a jid from the pending to the complete set" do
+        batch, job = create_batch_with_job
 
         expect(batch.pending_job_jids).to include("a")
-
         expect(batch.completed_job_jids).not_to include("a")
 
-        batch.mark_job_as_complete(qless_job_for "a")
+        batch.complete_job(job)
 
         expect(batch.pending_job_jids).not_to include("a")
         expect(batch.completed_job_jids).to include("a")
@@ -380,7 +419,7 @@ module Plines
         batch = JobBatch.create(qless, pipeline_module, "foo", {})
 
         expect(batch.completed_job_jids).not_to include("a")
-        expect { batch.mark_job_as_complete(qless_job_for "a") }.to raise_error(JobBatch::JobNotPendingError)
+        expect { batch.complete_job(qless_job_for "a") }.to raise_error(JobBatch::JobNotPendingError)
         expect(batch.completed_job_jids).not_to include("a")
       end
 
@@ -390,9 +429,9 @@ module Plines
         batch.pending_job_jids << "a" << "b"
 
         expect(batch.completed_at).to be_nil
-        batch.mark_job_as_complete(qless_job_for "a")
+        batch.complete_job(qless_job_for "a")
         expect(batch.completed_at).to be_nil
-        Timecop.freeze(t2) { batch.mark_job_as_complete(qless_job_for "b") }
+        Timecop.freeze(t2) { batch.complete_job(qless_job_for "b") }
         expect(batch.completed_at).to eq(t2)
       end
 
@@ -408,10 +447,10 @@ module Plines
 
         batch.resolve_external_dependency("foo")
 
-        batch.mark_job_as_complete(qless_job_for "a")
+        batch.complete_job(qless_job_for "a")
         expect(expired_keys).to be_empty
 
-        batch.mark_job_as_complete(qless_job_for "b")
+        batch.complete_job(qless_job_for "b")
         expect(expired_keys.to_a).to include(*redis.keys.grep(/^plines/))
       end
     end
@@ -454,7 +493,7 @@ module Plines
       end
 
       it "ignores non-pending jids" do
-        batch.mark_job_as_complete(qless_job_for "a")
+        batch.complete_job(qless_job_for "a")
         expect(batch.pending_qless_jobs).to match_array(["job b", "job c"])
       end
 
@@ -666,7 +705,7 @@ module Plines
       end
 
       it 'cancels all qless jobs, including those that it thinks are complete' do
-        batch.mark_job_as_complete(qless_job_for jid_2)
+        batch.complete_job(qless_job_for jid_2)
         expect(default_queue.length).to be > 0
         cancel
         expect(default_queue.length).to eq(0)
@@ -714,8 +753,8 @@ module Plines
       end
 
       def complete_batch
-        batch.mark_job_as_complete(qless_job_for jid_1)
-        batch.mark_job_as_complete(qless_job_for jid_2)
+        batch.complete_job(qless_job_for jid_1)
+        batch.complete_job(qless_job_for jid_2)
 
         expect(batch).to be_complete
       end

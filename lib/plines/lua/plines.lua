@@ -58,11 +58,16 @@ function PlinesJobBatch:expire(data_ttl_in_milliseconds)
   end
 end
 
-function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, now_iso8601)
+function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now, now_iso8601)
+  local job = Qless.job(jid)
+  local job_meta = job:data()
+  job:complete(now, worker, job_meta['queue'], job_meta['data'])
+
   local moved = redis.call(
     'smove', self.key .. ":pending_job_jids",
     self.key .. ":completed_job_jids", jid)
 
+  -- TODO: check this at the top of this function
   if moved ~= 1 then
     error("JobNotPending: " .. jid)
   end
@@ -94,10 +99,10 @@ function PlinesAPI.expire_job_batch(
 end
 
 function PlinesAPI.complete_job(
-  now, pipeline_name, id, jid, data_ttl_in_milliseconds, now_iso8601
+  now, pipeline_name, id, jid, worker, data_ttl_in_milliseconds, now_iso8601
 )
   return Plines.job_batch(pipeline_name, id):complete_job(
-    jid, data_ttl_in_milliseconds, now_iso8601
+    jid, data_ttl_in_milliseconds, worker, now, now_iso8601
   )
 end
 

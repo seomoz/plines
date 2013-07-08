@@ -193,7 +193,7 @@ module Plines
         expect(batch.created_at).to be < main_job_batch.created_at
 
         batch.add_job("some-jid")
-        batch.mark_job_as_complete(qless_job_for "some-jid")
+        batch.complete_job(qless_job_for "some-jid")
         expect(batch).to be_complete
 
         expect(subject).not_to include(batch)

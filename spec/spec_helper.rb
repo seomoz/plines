@@ -94,9 +94,7 @@ shared_context "integration helpers" do
   def create_pipeline_with_step(&block)
     step_class(:A) do
       class_eval(&block) if block
-      def perform
-        qless_job.complete
-      end
+      def perform; end
     end
 
     P.configure do |config|
