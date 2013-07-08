@@ -25,7 +25,8 @@ module Plines
     rescue Qless::LuaScriptError => e
       if e.message.start_with?('JobNotPending')
         raise JobBatch::JobNotPendingError, "Jid #{qless_job.jid} cannot be " +
-          "marked as complete for job batch #{job_batch.id} since it is not pending"
+          "marked as complete for job batch #{job_batch.id} since it is " +
+          "not pending"
       else
         raise Qless::Job::CantCompleteError.new(e.message)
       end
