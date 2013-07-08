@@ -125,7 +125,8 @@ module Plines
       end.compact
     end
 
-    def mark_job_as_complete(jid)
+    def mark_job_as_complete(qless_job)
+      jid = qless_job.jid
       moved, pending_count, complete_count = redis.multi do
         pending_job_jids.move(jid, completed_job_jids)
         pending_job_jids.length
