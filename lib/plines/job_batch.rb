@@ -126,23 +126,7 @@ module Plines
     end
 
     def mark_job_as_complete(qless_job)
-      jid = qless_job.jid
-      moved, pending_count, complete_count = redis.multi do
-        pending_job_jids.move(jid, completed_job_jids)
-        pending_job_jids.length
-        completed_job_jids.length
-      end
-
-      unless moved
-        raise JobNotPendingError,
-          "Jid #{jid} cannot be marked as complete for " +
-          "job batch #{id} since it is not pending"
-      end
-
-      if _complete?(pending_count, complete_count)
-        meta["completed_at"] = Time.now.iso8601
-        set_expiration!
-      end
+      lua.complete_job(self, qless_job)
     end
 
     def complete?
