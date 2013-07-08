@@ -386,8 +386,10 @@ module Plines
         job.complete
 
         expect {
-          batch.complete_job(job)
-        }.to raise_error(Qless::Job::CantCompleteError)
+          expect {
+            batch.complete_job(job)
+          }.to raise_error(Qless::Job::CantCompleteError)
+        }.not_to change { batch.pending_job_jids.to_a }
       end
 
       it 'triggers job complete callbacks' do
@@ -415,12 +417,14 @@ module Plines
         expect(batch.completed_job_jids).to include("a")
       end
 
-      it "raises an error if the given jid is not in the pending set" do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {})
+      it "does not complete the job if it is not in the pending set" do
+        batch, job = create_batch_with_job
+        batch.pending_job_jids.delete(job.jid)
 
         expect(batch.completed_job_jids).not_to include("a")
         expect { batch.complete_job(qless_job_for "a") }.to raise_error(JobBatch::JobNotPendingError)
         expect(batch.completed_job_jids).not_to include("a")
+        expect(qless.jobs[job.jid].state).to eq("running")
       end
 
       it 'sets the completed_at timestamp when the last job is marked as complete' do

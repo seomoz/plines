@@ -61,16 +61,15 @@ end
 function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now, now_iso8601)
   local job = Qless.job(jid)
   local job_meta = job:data()
-  job:complete(now, worker, job_meta['queue'], job_meta['data'])
 
-  local moved = redis.call(
-    'smove', self.key .. ":pending_job_jids",
-    self.key .. ":completed_job_jids", jid)
-
-  -- TODO: check this at the top of this function
-  if moved ~= 1 then
+  if redis.call("sismember", self.key .. ":pending_job_jids", jid) == 0 then
     error("JobNotPending: " .. jid)
   end
+
+  job:complete(now, worker, job_meta['queue'], job_meta['data'])
+
+  redis.call('smove', self.key .. ":pending_job_jids",
+             self.key .. ":completed_job_jids", jid)
 
   if self:is_completed() then
     redis.call('hset', self.key .. ":meta", "completed_at", now_iso8601)
