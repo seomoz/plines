@@ -2,6 +2,7 @@ require 'time'
 require 'json'
 require 'plines/redis_objects'
 require 'plines/indifferent_hash'
+require 'plines/lua'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -124,22 +125,9 @@ module Plines
       end.compact
     end
 
-    def mark_job_as_complete(jid)
-      moved, pending_count, complete_count = redis.multi do
-        pending_job_jids.move(jid, completed_job_jids)
-        pending_job_jids.length
-        completed_job_jids.length
-      end
-
-      unless moved
-        raise JobNotPendingError,
-          "Jid #{jid} cannot be marked as complete for " +
-          "job batch #{id} since it is not pending"
-      end
-
-      if _complete?(pending_count, complete_count)
-        meta["completed_at"] = Time.now.iso8601
-        set_expiration!
+    def complete_job(qless_job)
+      qless_job.note_state_change(:complete) do
+        lua.complete_job(self, qless_job)
       end
     end
 
@@ -311,24 +299,7 @@ module Plines
     end
 
     def set_expiration!
-      keys_to_expire = declared_redis_object_keys.to_set
-
-      each_enqueued_job do |job|
-        keys_to_expire.merge(job.declared_redis_object_keys)
-
-        job.all_external_dependencies.each do |dep|
-          keys_to_expire << external_dependency_sets[dep].key
-          keys_to_expire << timeout_job_jid_sets[dep].key
-        end
-      end
-
-      set_expiration_on(*keys_to_expire)
-    end
-
-    def each_enqueued_job
-      job_jids.each do |jid|
-        yield EnqueuedJob.new(qless, pipeline, jid)
-      end
+      lua.expire_job_batch(self)
     end
 
     def external_dependency_sets
@@ -353,10 +324,8 @@ module Plines
       job && job.cancel
     end
 
-    def set_expiration_on(*redis_keys)
-      redis_keys.each do |key|
-        redis.pexpire(key, pipeline.configuration.data_ttl_in_milliseconds)
-      end
+    def lua
+      @lua ||= Plines::Lua.new(qless.redis)
     end
   end
 end

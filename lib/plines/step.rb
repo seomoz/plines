@@ -142,12 +142,10 @@ module Plines
 
       job_data = DynamicStruct.new(qless_job.data)
 
-      qless_job.after_complete do
-        batch.mark_job_as_complete(qless_job.jid)
-      end
-
       new(batch, job_data, qless_job)
         .send(:around_perform)
+
+      batch.complete_job(qless_job) unless qless_job.state_changed?
     end
 
     def external_dependency_definitions
