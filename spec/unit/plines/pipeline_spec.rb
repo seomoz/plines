@@ -84,7 +84,7 @@ module Plines
         Plines::JobEnqueuer.should_receive(:new) do |graph, job_batch, &block|
           expect(graph).to be_a(Plines::DependencyGraph)
           expect(job_batch.id).to include("foo")
-          block.call(stub)
+          block.call(double)
           expect(qless_job_block_called).to be_true
           enqueuer
         end
