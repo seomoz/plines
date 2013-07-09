@@ -12,4 +12,7 @@ script: bin/rake ci --trace
 notifications:
   email:
     - moz-platform-dev@seomoz.org
+matrix:
+  allow_failures:
+    - rvm: rbx-19mode
 

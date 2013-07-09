@@ -79,15 +79,22 @@ shared_context "redis", :redis do
     redis.flushdb
     pipeline_module.configuration.qless_client { qless }
   end
+
+  def qless_job_for(jid)
+    queue = qless.queues["some-queue"]
+    queue.put(Qless::Job, {}, jid: jid)
+    queue.pop.tap do |job|
+      # ensure we popped the job we think we did.
+      expect(job.jid).to eq(jid)
+    end
+  end
 end
 
 shared_context "integration helpers" do
   def create_pipeline_with_step(&block)
     step_class(:A) do
       class_eval(&block) if block
-      def perform
-        qless_job.complete
-      end
+      def perform; end
     end
 
     P.configure do |config|

@@ -64,7 +64,7 @@ module Plines
       end
 
       it "returns a block that returns an empty hash by default" do
-        expect(config.qless_job_options_block.call(stub)).to eq({})
+        expect(config.qless_job_options_block.call(double)).to eq({})
       end
     end
 
