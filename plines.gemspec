@@ -8,7 +8,7 @@ Gem::Specification.new do |gem|
   gem.summary       = %q{Easily express a pipeline of Qless job dependencies}
   gem.homepage      = ""
 
-  gem.files         = %w(README.md LICENSE Gemfile Rakefile) + Dir.glob("lib/**/*.rb")
+  gem.files         = %w(README.md LICENSE Gemfile Rakefile) + Dir.glob("lib/**/*.rb") + Dir.glob("lib/**/*.lua")
   gem.name          = "plines"
   gem.require_paths = ["lib"]
   gem.version       = Plines::VERSION

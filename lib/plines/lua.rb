@@ -47,7 +47,10 @@ module Plines
     end
 
     def self.base_script_contents
-      File.read(File.expand_path("../lua/plines.lua", __FILE__))
+      scripts = Dir[File.expand_path("../lua", __FILE__) + "/**/*.lua"]
+      scripts.sort.map do |script|
+        File.read(script)
+      end.join("\n")
     end
 
     def self.lua_constants
