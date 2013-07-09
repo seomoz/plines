@@ -37,9 +37,6 @@ if RUBY_ENGINE == 'ruby'
   Cane::RakeTask.new(:quality) do |cane|
     cane.style_glob = "lib/**/*.rb"
     cane.abc_max = 16
-    cane.abc_exclude = %w[
-      Plines::Lua#complete_job
-    ]
     cane.no_doc = true
     cane.add_threshold 'coverage/coverage_percent.txt', :>=, 100
   end

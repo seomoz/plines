@@ -23,6 +23,16 @@ module Plines
         job_batch.pipeline.configuration.data_ttl_in_milliseconds,
         Time.now.getutc.iso8601
     rescue Qless::LuaScriptError => e
+      handle_complete_job_lua_error(qless_job, job_batch, e)
+    end
+
+  private
+
+    def call(command, *args)
+      script.call(command, Time.now.to_i, *args)
+    end
+
+    def handle_complete_job_lua_error(qless_job, job_batch, e)
       if e.message.start_with?('JobNotPending')
         raise JobBatch::JobNotPendingError, "Jid #{qless_job.jid} cannot be " +
           "marked as complete for job batch #{job_batch.id} since it is " +
@@ -30,12 +40,6 @@ module Plines
       else
         raise Qless::Job::CantCompleteError.new(e.message)
       end
-    end
-
-  private
-
-    def call(command, *args)
-      script.call(command, Time.now.to_i, *args)
     end
 
     def self.lua_table_from(klass)
