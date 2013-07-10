@@ -57,6 +57,20 @@ module Plines
       expect(hash.fetch(:a) { raise "should not get here" }).to eq(3)
     end
 
+    it 'allows keys to be deleted by string or symbol' do
+      hash = IndifferentHash.from('a' => 1, :b => 2, 'c' => 3, :d => 4)
+      expect(hash.delete 'a').to eq(1)
+      expect(hash.delete 'b').to eq(2)
+      expect(hash.delete :c).to eq(3)
+      expect(hash.delete :d).to eq(4)
+    end
+
+    it 'supports a normal delete block' do
+      hash = IndifferentHash.from({})
+      expect(hash.delete('a') { :default_block }).to eq(:default_block)
+      expect(hash.delete(:a) { :default_block }).to eq(:default_block)
+    end
+
     it 'does not add to the symbol table' do
       key = SecureRandom.hex
 
