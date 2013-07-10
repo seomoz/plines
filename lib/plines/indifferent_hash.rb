@@ -42,7 +42,7 @@ module Plines
       end
     end
 
-    def fetch(key)
+    def fetch(key, *args)
       if !has_key?(key) && Symbol === key && has_key?(key.to_s)
         key = key.to_s
       end
