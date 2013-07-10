@@ -42,16 +42,32 @@ module Plines
       end
     end
 
-    def fetch(key)
-      if !has_key?(key) && Symbol === key && has_key?(key.to_s)
-        key = key.to_s
-      end
+    def fetch(key, *args)
+      key = indifferent_key_from(key)
+      super
+    end
 
+    def delete(key)
+      key = indifferent_key_from(key)
       super
     end
 
     def merge(other)
       IndifferentHash.from super(IndifferentHash.from other)
+    end
+
+    def with_indifferent_access
+      self
+    end
+
+  private
+
+    def indifferent_key_from(key)
+      if !has_key?(key) && Symbol === key && has_key?(key.to_s)
+        key.to_s
+      else
+        key
+      end
     end
   end
 end
