@@ -71,6 +71,11 @@ module Plines
       expect(hash.delete(:a) { :default_block }).to eq(:default_block)
     end
 
+    it 'supports #with_indifferent_access for compatibility with active support' do
+      hash = IndifferentHash.from({})
+      expect(hash.with_indifferent_access).to be(hash)
+    end
+
     it 'does not add to the symbol table' do
       key = SecureRandom.hex
 

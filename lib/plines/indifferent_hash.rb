@@ -56,6 +56,10 @@ module Plines
       IndifferentHash.from super(IndifferentHash.from other)
     end
 
+    def with_indifferent_access
+      self
+    end
+
   private
 
     def indifferent_key_from(key)
