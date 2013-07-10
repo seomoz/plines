@@ -34,10 +34,10 @@ module Plines
     end
 
     it 'fails with an expected error if a non-existant string key is fetched' do
-      msg = ({}.fetch('a') rescue $!).message
+      error = {}.fetch('a') rescue $!
       hash = IndifferentHash.from({})
 
-      expect { hash.fetch 'a' }.to raise_error(KeyError, msg)
+      expect { hash.fetch 'a' }.to raise_error(error.class, error.message)
     end
 
     it 'supports a normal fetch block' do
