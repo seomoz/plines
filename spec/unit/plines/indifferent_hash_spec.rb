@@ -34,10 +34,10 @@ module Plines
     end
 
     it 'fails with an expected error if a non-existant string key is fetched' do
-      msg = ({}.fetch('a') rescue $!).message
+      error = {}.fetch('a') rescue $!
       hash = IndifferentHash.from({})
 
-      expect { hash.fetch 'a' }.to raise_error(KeyError, msg)
+      expect { hash.fetch 'a' }.to raise_error(error.class, error.message)
     end
 
     it 'supports a normal fetch block' do
@@ -46,9 +46,34 @@ module Plines
       expect(hash.fetch(:a) { 5 }).to eq(5)
     end
 
+    it 'supports a normal fetch default arg' do
+      hash = IndifferentHash.from({})
+      expect(hash.fetch('a', 5)).to eq(5)
+      expect(hash.fetch(:a,  5)).to eq(5)
+    end
+
     it 'does not use the fetch block if the key is available in the other form' do
       hash = IndifferentHash.from('a' => 3)
       expect(hash.fetch(:a) { raise "should not get here" }).to eq(3)
+    end
+
+    it 'allows keys to be deleted by string or symbol' do
+      hash = IndifferentHash.from('a' => 1, :b => 2, 'c' => 3, :d => 4)
+      expect(hash.delete 'a').to eq(1)
+      expect(hash.delete 'b').to eq(2)
+      expect(hash.delete :c).to eq(3)
+      expect(hash.delete :d).to eq(4)
+    end
+
+    it 'supports a normal delete block' do
+      hash = IndifferentHash.from({})
+      expect(hash.delete('a') { :default_block }).to eq(:default_block)
+      expect(hash.delete(:a) { :default_block }).to eq(:default_block)
+    end
+
+    it 'supports #with_indifferent_access for compatibility with active support' do
+      hash = IndifferentHash.from({})
+      expect(hash.with_indifferent_access).to be(hash)
     end
 
     it 'does not add to the symbol table' do
