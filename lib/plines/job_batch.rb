@@ -257,7 +257,7 @@ module Plines
     def perform_cancellation
       return true if cancelled?
 
-      if creation_in_progress?
+      if creation_in_progress? && !creation_appears_to_be_stuck?
         raise CreationInStillInProgressError,
           "#{id} is still being created (started " +
           "#{Time.now - created_at} seconds ago)"
@@ -273,6 +273,12 @@ module Plines
       meta["cancelled"] = "1"
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
+    end
+
+    STUCK_BATCH_CREATION_TIMEOUT = 6 * 60 * 60 # six hours
+    def creation_appears_to_be_stuck?
+      age_in_seconds = Time.now - created_at
+      age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
     end
 
     def verify_all_jobs_cancelled
