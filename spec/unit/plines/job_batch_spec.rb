@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'timecop'
+require 'date'
 require 'plines/pipeline'
 require 'plines/step'
 require 'plines/enqueued_job'
