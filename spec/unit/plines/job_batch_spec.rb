@@ -1,5 +1,6 @@
 require 'spec_helper'
 require 'timecop'
+require 'date'
 require 'plines/pipeline'
 require 'plines/step'
 require 'plines/enqueued_job'
@@ -715,7 +716,7 @@ module Plines
         expect(default_queue.length).to eq(0)
       end
 
-      context 'when Qless silently fails to cancel some jobs' do
+      context 'if qless silently fails to cancel some jobs' do
         it 'raises an error to indicate the cancellation failure' do
           qless.stub(:bulk_cancel) # to make it silent no-op
           expect {
@@ -780,10 +781,25 @@ module Plines
       it 'raises an error if the create is currently in progress' do
         expect {
           JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
-            jb.add_job(jid_2)
             jb.public_send(method)
           end
         }.to raise_error(JobBatch::CreationInStillInProgressError)
+      end
+
+      it 'allows cancellation of a job batch that appears to have gotten stuck while being created' do
+        job_batch_creation_time = Date.iso8601('2013-01-01').to_time
+        one_week_into_the_future = job_batch_creation_time + 7 * 24 * 60 * 60
+
+        Timecop.freeze(job_batch_creation_time) do
+          JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+            Timecop.freeze(one_week_into_the_future) do
+              expect {
+                jb.public_send(method)
+              }.to change { jb.cancelled? }.from(false).to(true)
+            end
+          end
+        end
+
       end
     end
 
