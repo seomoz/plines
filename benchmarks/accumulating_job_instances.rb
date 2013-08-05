@@ -63,5 +63,10 @@ Before making any changes:
 
 $ ruby benchmarks/accumulating_job_instances.rb
     7.410000   0.020000   7.430000 (  7.445781)
+
+After my fix:
+
+$ ruby benchmarks/accumulating_job_instances.rb
+    0.060000   0.000000   0.060000 (  0.063829)
 =end
 
