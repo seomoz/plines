@@ -471,7 +471,7 @@ module Plines
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
 
-        it 'includes the list of job data hashes in the yielded arg' do
+        it 'includes the batch data in the yielded arg' do
           arg = nil
 
           step_class(:StepY) do
@@ -480,8 +480,7 @@ module Plines
           end
 
           dependencies = P::StepY.dependencies_for(stub_job, a: 17).to_a
-          expect(arg.my_data_hashes).to eq([{ 'b' => 'a' }, { 'b' => 'b' }])
-          expect(arg.their_data_hashes).to eq([{ 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }])
+          expect(arg.batch_data).to eq(a: 17)
         end
       end
 

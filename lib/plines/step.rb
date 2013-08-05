@@ -64,7 +64,16 @@ module Plines
 
     def run_jobs_in_serial
       depends_on step_name do |data|
-        prior_data = data.my_data_hashes.each_cons(2) do |(prior, current)|
+        # TODO: classes that use `run_jobs_in_serial` incur a
+        # O(n^2) penalty here for since this callback is called
+        # for each fanned-out instance, and in turn gets all fanned-out
+        # instances and iterates over them.
+        #
+        # We should find a way to do the `my_data_hashes` calculation
+        # ONCE for a given batch data hash.
+        my_data_hashes = jobs_for(data.batch_data).map(&:data)
+
+        prior_data = my_data_hashes.each_cons(2) do |(prior, current)|
           break prior if current == data.my_data
         end
 
@@ -198,21 +207,16 @@ module Plines
       @dependency_filters ||= {}
     end
 
-    DependencyData = Struct.new(:my_data,        :their_data,
-                                :my_data_hashes, :their_data_hashes)
+    DependencyData = Struct.new(:my_data, :their_data, :batch_data)
 
     def each_declared_dependency_job_for(my_job, batch_data)
-      my_data_hashes = jobs_for(batch_data).map(&:data)
-
       dependency_filters.each do |klass, filter|
         klass = pipeline.const_get(klass)
         their_jobs = klass.jobs_for(batch_data)
-        their_data_hashes = their_jobs.map(&:data)
 
         their_jobs.each do |their_job|
           yield their_job if filter.call(DependencyData.new(
-            my_job.data,    their_job.data,
-            my_data_hashes, their_data_hashes
+            my_job.data, their_job.data, batch_data
           ))
         end
       end
