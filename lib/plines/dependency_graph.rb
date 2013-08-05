@@ -12,6 +12,7 @@ module Plines
 
     def initialize(pipeline, batch_data)
       step_classes = pipeline.step_classes
+
       @steps = Job.accumulate_instances do
         step_classes.each do |step_klass|
           step_klass.jobs_for(batch_data).each do |job|
@@ -22,6 +23,7 @@ module Plines
         @terminal_jobs = pipeline.terminal_step.jobs_for(batch_data)
       end
 
+      setup_terminal_dependencies
       cleanup_and_validate_dependencies!
     end
 
@@ -47,7 +49,6 @@ module Plines
 
     def depth_first_search_from(step, current_stack=Set.new)
       @visited_steps << step
-      add_terminal_job_dependencies(step)
 
       if current_stack.include?(step)
         raise CircularDependencyError,
@@ -60,9 +61,11 @@ module Plines
       end
     end
 
-    def add_terminal_job_dependencies(job)
-      if job.dependents.none? && !@terminal_jobs.include?(job)
-        @terminal_jobs.each { |term_job| term_job.add_dependency(job) }
+    def setup_terminal_dependencies
+      @steps.each do |job|
+        if job.dependents.none? && !@terminal_jobs.include?(job)
+          @terminal_jobs.each { |term_job| term_job.add_dependency(job) }
+        end
       end
     end
 
