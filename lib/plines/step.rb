@@ -121,6 +121,20 @@ module Plines
       DependencyEnumerator.new(job, batch_data)
     end
 
+    # Implicit dependencies are utilitized in place of zero-fan-out
+    # direct dependencies. This is necessary so that when a job
+    # depends only on another step that fans out to no job, it does
+    # not wind up with no dependencies (and thus is runnable anytime)
+    # but instead "inherits" the dependencies that are implicit
+    # from its dependencies.
+    def implicit_dependencies_for(batch_data)
+      dependency_filters.flat_map do |name, _|
+        klass = pipeline.const_get(name)
+        jobs = klass.jobs_for(batch_data)
+        jobs.any? ? jobs : klass.implicit_dependencies_for(batch_data)
+      end
+    end
+
     def jobs_for(batch_data)
       @fan_out_blocks.inject([batch_data]) do |job_data_hashes, fan_out_block|
         job_data_hashes.flat_map { |job_data| fan_out_block.call(job_data) }
@@ -242,6 +256,7 @@ module Plines
         @job        = job
         @batch_data = batch_data
         @pipeline   = job.klass.pipeline
+        @zero_fan_out_dependency_steps = Set.new
       end
 
       def each(&block)
@@ -249,29 +264,44 @@ module Plines
       end
 
       def dependencies
-        @dependencies ||= declared_dependency_jobs + initial_step_jobs
+        @dependencies ||= declared_dependency_jobs +
+                          initial_step_jobs +
+                          transitive_dependency_jobs
       end
+
+    private
 
       DependencyData = Struct.new(:my_data, :their_data, :batch_data)
 
       def declared_dependency_jobs
-        @declared_dependency_jobs ||= job.klass.dependency_filters.flat_map do |klass, filter|
-          klass = pipeline.const_get(klass)
+        job.klass.dependency_filters.flat_map do |name, filter|
+          klass = pipeline.const_get(name)
           their_jobs = klass.jobs_for(batch_data)
+          @zero_fan_out_dependency_steps << klass if their_jobs.none?
 
           their_jobs.select do |their_job|
-            filter.call(DependencyData.new(job.data, their_job.data, batch_data))
+            dep_data = DependencyData.new(job.data, their_job.data, batch_data)
+            filter.call(dep_data)
           end
         end
       end
 
       def initial_step_jobs
-        @initial_step_jobs ||= if pipeline.initial_step == job.klass
+        if pipeline.initial_step == job.klass
           []
         elsif declared_dependency_jobs.any?
           []
         else
           pipeline.initial_step.jobs_for(batch_data)
+        end
+      end
+
+      def transitive_dependency_jobs
+        @zero_fan_out_dependency_steps.flat_map do |direct_dep|
+          direct_dep.implicit_dependencies_for(batch_data).tap do |deps|
+            ::Kernel.warn "Inferring implicit transitive dependency from " +
+                          "#{job} for 0-fan out of #{direct_dep}: #{deps}."
+          end
         end
       end
     end
