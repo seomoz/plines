@@ -118,11 +118,13 @@ module Plines
     end
 
     describe "#dependencies_for" do
-      let(:stub_job) { fire_double("Plines::Job", :data => { "a" => 3 }) }
+      def job_for(klass)
+        Plines::Job.send(:new, klass, data: { "a" => 3 })
+      end
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        expect(P::StepFoo.dependencies_for(stub_job, {}).to_a).to eq([])
+        expect(P::StepFoo.dependencies_for(job_for(P::StepFoo), {}).to_a).to eq([])
       end
 
       it "includes the inital step if there are no other declared dependencies" do
@@ -130,7 +132,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).to eq([P::Bar])
+        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).to eq([P::Bar])
       end
 
       it "does not include the initial step if there are other declared depenencies" do
@@ -139,7 +141,7 @@ module Plines
         step_class(:Bazz)
 
         P.initial_step = P::Bazz
-        expect(P::Foo.dependencies_for(stub_job, {}).map(&:klass)).not_to include(P::Bazz)
+        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).not_to include(P::Bazz)
       end
 
       it "does not include the initial step if it is the initial step" do
@@ -147,7 +149,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Bar.dependencies_for(stub_job, {}).map(&:klass)).to eq([])
+        expect(P::Bar.dependencies_for(job_for(P::Bar), {}).map(&:klass)).to eq([])
       end
 
       it "sets the pipeline's terminal_step to itself `#depends_on_all_steps` is declared" do
@@ -384,12 +386,12 @@ module Plines
     end
 
     describe "#run_jobs_in_serial" do
-      def stub_job(move)
-        fire_double("Plines::Job", data: { "move" => move })
+      def job_for(klass, move)
+        Plines::Job.send(:new, klass, { "move" => move })
       end
 
       def self_dependency_for(move)
-        dependencies = P::StepC.dependencies_for(stub_job(move), {}).to_a
+        dependencies = P::StepC.dependencies_for(job_for(P::StepC, move), {}).to_a
         expect(dependencies.map(&:klass)).to eq([P::StepC] * dependencies.size)
         expect(dependencies.size).to be < 2
         return nil if dependencies.none?
@@ -409,16 +411,19 @@ module Plines
     end
 
     describe "#depends_on" do
-      let(:stub_job) { fire_double("Plines::Job", data: { a: 1 }) }
       step_class(:StepA)
       step_class(:StepB)
+
+      def job_for(klass)
+        Plines::Job.send(:new, klass, data: { a: 1 })
+      end
 
       it "adds dependencies based on the given class name" do
         step_class(:StepC) do
           depends_on :StepA, :StepB
         end
 
-        dependencies = P::StepC.dependencies_for(stub_job, { a: 1 })
+        dependencies = P::StepC.dependencies_for(job_for(P::StepC), { a: 1 })
         expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
         expect(dependencies.map(&:data)).to eq([{ 'a' => 1 }, { 'a' => 1 }])
       end
@@ -438,7 +443,7 @@ module Plines
           depends_on :A
         end
 
-        dependencies = MySteps::B.dependencies_for(stub_job, {})
+        dependencies = MySteps::B.dependencies_for(job_for(MySteps::B), {})
         expect(dependencies.map(&:klass)).to eq([MySteps::A])
       end
 
@@ -454,7 +459,7 @@ module Plines
             depends_on :StepX
           end
 
-          dependencies = P::StepY.dependencies_for(stub_job, a: 17)
+          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([
             { 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }
@@ -466,7 +471,7 @@ module Plines
             depends_on(:StepX) { |data| data.their_data[:a].even? }
           end
 
-          dependencies = P::StepY.dependencies_for(stub_job, a: 17)
+          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
@@ -479,7 +484,7 @@ module Plines
             depends_on(:StepX) { |a| arg = a }
           end
 
-          dependencies = P::StepY.dependencies_for(stub_job, a: 17).to_a
+          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
           expect(arg.batch_data).to eq(a: 17)
         end
       end

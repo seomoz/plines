@@ -3,6 +3,7 @@ require 'plines/job'
 require 'plines/dependency_graph'
 require 'plines/pipeline'
 require 'plines/step'
+require 'plines/configuration'
 
 module Plines
   describe DependencyGraph do
@@ -177,6 +178,42 @@ module Plines
         expect(index_for[step(P::H)]).to be > index_for[step(P::J)]
 
         expect(index_for[step(P::J)]).to be > index_for[step(P::I)]
+      end
+
+      context 'when a step depends on a 0-fan-out step' do
+        let(:logger) { fire_double(Logger.name, warn: nil) }
+
+        before do
+          step_class(:A)
+
+          step_class(:B) { depends_on :A; fan_out { [] } }
+          step_class(:C) { depends_on :B; fan_out { [] } }
+          step_class(:D) { depends_on :A }
+          step_class(:E) { depends_on :C, :D }
+
+          # E(1) --> C(0) --> B(0) --> A(1)
+          #  \-------> D(1) -------/
+
+          P.configuration.logger = logger
+        end
+
+        it 'treats step dependencies transitively' do
+          expect(graph.steps).to eq([step(P::A), step(P::D), step(P::E)])
+
+          expect(step(P::A).dependencies.to_a).to match_array []
+          expect(step(P::A).dependents.to_a).to match_array [step(P::D), step(P::E)]
+
+          expect(step(P::D).dependencies.to_a).to match_array [step(P::A)]
+          expect(step(P::D).dependents.to_a).to match_array [step(P::E)]
+
+          expect(step(P::E).dependencies.to_a).to match_array [step(P::D), step(P::A)]
+          expect(step(P::E).dependents.to_a).to match_array []
+        end
+
+        it 'prints a warning when inferring the transitive dependencies' do
+          logger.should_receive(:warn).with(/transitive dependency/i)
+          graph.steps
+        end
       end
     end
   end
