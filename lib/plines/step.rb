@@ -118,18 +118,7 @@ module Plines
     end
 
     def dependencies_for(job, batch_data)
-      Enumerator.new do |yielder|
-        has_dependencies = false
-
-        each_declared_dependency_job_for(job, batch_data) do |job|
-          has_dependencies = true
-          yielder.yield job
-        end
-
-        each_initial_step_job_for(job, batch_data) do |job|
-          yielder.yield job
-        end unless has_dependencies
-      end
+      DependencyEnumerator.new(job, batch_data)
     end
 
     def jobs_for(batch_data)
@@ -201,34 +190,11 @@ module Plines
       @step_name ||= name.split('::').last.to_sym
     end
 
-  private
-
     def dependency_filters
       @dependency_filters ||= {}
     end
 
-    DependencyData = Struct.new(:my_data, :their_data, :batch_data)
-
-    def each_declared_dependency_job_for(my_job, batch_data)
-      dependency_filters.each do |klass, filter|
-        klass = pipeline.const_get(klass)
-        their_jobs = klass.jobs_for(batch_data)
-
-        their_jobs.each do |their_job|
-          yield their_job if filter.call(DependencyData.new(
-            my_job.data, their_job.data, batch_data
-          ))
-        end
-      end
-    end
-
-    def each_initial_step_job_for(job, batch_data)
-      return if pipeline.initial_step == self
-
-      pipeline.initial_step.jobs_for(batch_data).each do |dependency|
-        yield dependency
-      end
-    end
+  private
 
     module InstanceMethods
       extend Forwardable
@@ -264,6 +230,49 @@ module Plines
 
       def tag=(value)
         self.tags = Array(value)
+      end
+    end
+
+    class DependencyEnumerator
+      include Enumerable
+
+      attr_reader :job, :batch_data, :pipeline
+
+      def initialize(job, batch_data)
+        @job        = job
+        @batch_data = batch_data
+        @pipeline   = job.klass.pipeline
+      end
+
+      def each(&block)
+        dependencies.each(&block)
+      end
+
+      def dependencies
+        @dependencies ||= declared_dependency_jobs + initial_step_jobs
+      end
+
+      DependencyData = Struct.new(:my_data, :their_data, :batch_data)
+
+      def declared_dependency_jobs
+        @declared_dependency_jobs ||= job.klass.dependency_filters.flat_map do |klass, filter|
+          klass = pipeline.const_get(klass)
+          their_jobs = klass.jobs_for(batch_data)
+
+          their_jobs.select do |their_job|
+            filter.call(DependencyData.new(job.data, their_job.data, batch_data))
+          end
+        end
+      end
+
+      def initial_step_jobs
+        @initial_step_jobs ||= if pipeline.initial_step == job.klass
+          []
+        elsif declared_dependency_jobs.any?
+          []
+        else
+          pipeline.initial_step.jobs_for(batch_data)
+        end
       end
     end
   end
