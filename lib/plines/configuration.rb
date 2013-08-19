@@ -1,3 +1,5 @@
+require 'logger'
+
 module Plines
   # Stores global Plines configuration.
   class Configuration
@@ -13,6 +15,7 @@ module Plines
       qless_job_options { |job| {} }
       self.data_ttl_in_seconds = TWO_MONTHS_IN_SECONDS
       @callbacks = Hash.new { |h, k| h[k] = [] }
+      @logger = Logger.new($stdout)
     end
 
     def qless_client(&block)
@@ -29,6 +32,11 @@ module Plines
 
     def batch_list_key_for(batch_data)
       @batch_list_key_block[batch_data]
+    end
+
+    attr_reader :logger
+    def logger=(value)
+      @logger = value
     end
 
     attr_accessor :data_ttl_in_seconds

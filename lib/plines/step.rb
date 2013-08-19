@@ -296,11 +296,15 @@ module Plines
         end
       end
 
+      def logger
+        @logger ||= pipeline.configuration.logger
+      end
+
       def transitive_dependency_jobs
         @zero_fan_out_dependency_steps.flat_map do |direct_dep|
           direct_dep.implicit_dependencies_for(batch_data).tap do |deps|
-            ::Kernel.warn "Inferring implicit transitive dependency from " +
-                          "#{job} for 0-fan out of #{direct_dep}: #{deps}."
+            logger.warn "Inferring implicit transitive dependency from " +
+                        "#{job} for 0-fan out of #{direct_dep}: #{deps}."
           end
         end
       end
