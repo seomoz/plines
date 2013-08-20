@@ -130,6 +130,7 @@ module Plines
     def inherited_dependencies_for(batch_data)
       dependency_filters.flat_map do |name, _|
         klass = pipeline.const_get(name)
+        next [] if equal?(klass)
         jobs = klass.jobs_for(batch_data)
         jobs.any? ? jobs : klass.inherited_dependencies_for(batch_data)
       end
