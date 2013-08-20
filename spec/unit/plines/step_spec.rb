@@ -385,6 +385,25 @@ module Plines
       end
     end
 
+    describe "#inherited_dependencies_for" do
+      it 'returns the first non-zero-fan-out parent dependency' do
+        step_class(:A) { depends_on :B }
+        step_class(:B) { depends_on :C; fan_out { [] } }
+        step_class(:C) { depends_on :D; fan_out { [] } }
+        step_class(:D)
+
+        deps = P::A.inherited_dependencies_for({})
+        expect(deps.map(&:klass)).to eq([P::D])
+      end
+
+      it 'does not infinitely recurse when a step depends on itself using run_jobs_in_serial' do
+        step_class(:A) { run_jobs_in_serial; fan_out { [] } }
+
+        deps = P::A.inherited_dependencies_for({})
+        expect(deps).to eq([])
+      end
+    end
+
     describe "#run_jobs_in_serial" do
       def job_for(klass, move)
         Plines::Job.send(:new, klass, { "move" => move })
