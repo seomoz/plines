@@ -15,7 +15,7 @@ function PlinesAPI.complete_job(
 end
 
 -- Dispatch code. This must go last in the script.
-if #KEYS > 0 then erorr('No Keys should be provided') end
+if #KEYS > 0 then error('No Keys should be provided') end
 
 local command_name = assert(table.remove(ARGV, 1), 'Must provide a command')
 local command      = assert(
