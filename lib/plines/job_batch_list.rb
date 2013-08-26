@@ -39,6 +39,10 @@ module Plines
       end
     end
 
+    def to_a
+      each.to_a
+    end
+
     def all_with_external_dependency_timeout(dep_name)
       each.select do |batch|
         batch.timed_out_external_deps.include?(dep_name)
