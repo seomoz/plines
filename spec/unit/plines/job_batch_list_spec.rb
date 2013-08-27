@@ -30,6 +30,15 @@ module Plines
       expect(set.map(&:object_id)).to match_array [j1.object_id, j2.object_id]
     end
 
+    it 'returns the job batches from #to_a' do
+      j1 = JobBatchList.new(pipeline_module, "a")
+      jb1 = j1.create_new_batch(foo: 1)
+      jb2 = j1.create_new_batch(foo: 2)
+      jb3 = j1.create_new_batch(foo: 3)
+
+      expect(j1.to_a).to eq([jb1, jb2, jb3])
+    end
+
     describe "#create_new_batch" do
       it 'creates each new batch with a unique ascending id' do
         expect(foo.create_new_batch({}).id).to eq("foo:1")
