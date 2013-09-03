@@ -247,7 +247,7 @@ module Plines
         creation_in_progress: 1
       }.merge(options)
 
-      meta.fill(metadata)
+      meta.bulk_set(metadata)
       @timeout_reduction = metadata.fetch(:timeout_reduction)
     end
 
