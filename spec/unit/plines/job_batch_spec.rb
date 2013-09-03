@@ -44,6 +44,34 @@ module Plines
         batch = JobBatch.find(qless, pipeline_module, "a")
         expect(batch.creation_in_progress?).to be_false
       end
+
+      class RedisLogger < BasicObject
+        attr_reader :commands
+
+        def initialize(redis)
+          @redis    = redis
+          @commands = []
+        end
+
+        def respond_to_missing?(name, include_private = false)
+          @redis.respond_to?(name, include_private) || super
+        end
+
+        def method_missing(name, *args, &block)
+          @commands << name
+          @redis.public_send(name, *args, &block)
+        end
+      end
+
+      it 'sets the metadata atomically to ensure a partial batch does not get created' do
+        qless.stub(redis: RedisLogger.new(redis))
+        JobBatch.create(qless, pipeline_module, "a", { a: 5 }) { }
+
+        # hmset allows atomic setting of multiple keys in bulk.
+        # hsetnx does not.
+        expect(qless.redis.commands).to include(:hmset)
+        expect(qless.redis.commands).not_to include(:hsetnx)
+      end
     end
 
     it 'is uniquely identified by the id' do
