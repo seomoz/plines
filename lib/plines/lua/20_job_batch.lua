@@ -28,6 +28,22 @@ function PlinesJobBatch:expire(data_ttl_in_milliseconds)
   end
 end
 
+function PlinesJobBatch:delete()
+  for _, sub_key in ipairs(plines_job_batch_sub_keys) do
+    redis.call('del', self.key .. ":" .. sub_key)
+  end
+
+  for _, jid in ipairs(self:jids()) do
+    local job = Plines.enqueued_job(self.pipeline_name, jid)
+    job:delete()
+
+    for _, dep in ipairs(job:external_dependencies()) do
+      redis.call('del', self.key .. ":ext_deps:" .. dep)
+      redis.call('del', self.key .. ":timeout_job_jids:" .. dep)
+    end
+  end
+end
+
 function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_iso8601)
   local job = Qless.job(jid)
   local job_meta = job:data()
@@ -58,4 +74,3 @@ function PlinesJobBatch:jids()
     self.key .. ":pending_job_jids"
   )
 end
-

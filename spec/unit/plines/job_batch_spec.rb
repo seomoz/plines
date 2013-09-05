@@ -721,7 +721,7 @@ module Plines
       end
     end
 
-    shared_examples_for "a cancellation method" do |method|
+    context 'foo' do
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
       let(:jid_1)  { default_queue.put(P::Foo, {}) }
@@ -733,58 +733,6 @@ module Plines
         end
       end
 
-      define_method :cancel do
-        batch.public_send(method)
-      end
-
-      it 'cancels all qless jobs, including those that it thinks are complete' do
-        batch.complete_job(qless_job_for jid_2)
-        expect(default_queue.length).to be > 0
-        cancel
-        expect(default_queue.length).to eq(0)
-      end
-
-      context 'if qless silently fails to cancel some jobs' do
-        it 'raises an error to indicate the cancellation failure' do
-          qless.stub(:bulk_cancel) # to make it silent no-op
-          expect {
-            cancel
-          }.to raise_error(JobBatch::SomeJobsFailedToCancelError)
-        end
-      end
-
-      it 'does not consider a complete job to be a failed cancellation' do
-        default_queue.pop.complete
-        expect { cancel }.not_to raise_error
-      end
-
-      it 'keeps track of whether or not cancellation has occurred' do
-        expect(batch).not_to be_cancelled
-        cancel
-        expect(batch).to be_cancelled
-      end
-
-      it 'returns a truthy value' do
-        expect(cancel).to be_true
-      end
-
-      it 'expires the redis keys for the batch data' do
-        expect(expired_keys).to be_empty
-        cancel
-
-        expect(redis.keys).not_to be_empty
-        expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
-      end
-
-      it 'notifies observers that it has been cancelled' do
-        notified_batch = nil
-        pipeline_module.configuration.after_job_batch_cancellation do |jb|
-          notified_batch = jb
-        end
-
-        expect { cancel }.to change { notified_batch }.from(nil).to(batch)
-      end
-
       def complete_batch
         batch.complete_job(qless_job_for jid_1)
         batch.complete_job(qless_job_for jid_2)
@@ -792,66 +740,163 @@ module Plines
         expect(batch).to be_complete
       end
 
-      it 'returns true when it succeeds' do
-        expect(cancel).to be_true
-      end
-
-      it 'is a no-op when it has already been cancelled' do
-        notified_count = 0
-        pipeline_module.configuration.after_job_batch_cancellation do |jb|
-          notified_count += 1
+      shared_examples_for "a delete method" do |method|
+        define_method :delete do
+          batch.public_send(method)
         end
 
-        expect { expect(cancel).to be_true }.to change { notified_count }.by(1)
-        expect { expect(cancel).to be_true }.not_to change { notified_count }
+        def plines_keys
+          redis.keys('plines:*')
+        end
+
+        it 'deletes all plines keys from redis for a completed job batch' do
+          complete_batch
+          expect(plines_keys).not_to be_empty
+          delete
+          expect(plines_keys).to be_empty
+        end
+
+        it 'deletes all plines keys from redis for a cancelled job batch' do
+          batch.cancel
+          expect(plines_keys).not_to be_empty
+          delete
+          expect(plines_keys).to be_empty
+        end
       end
 
-      it 'raises an error if the create is currently in progress' do
-        expect {
-          JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
-            jb.public_send(method)
+      describe '#delete' do
+        it_behaves_like 'a delete method', :delete do
+          it 'raises an error if the batch is not in a terminal state' do
+            expect { batch.delete }.to raise_error(JobBatch::CannotDeleteError)
+            expect(batch).not_to be_complete
+            expect(batch).not_to be_cancelled
           end
-        }.to raise_error(JobBatch::CreationInStillInProgressError)
+        end
       end
 
-      it 'allows cancellation of a job batch that appears to have gotten stuck while being created' do
-        job_batch_creation_time = Date.iso8601('2013-01-01').to_time
-        one_week_into_the_future = job_batch_creation_time + 7 * 24 * 60 * 60
+      describe '#delete!' do
+        it_behaves_like 'a delete method', :delete! do
+          it 'cancels all qless jobs' do
+            batch.complete_job(qless_job_for jid_2)
+            expect(default_queue.length).to be > 0
+            batch.delete!
+            expect(default_queue.length).to eq(0)
+          end
+        end
+      end
 
-        Timecop.freeze(job_batch_creation_time) do
-          JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
-            Timecop.freeze(one_week_into_the_future) do
-              expect {
-                jb.public_send(method)
-              }.to change { jb.cancelled? }.from(false).to(true)
+      shared_examples_for "a cancellation method" do |method|
+        define_method :cancel do
+          batch.public_send(method)
+        end
+
+        it 'cancels all qless jobs, including those that it thinks are complete' do
+          batch.complete_job(qless_job_for jid_2)
+          expect(default_queue.length).to be > 0
+          cancel
+          expect(default_queue.length).to eq(0)
+        end
+
+        context 'if qless silently fails to cancel some jobs' do
+          it 'raises an error to indicate the cancellation failure' do
+            qless.stub(:bulk_cancel) # to make it silent no-op
+            expect {
+              cancel
+            }.to raise_error(JobBatch::SomeJobsFailedToCancelError)
+          end
+        end
+
+        it 'does not consider a complete job to be a failed cancellation' do
+          default_queue.pop.complete
+          expect { cancel }.not_to raise_error
+        end
+
+        it 'keeps track of whether or not cancellation has occurred' do
+          expect(batch).not_to be_cancelled
+          cancel
+          expect(batch).to be_cancelled
+        end
+
+        it 'returns a truthy value' do
+          expect(cancel).to be_true
+        end
+
+        it 'expires the redis keys for the batch data' do
+          expect(expired_keys).to be_empty
+          cancel
+
+          expect(redis.keys).not_to be_empty
+          expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
+        end
+
+        it 'notifies observers that it has been cancelled' do
+          notified_batch = nil
+          pipeline_module.configuration.after_job_batch_cancellation do |jb|
+            notified_batch = jb
+          end
+
+          expect { cancel }.to change { notified_batch }.from(nil).to(batch)
+        end
+
+        it 'returns true when it succeeds' do
+          expect(cancel).to be_true
+        end
+
+        it 'is a no-op when it has already been cancelled' do
+          notified_count = 0
+          pipeline_module.configuration.after_job_batch_cancellation do |jb|
+            notified_count += 1
+          end
+
+          expect { expect(cancel).to be_true }.to change { notified_count }.by(1)
+          expect { expect(cancel).to be_true }.not_to change { notified_count }
+        end
+
+        it 'raises an error if the create is currently in progress' do
+          expect {
+            JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+              jb.public_send(method)
+            end
+          }.to raise_error(JobBatch::CreationInStillInProgressError)
+        end
+
+        it 'allows cancellation of a job batch that appears to have gotten stuck while being created' do
+          job_batch_creation_time = Date.iso8601('2013-01-01').to_time
+          one_week_into_the_future = job_batch_creation_time + 7 * 24 * 60 * 60
+
+          Timecop.freeze(job_batch_creation_time) do
+            JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+              Timecop.freeze(one_week_into_the_future) do
+                expect {
+                  jb.public_send(method)
+                }.to change { jb.cancelled? }.from(false).to(true)
+              end
             end
           end
         end
-
       end
-    end
 
-    describe "#cancel!" do
-      it_behaves_like "a cancellation method", :cancel! do
-        it 'raises an error when the job is already complete' do
-          complete_batch
-          expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
-          expect(batch).to be_complete
-          expect(batch).not_to be_cancelled
+      describe "#cancel!" do
+        it_behaves_like "a cancellation method", :cancel! do
+          it 'raises an error when the job is already complete' do
+            complete_batch
+            expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
+            expect(batch).to be_complete
+            expect(batch).not_to be_cancelled
+          end
         end
       end
-    end
 
-    describe "cancel" do
-      it_behaves_like "a cancellation method", :cancel do
-        it 'returns false and does not cancel when the jobs is already complete' do
-          complete_batch
-          expect(batch.cancel).to be_false
-          expect(batch).to be_complete
-          expect(batch).not_to be_cancelled
+      describe "cancel" do
+        it_behaves_like "a cancellation method", :cancel do
+          it 'returns false and does not cancel when the jobs is already complete' do
+            complete_batch
+            expect(batch.cancel).to be_false
+            expect(batch).to be_complete
+            expect(batch).not_to be_cancelled
+          end
         end
       end
     end
   end
 end
-

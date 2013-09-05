@@ -257,6 +257,52 @@ describe Plines, :redis do
       expect(smith_batch.completed_at).to eq(end_time)
     end
 
+    it 'allows a job batch to be deleted! midstream' do
+      midstream_delete_key_name = 'make_thanksgiving_dinner:midstream_deleted_job_batch'
+      enqueue_jobs
+
+      # need to store this for expectations after we've deleted the job batch
+      job_jids = smith_batch.job_jids
+
+      MakeThanksgivingDinner.configure do |plines|
+        plines.after_job_batch_cancellation do |job_batch|
+          MakeThanksgivingDinner.redis.set(midstream_delete_key_name, job_batch)
+        end
+      end
+
+      MakeThanksgivingDinner::StuffTurkey.class_eval do
+        def perform
+          job_batch.delete!
+          qless_job.retry # so the worker doesn't try to complete it
+        end
+      end
+
+      expect(grocieries_queue.length).to eq(1)
+      expect(smith_batch).not_to be_cancelled
+      process_work
+
+      steps = MakeThanksgivingDinner.performed_steps
+      expect(steps).to have_at_most(7).entries
+
+      expect(default_queue.length).to eq(0)
+      plines_keys = MakeThanksgivingDinner.redis.keys('plines:*').reject do |key|
+        key.include?('Smith:last_batch_num') # the key should persist
+      end
+      expect(plines_keys).to be_empty
+
+      cancelled_job_batch = MakeThanksgivingDinner.redis.get(midstream_delete_key_name)
+      expect(cancelled_job_batch).to eq(smith_batch.to_s)
+
+      # depending on the order of how jobs get popped, some jobs are cancelled (thus nil)
+      # and others are complete. This checked that for all the remaining, non-cancelled jobs
+      # they are in the complete state.
+      states = job_jids.each_with_object([]) do |jid, states|
+        job = smith_batch.qless.jobs[jid]
+        states << job.state if job
+      end.uniq
+      expect(states).to eq(['complete'])
+    end
+
     it 'allows a job batch to be cancelled in midstream' do
       enqueue_jobs
 

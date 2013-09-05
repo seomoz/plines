@@ -192,6 +192,22 @@ module Plines
       end
     end
 
+    CannotDeleteError = Class.new(StandardError)
+
+    def delete
+      unless complete? || cancelled?
+        raise CannotDeleteError,
+          "JobBatch #{id} can't be deleted because it's not cancelled/complete"
+      end
+
+      lua.delete!(self)
+    end
+
+    def delete!
+      cancel
+      lua.delete!(self)
+    end
+
     CannotCancelError = Class.new(StandardError)
 
     def cancel!

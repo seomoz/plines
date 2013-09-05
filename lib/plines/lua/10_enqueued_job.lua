@@ -18,6 +18,12 @@ function PlinesEnqueuedJob:expire(data_ttl_in_milliseconds)
   end
 end
 
+function PlinesEnqueuedJob:delete()
+  for _, sub_key in ipairs(plines_enqueued_job_sub_keys) do
+    redis.call('del', self.key .. ":" .. sub_key)
+  end
+end
+
 function PlinesEnqueuedJob:external_dependencies()
   return redis.call('sunion',
     self.key .. ":pending_ext_deps",
@@ -25,4 +31,3 @@ function PlinesEnqueuedJob:external_dependencies()
     self.key .. ":timed_out_ext_deps"
   )
 end
-
