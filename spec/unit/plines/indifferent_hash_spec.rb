@@ -76,7 +76,7 @@ module Plines
       expect(hash.with_indifferent_access).to be(hash)
     end
 
-    it 'does not add to the symbol table' do
+    it 'does not add to the symbol table', unless: (RUBY_PLATFORM == 'java') do
       key = SecureRandom.hex
 
       expect {
