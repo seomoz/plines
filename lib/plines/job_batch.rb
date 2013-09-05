@@ -192,6 +192,26 @@ module Plines
       end
     end
 
+    def in_terminal_state?
+      cancelled? || complete?
+    end
+
+    CannotDeleteError = Class.new(StandardError)
+
+    def delete
+      unless in_terminal_state?
+        raise CannotDeleteError,
+          "JobBatch #{id} is not in a terminal state and cannot be deleted"
+      end
+
+      lua.delete!(self)
+    end
+
+    def delete!
+      cancel
+      lua.delete!(self)
+    end
+
     CannotCancelError = Class.new(StandardError)
 
     def cancel!

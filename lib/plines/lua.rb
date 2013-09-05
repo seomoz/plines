@@ -26,6 +26,12 @@ module Plines
       handle_complete_job_lua_error(qless_job, job_batch, e)
     end
 
+    def delete!(job_batch)
+      call :delete,
+        job_batch.pipeline.name,
+        job_batch.id
+    end
+
   private
 
     def call(command, *args)
