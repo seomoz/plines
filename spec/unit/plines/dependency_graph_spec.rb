@@ -181,7 +181,7 @@ module Plines
       end
 
       context 'when a step depends on a 0-fan-out step' do
-        let(:logger) { fire_double(Logger.name, warn: nil) }
+        let(:logger) { instance_double(Logger.name, warn: nil) }
 
         before do
           step_class(:A)
