@@ -721,6 +721,24 @@ module Plines
       end
     end
 
+    describe 'in_terminal_state?' do
+      let(:batch) { JobBatch.create(qless, pipeline_module, "foo", {}) }
+
+      it 'returns true for a cancelled job batch' do
+        batch.cancel
+        expect(batch.in_terminal_state?).to be_true
+      end
+
+      it 'returns true for a complete job batch' do
+        batch.completed_job_jids << "a"
+        expect(batch.in_terminal_state?).to be_true
+      end
+
+      it 'returns false for a job batch that is incomplete and not cancelled' do
+        expect(batch.in_terminal_state?).to be_false
+      end
+    end
+
     context 'for destructively modifying a job batch' do
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
