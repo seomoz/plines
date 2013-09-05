@@ -13,33 +13,39 @@ function Plines.job_batch(pipeline_name, id)
 end
 
 function PlinesJobBatch:expire(data_ttl_in_milliseconds)
-  for _, sub_key in ipairs(plines_job_batch_sub_keys) do
-    redis.call('pexpire', self.key .. ":" .. sub_key, data_ttl_in_milliseconds)
-  end
-
-  for _, jid in ipairs(self:jids()) do
-    local job = Plines.enqueued_job(self.pipeline_name, jid)
-    job:expire(data_ttl_in_milliseconds)
-
-    for _, dep in ipairs(job:external_dependencies()) do
-      redis.call('pexpire', self.key .. ":ext_deps:" .. dep, data_ttl_in_milliseconds)
-      redis.call('pexpire', self.key .. ":timeout_job_jids:" .. dep, data_ttl_in_milliseconds)
+  self:for_each_key_and_job(
+    function(key)
+      redis.call('pexpire', key, data_ttl_in_milliseconds)
+    end,
+    function(job)
+      job:expire(data_ttl_in_milliseconds)
     end
-  end
+  )
 end
 
 function PlinesJobBatch:delete()
+  self:for_each_key_and_job(
+    function(key)
+      redis.call('del', key)
+    end,
+    function(job)
+      job:delete()
+    end
+  )
+end
+
+function PlinesJobBatch:for_each_key_and_job(key_func, job_func)
   for _, sub_key in ipairs(plines_job_batch_sub_keys) do
-    redis.call('del', self.key .. ":" .. sub_key)
+    key_func(self.key .. ":" .. sub_key)
   end
 
   for _, jid in ipairs(self:jids()) do
     local job = Plines.enqueued_job(self.pipeline_name, jid)
-    job:delete()
+    job_func(job)
 
     for _, dep in ipairs(job:external_dependencies()) do
-      redis.call('del', self.key .. ":ext_deps:" .. dep)
-      redis.call('del', self.key .. ":timeout_job_jids:" .. dep)
+      key_func(self.key .. ":ext_deps:" .. dep)
+      key_func(self.key .. ":timeout_job_jids:" .. dep)
     end
   end
 end

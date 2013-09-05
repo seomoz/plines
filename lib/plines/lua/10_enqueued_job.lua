@@ -13,14 +13,20 @@ function Plines.enqueued_job(pipeline_name, jid)
 end
 
 function PlinesEnqueuedJob:expire(data_ttl_in_milliseconds)
-  for _, sub_key in ipairs(plines_enqueued_job_sub_keys) do
-    redis.call('pexpire', self.key .. ":" .. sub_key, data_ttl_in_milliseconds)
-  end
+  self:for_each_enqueued_job_sub_key(function(key)
+    redis.call('pexpire', key, data_ttl_in_milliseconds)
+  end)
 end
 
 function PlinesEnqueuedJob:delete()
+  self:for_each_enqueued_job_sub_key(function(key)
+    redis.call('del', key)
+  end)
+end
+
+function PlinesEnqueuedJob:for_each_enqueued_job_sub_key(func)
   for _, sub_key in ipairs(plines_enqueued_job_sub_keys) do
-    redis.call('del', self.key .. ":" .. sub_key)
+    func(self.key .. ":" .. sub_key)
   end
 end
 
