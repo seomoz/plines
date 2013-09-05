@@ -14,6 +14,10 @@ function PlinesAPI.complete_job(
   )
 end
 
+function PlinesAPI.delete(pipeline_name, id)
+  return Plines.job_batch(pipeline_name, id):delete()
+end
+
 -- Dispatch code. This must go last in the script.
 if #KEYS > 0 then error('No Keys should be provided') end
 

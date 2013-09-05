@@ -76,7 +76,7 @@ module Plines
       expect(hash.with_indifferent_access).to be(hash)
     end
 
-    it 'does not add to the symbol table' do
+    it 'does not add to the symbol table', unless: (RUBY_PLATFORM == 'java') do
       key = SecureRandom.hex
 
       expect {
@@ -112,7 +112,7 @@ module Plines
 
     it 'works when initalized with an indifferent hash' do
       hash = IndifferentHash.from('a' => 3)
-      hash2 = IndifferentHash.from(hash)
+      IndifferentHash.from(hash)
 
       expect(hash[:a]).to eq(3)
     end

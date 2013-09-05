@@ -503,7 +503,7 @@ module Plines
             depends_on(:StepX) { |a| arg = a }
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
+          P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
           expect(arg.batch_data).to eq(a: 17)
         end
       end
@@ -521,7 +521,7 @@ module Plines
         end
 
         let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
-        let(:enqueued_job) { fire_double("Plines::EnqueuedJob") }
+        let(:enqueued_job) { instance_double("Plines::EnqueuedJob") }
 
         before do
           job_batch.pending_job_jids << qless_job.jid
