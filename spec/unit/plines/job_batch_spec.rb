@@ -721,7 +721,7 @@ module Plines
       end
     end
 
-    context 'foo' do
+    context 'for destructively modifying a job batch' do
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
       let(:jid_1)  { default_queue.put(P::Foo, {}) }
