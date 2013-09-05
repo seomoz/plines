@@ -503,7 +503,7 @@ module Plines
             depends_on(:StepX) { |a| arg = a }
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
+          P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
           expect(arg.batch_data).to eq(a: 17)
         end
       end
