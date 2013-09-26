@@ -79,7 +79,7 @@ module Plines
       it 'enqueues jobs for the given batch data' do
         qless_job_block_called = false
         MyPipeline.configuration.qless_job_options { |job| qless_job_block_called = true; {} }
-        enqueuer = instance_double("Plines::JobEnqueuer")
+        enqueuer = double("Plines::JobEnqueuer")
 
         Plines::JobEnqueuer.should_receive(:new) do |graph, job_batch, &block|
           expect(graph).to be_a(Plines::DependencyGraph)
