@@ -8,7 +8,7 @@ module Plines
     describe "#qless_client_for" do
       it 'returns the value returned by the qless_client block' do
         config.qless_client do |key|
-          instance_double("Redis", id: "redis://host-#{key}:1234/0")
+          double("Redis", id: "redis://host-#{key}:1234/0")
         end
 
         expect(config.qless_client_for("foo").id).to include("host-foo")
