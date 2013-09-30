@@ -521,7 +521,7 @@ module Plines
         end
 
         let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
-        let(:enqueued_job) { double("Plines::EnqueuedJob") }
+        let(:enqueued_job) { instance_double("Plines::EnqueuedJob") }
 
         before do
           job_batch.pending_job_jids << qless_job.jid
