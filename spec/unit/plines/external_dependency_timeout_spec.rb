@@ -7,8 +7,8 @@ require 'plines/configuration'
 module Plines
   describe ExternalDependencyTimeout, :redis do
     let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc", {}) }
-    let(:qless_client) { double("Qless::Client") }
-    let(:job) { double("Qless::Job", client: qless_client) }
+    let(:qless_client) { instance_double("Qless::Client") }
+    let(:job) { instance_double("Qless::Job", client: qless_client) }
 
     it 'times out the named dependency for the given jobs on the given job batch' do
       data = ExternalDependencyTimeout.job_data_for(job_batch, "foo", ["a", "b"])
