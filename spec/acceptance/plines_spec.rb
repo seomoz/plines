@@ -215,14 +215,14 @@ describe Plines, :redis do
     expect(plines_temporary_redis_key_ttls).to eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
   end
 
-  def jobs_left_to_process?(client)
-    jids = smith_batch.pending_job_jids
+  def jobs_left_to_process?(batch)
+    jids = batch.pending_job_jids
 
     # quit if we're out of pending job jids
     if jids.size == 0
       return false
     else
-      jobs = jids.map { |jid| client.jobs[jid] }.compact
+      jobs = jids.map { |jid| batch.qless.jobs[jid] }.compact
 
       # reject any jobs in the awaiting external dependency queue
       jobs = jobs.reject { |job| job.queue_name == "awaiting_ext_dep" }
@@ -236,8 +236,8 @@ describe Plines, :redis do
     end
   end
 
-  def process_work(client = qless)
-    worker = worker_klass.new(job_reserver(client), log_level: Logger::WARN, max_startup_interval: 0)
+  def process_work(batch = smith_batch)
+    worker = worker_klass.new(job_reserver(batch.qless), log_level: Logger::WARN, max_startup_interval: 0)
     if worker_klass == Qless::Workers::SerialWorker
       run_jobs(worker) do
         # sleep a little bit to let redis updates happen
@@ -247,15 +247,14 @@ describe Plines, :redis do
       worker.extend(RedisReconnectMiddleware)
       thread_worker(worker) do
         loop do
+          break unless jobs_left_to_process?(batch)
           # sleep a little bit to let redis updates happen
-          sleep(0.1)
-
-          break unless jobs_left_to_process?(client)
+          sleep(0.01)
         end
       end
     end
 
-    expect(client).to have_no_failures
+    expect(batch.qless).to have_no_failures
   end
 
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
@@ -482,6 +481,7 @@ describe Plines, :redis do
       MakeThanksgivingDinner::PickupTurkey.class_eval do
         include Module.new {
           def around_perform
+            puts "unresolved around perform"
             unresolved_external_dependencies.each do |d|
               MakeThanksgivingDinner.unresolved_external_dependencies << d
             end
@@ -566,11 +566,11 @@ describe Plines, :redis do
       expect(alternate_redis.keys("*Jones*").size).to be > 0
       expect(alternate_redis.keys("*Smith*").size).to eq(0)
 
-      process_work(alternate_qless)
+      process_work(jones_batch)
       expect(jones_batch).to be_complete
       expect(smith_batch).not_to be_complete
 
-      process_work(qless)
+      process_work(smith_batch)
       expect(smith_batch).to be_complete
     end
 
