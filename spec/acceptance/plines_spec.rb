@@ -1,8 +1,11 @@
 require 'spec_helper'
 require 'plines'
 require 'qless/worker'
+require 'qless/job_reservers/ordered'
 require 'timecop'
 require 'redis/list'
+require 'logger'
+require 'qless/test_helpers/worker_helpers'
 
 supports_forking = begin
   fork { exit! }
@@ -12,6 +15,8 @@ rescue NotImplementedError
 end
 
 describe Plines, :redis do
+  include Qless::WorkerHelpers
+
   module RedisReconnectMiddleware
     def around_perform(job)
       ::MakeThanksgivingDinner.redis.client.reconnect
@@ -210,11 +215,46 @@ describe Plines, :redis do
     expect(plines_temporary_redis_key_ttls).to eq([MakeThanksgivingDinner.configuration.data_ttl_in_seconds])
   end
 
-  def process_work(client = qless)
-    worker = self.worker(client)
-    worker.extend RedisReconnectMiddleware unless worker.run_as_single_process
-    worker.work(0)
-    expect(client).to have_no_failures
+  def jobs_left_to_process?(batch)
+    jids = batch.pending_job_jids
+
+    # quit if we're out of pending job jids
+    if jids.size == 0
+      return false
+    else
+      jobs = jids.map { |jid| batch.qless.jobs[jid] }.compact
+
+      # reject any jobs in the awaiting external dependency queue
+      jobs = jobs.reject { |job| job.queue_name == "awaiting_ext_dep" }
+
+      # find any jobs that are in a workable state
+      jobs_left = jobs.any? do |job|
+        %w[waiting running stalled scheduled].include?(job.state)
+      end
+
+      return jobs_left
+    end
+  end
+
+  def process_work(batch = smith_batch)
+    worker = worker_klass.new(job_reserver(batch.qless), log_level: Logger::WARN, max_startup_interval: 0)
+    if worker_klass == Qless::Workers::SerialWorker
+      run_jobs(worker) do
+        # sleep a little bit to let redis updates happen
+        sleep(0.1)
+      end
+    else
+      worker.extend(RedisReconnectMiddleware)
+      thread_worker(worker) do
+        loop do
+          break unless jobs_left_to_process?(batch)
+          # sleep a little bit to let redis updates happen
+          sleep(0.01)
+        end
+      end
+    end
+
+    expect(batch.qless).to have_no_failures
   end
 
   let(:start_time) { Time.new(2012, 5, 1, 8, 30) }
@@ -226,10 +266,8 @@ describe Plines, :redis do
     Timecop.freeze(Time.now + seconds)
   end
 
-  shared_examples_for 'plines acceptance tests' do |run_as_single_process|
-    define_method :worker do |client = qless|
-      Qless::Worker.new(job_reserver(client), run_as_single_process: run_as_single_process)
-    end
+  shared_examples_for 'plines acceptance tests' do |worker_klass|
+    let(:worker_klass) { worker_klass }
 
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
       Timecop.freeze(start_time) { enqueue_jobs }
@@ -443,6 +481,7 @@ describe Plines, :redis do
       MakeThanksgivingDinner::PickupTurkey.class_eval do
         include Module.new {
           def around_perform
+            puts "unresolved around perform"
             unresolved_external_dependencies.each do |d|
               MakeThanksgivingDinner.unresolved_external_dependencies << d
             end
@@ -527,11 +566,11 @@ describe Plines, :redis do
       expect(alternate_redis.keys("*Jones*").size).to be > 0
       expect(alternate_redis.keys("*Smith*").size).to eq(0)
 
-      process_work(alternate_qless)
+      process_work(jones_batch)
       expect(jones_batch).to be_complete
       expect(smith_batch).not_to be_complete
 
-      process_work(qless)
+      process_work(smith_batch)
       expect(smith_batch).to be_complete
     end
 
@@ -633,11 +672,11 @@ describe Plines, :redis do
   end
 
   context 'single process tests' do
-    it_behaves_like 'plines acceptance tests', true
+    it_behaves_like 'plines acceptance tests', Qless::Workers::SerialWorker
   end
 
   context 'forked tests' do
-    it_behaves_like 'plines acceptance tests', false
+    it_behaves_like 'plines acceptance tests', Qless::Workers::ForkingWorker
 
     before(:all) do
       pending "This platform does not support forking"
