@@ -3,15 +3,14 @@ require 'plines'
 require 'qless/worker'
 require 'timecop'
 require 'redis/list'
+require 'qless/test_helpers/worker_helpers'
+require 'qless/job_reservers/ordered'
 
-supports_forking = begin
-  fork { exit! }
-  true
-rescue NotImplementedError
-  false
-end
+supports_forking = RUBY_ENGINE != 'jruby'
 
 describe Plines, :redis do
+  include Qless::WorkerHelpers
+
   module RedisReconnectMiddleware
     def around_perform(job)
       ::MakeThanksgivingDinner.redis.client.reconnect
@@ -211,9 +210,8 @@ describe Plines, :redis do
   end
 
   def process_work(client = qless)
-    worker = self.worker(client)
-    worker.extend RedisReconnectMiddleware unless worker.run_as_single_process
-    worker.work(0)
+    worker = new_worker(job_reserver(client))
+    drain_worker_queues(worker)
     expect(client).to have_no_failures
   end
 
@@ -226,11 +224,7 @@ describe Plines, :redis do
     Timecop.freeze(Time.now + seconds)
   end
 
-  shared_examples_for 'plines acceptance tests' do |run_as_single_process|
-    define_method :worker do |client = qless|
-      Qless::Worker.new(job_reserver(client), run_as_single_process: run_as_single_process)
-    end
-
+  shared_examples_for 'plines acceptance tests' do
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
       Timecop.freeze(start_time) { enqueue_jobs }
       expect(grocieries_queue.peek.tags).to eq(["Smith"])
@@ -633,11 +627,21 @@ describe Plines, :redis do
   end
 
   context 'single process tests' do
-    it_behaves_like 'plines acceptance tests', true
+    it_behaves_like 'plines acceptance tests' do
+      def new_worker(job_reserver)
+        ::Qless::Workers::SerialWorker.new(job_reserver, output: StringIO.new)
+      end
+    end
   end
 
   context 'forked tests' do
-    it_behaves_like 'plines acceptance tests', false
+    it_behaves_like 'plines acceptance tests' do
+      def new_worker(job_reserver)
+        ::Qless::Workers::ForkingWorker.new(job_reserver, max_startup_interval: 0, output: StringIO.new).tap do |worker|
+          worker.extend RedisReconnectMiddleware
+        end
+      end
+    end
 
     before(:all) do
       pending "This platform does not support forking"

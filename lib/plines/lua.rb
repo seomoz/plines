@@ -3,8 +3,9 @@ require 'qless'
 module Plines
   # Provides access to Plines' lua scripts.
   class Lua
-    def initialize(redis)
-      @redis = redis
+    def initialize(qless)
+      @qless = qless
+      @redis = qless.redis
     end
 
     def expire_job_batch(job_batch)
@@ -19,7 +20,7 @@ module Plines
         job_batch.pipeline.name,
         job_batch.id,
         qless_job.jid,
-        Qless.worker_name,
+        @qless.worker_name,
         job_batch.pipeline.configuration.data_ttl_in_milliseconds,
         Time.now.getutc.iso8601
     rescue Qless::LuaScriptError => e
