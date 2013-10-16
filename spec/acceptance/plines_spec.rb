@@ -6,8 +6,6 @@ require 'redis/list'
 require 'qless/test_helpers/worker_helpers'
 require 'qless/job_reservers/ordered'
 
-supports_forking = RUBY_ENGINE != 'jruby'
-
 describe Plines, :redis do
   include Qless::WorkerHelpers
 
@@ -645,7 +643,7 @@ describe Plines, :redis do
 
     before(:all) do
       pending "This platform does not support forking"
-    end unless supports_forking
+    end unless Process.respond_to?(:fork)
   end
 end
 
