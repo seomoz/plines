@@ -351,7 +351,7 @@ module Plines
     end
 
     def lua
-      @lua ||= Plines::Lua.new(qless.redis)
+      @lua ||= Plines::Lua.new(qless)
     end
   end
 end
