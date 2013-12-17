@@ -304,6 +304,18 @@ module Plines
       end
     end
 
+    describe "#spawned_from_id" do
+      it 'returns nil by default' do
+        batch = JobBatch.create(qless, pipeline_module, "a", {})
+        expect(batch.spawned_from_id).to be_nil
+      end
+
+      it 'returns the spawned_from_id value even if the source batch is no longer in redis' do
+        batch = JobBatch.create(qless, pipeline_module, "a", {}, spawned_from_id: '23')
+        expect(batch.spawned_from_id).to eq('23')
+      end
+    end
+
     describe "#add_job" do
       it 'adds a job and the external dependencies' do
         batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|

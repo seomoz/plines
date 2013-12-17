@@ -185,11 +185,15 @@ module Plines
     def spawned_from
       return @spawned_from if defined?(@spawned_from)
 
-      if id = meta["spawned_from_id"]
+      if id = spawned_from_id
         @spawned_from = self.class.find(qless, pipeline, id)
       else
         @spawned_from = nil
       end
+    end
+
+    def spawned_from_id
+      meta['spawned_from_id']
     end
 
     def in_terminal_state?
