@@ -27,15 +27,23 @@ module Plines
                       batch_data, options, &blk)
     end
 
-    def each(&block)
-      return enum_for(:each) unless block_given?
+    def each
+      return enum_for(__method__) unless block_given?
 
-      1.upto(last_batch_num.value) do |num|
+      each_id do |id|
         begin
-          yield JobBatch.find(qless, pipeline, batch_id_for(num))
+          yield JobBatch.find(qless, pipeline, id)
         rescue JobBatch::CannotFindExistingJobBatchError
           # We can't yield a batch we can't find!
         end
+      end
+    end
+
+    def each_id
+      return enum_for(__method__) unless block_given?
+
+      1.upto(last_batch_num.value) do |num|
+        yield batch_id_for(num)
       end
     end
 
