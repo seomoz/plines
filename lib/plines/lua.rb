@@ -40,7 +40,7 @@ module Plines
     end
 
     def handle_complete_job_lua_error(qless_job, job_batch, e)
-      if e.message.start_with?('JobNotPending')
+      if e.message =~ /\A(user_script:\d+: )?JobNotPending/
         raise JobBatch::JobNotPendingError, "Jid #{qless_job.jid} cannot be " +
           "marked as complete for job batch #{job_batch.id} since it is " +
           "not pending"
