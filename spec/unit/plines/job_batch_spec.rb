@@ -501,22 +501,15 @@ module Plines
     end
 
     describe "#complete?" do
-      it 'returns false when there are no pending or completed jobs' do
+      it 'returns true if the job batch has a completed_at timestamp' do
         batch = JobBatch.create(qless, pipeline_module, "foo", {})
-        expect(batch).not_to be_complete
-      end
-
-      it 'returns false when there are pending jobs and completed jobs' do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {})
-        batch.pending_job_jids << "a"
-        batch.completed_job_jids << "b"
-        expect(batch).not_to be_complete
-      end
-
-      it 'returns true when there are only completed jobs' do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {})
-        batch.completed_job_jids << "b"
+        batch.meta['completed_at'] = Time.now.getutc.iso8601
         expect(batch).to be_complete
+      end
+
+      it 'returns false if it lacks a completed_at timestamp' do
+        batch = JobBatch.create(qless, pipeline_module, "foo", {})
+        expect(batch).not_to be_complete
       end
     end
 
@@ -742,7 +735,7 @@ module Plines
       end
 
       it 'returns true for a complete job batch' do
-        batch.completed_job_jids << "a"
+        batch.meta['completed_at'] = Time.now.getutc.iso8601
         expect(batch.in_terminal_state?).to be_true
       end
 

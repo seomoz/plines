@@ -132,7 +132,7 @@ module Plines
     end
 
     def complete?
-      _complete?(pending_job_jids.length, completed_job_jids.length)
+      !!completed_at
     end
 
     def resolve_external_dependency(dep_name)
@@ -317,10 +317,6 @@ module Plines
       jids.each do |jid|
         EnqueuedJob.new(qless, pipeline, jid).send(meth, dep_name)
       end
-    end
-
-    def _complete?(pending_size, complete_size)
-      pending_size == 0 && complete_size > 0
     end
 
     def time_from(meta_entry)
