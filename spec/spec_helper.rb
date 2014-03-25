@@ -1,7 +1,4 @@
 require_relative '../config/setup_load_paths'
-if RUBY_ENGINE == 'ruby' && !ENV['TRAVIS']
-  require 'debugger'
-end
 
 RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
   match do |_|
@@ -46,20 +43,30 @@ module PlinesSpecHelpers
 end
 
 RSpec.configure do |config|
-  config.treat_symbols_as_metadata_keys_with_true_values = true
+  # config.expose_dsl_globally = false
+  config.filter_run :focus
   config.run_all_when_everything_filtered = true
-  config.filter_run :f
-  config.alias_example_to :fit, :f
-  config.include PlinesSpecHelpers
-  config.extend PlinesSpecHelpers::ClassMethods
+
+  if config.files_to_run.one?
+    config.full_backtrace = true
+    config.formatter = 'doc' if config.formatters.none?
+  end
+
+  config.profile_examples = 10
+  config.order = :random
+  Kernel.srand config.seed
 
   config.expect_with :rspec do |expectations|
     expectations.syntax = :expect
   end
 
-  config.mock_with :rspec do |c|
-    c.yield_receiver_to_any_instance_implementation_blocks = true
+  config.mock_with :rspec do |mocks|
+    mocks.syntax = :expect
+    # mocks.verify_partial_doubles = true
   end
+
+  config.include PlinesSpecHelpers
+  config.extend PlinesSpecHelpers::ClassMethods
 end
 
 redis_url = if File.exist?('./config/redis_connection_url.txt')
