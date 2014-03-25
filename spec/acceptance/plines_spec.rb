@@ -130,7 +130,10 @@ RSpec.describe Plines, :redis do
   end
 
   def job_reserver(client = qless)
-    Qless::JobReservers::Ordered.new([default_queue(client), grocieries_queue(client)])
+    queue_names = client.queues.counts.map { |q| q.fetch "name" }
+    queue_names.delete Plines::Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE
+    queues = queue_names.map { |name| client.queues[name] }
+    Qless::JobReservers::Ordered.new(queues)
   end
 
   RSpec::Matchers.define :be_before do |expected|
