@@ -5,7 +5,7 @@ require 'plines/pipeline'
 require 'plines/configuration'
 
 module Plines
-  describe ExternalDependencyTimeout, :redis do
+  RSpec.describe ExternalDependencyTimeout, :redis do
     let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc", {}) }
     let(:qless_client) { instance_double("Qless::Client") }
     let(:job) { instance_double("Qless::Job", client: qless_client) }

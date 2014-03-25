@@ -43,7 +43,7 @@ module PlinesSpecHelpers
 end
 
 RSpec.configure do |config|
-  # config.expose_dsl_globally = false
+  config.expose_dsl_globally = false
   config.filter_run :focus
   config.run_all_when_everything_filtered = true
 
@@ -76,7 +76,7 @@ else
 end
 
 redis = nil
-shared_context "redis", :redis do
+RSpec.shared_context "redis", :redis do
   before(:all) do
     redis ||= ::Redis.new(url: redis_url)
   end
@@ -99,7 +99,7 @@ shared_context "redis", :redis do
   end
 end
 
-shared_context "integration helpers" do
+RSpec.shared_context "integration helpers" do
   def create_pipeline_with_step(&block)
     step_class(:A) do
       class_eval(&block) if block

@@ -3,7 +3,7 @@ require 'plines/indifferent_hash'
 require 'securerandom'
 
 module Plines
-  describe IndifferentHash do
+  RSpec.describe IndifferentHash do
     it 'allows keys to be accessed by string or symbol' do
       hash = IndifferentHash.from('a' => 1, b: 2)
       expect(hash['a']).to eq(1)

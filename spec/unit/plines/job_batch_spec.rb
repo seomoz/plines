@@ -8,7 +8,7 @@ require 'plines/job_batch'
 require 'plines/configuration'
 
 module Plines
-  describe JobBatch, :redis do
+  RSpec.describe JobBatch, :redis do
     describe ".find" do
       it 'finds a previously created job batch' do
         batch = JobBatch.create(qless, pipeline_module, "a", {})

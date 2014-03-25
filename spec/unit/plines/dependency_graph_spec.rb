@@ -6,7 +6,7 @@ require 'plines/step'
 require 'plines/configuration'
 
 module Plines
-  describe DependencyGraph do
+  RSpec.describe DependencyGraph do
     describe ".new" do
       let(:graph) { DependencyGraph.new(P, a: 10) }
 

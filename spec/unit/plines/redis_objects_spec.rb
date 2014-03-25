@@ -5,7 +5,7 @@ require 'plines/configuration'
 require 'plines/redis_objects'
 
 module Plines
-  describe RedisObjectsHelpers, :redis do
+  RSpec.describe RedisObjectsHelpers, :redis do
     class DefaultKeyPrefix < Struct.new(:pipeline, :id)
       include Plines::RedisObjectsHelpers
       value :a_value

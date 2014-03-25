@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'plines/configuration'
 
 module Plines
-  describe Configuration do
+  RSpec.describe Configuration do
     let(:config) { Configuration.new }
 
     describe "#qless_client_for" do

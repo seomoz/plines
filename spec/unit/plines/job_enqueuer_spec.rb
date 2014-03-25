@@ -10,7 +10,7 @@ require 'plines/job_batch'
 require 'plines/external_dependency_timeout'
 
 module Plines
-  describe JobEnqueuer, :redis do
+  RSpec.describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
     let(:graph) { DependencyGraph.new(P, batch_data) }
 

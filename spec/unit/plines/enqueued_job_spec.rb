@@ -5,7 +5,7 @@ require 'plines/configuration'
 require 'plines/step'
 
 module Plines
-  describe EnqueuedJob, :redis do
+  RSpec.describe EnqueuedJob, :redis do
     it 'is uniquely identified by the jid' do
       j1 = EnqueuedJob.new(qless, pipeline_module, "a")
       j2 = EnqueuedJob.new(qless, pipeline_module, "b")

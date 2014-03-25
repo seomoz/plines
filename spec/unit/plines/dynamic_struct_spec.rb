@@ -2,7 +2,7 @@ require 'spec_helper'
 require 'plines/dynamic_struct'
 
 module Plines
-  describe DynamicStruct do
+  RSpec.describe DynamicStruct do
     it 'defines methods for each hash entry' do
       ds = DynamicStruct.new("a" => 5, "b" => 3)
       expect(ds.a).to eq(5)

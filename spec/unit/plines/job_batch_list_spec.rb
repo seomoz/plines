@@ -6,7 +6,7 @@ require 'plines/enqueued_job'
 require 'plines/configuration'
 
 module Plines
-  describe JobBatchList, :redis do
+  RSpec.describe JobBatchList, :redis do
     let(:foo) { JobBatchList.new(pipeline_module, "foo") }
     let(:bar) { JobBatchList.new(pipeline_module, "bar") }
 

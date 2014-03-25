@@ -10,7 +10,7 @@ require 'plines/enqueued_job'
 require 'timecop'
 
 module Plines
-  describe Pipeline, :redis do
+  RSpec.describe Pipeline, :redis do
     before do
       qless = self.qless
       mod = Module.new do

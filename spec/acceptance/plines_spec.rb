@@ -6,7 +6,7 @@ require 'redis/list'
 require 'qless/test_helpers/worker_helpers'
 require 'qless/job_reservers/ordered'
 
-describe Plines, :redis do
+RSpec.describe Plines, :redis do
   include Qless::WorkerHelpers
 
   module RedisReconnectMiddleware
