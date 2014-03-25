@@ -5,6 +5,12 @@ require 'redis/list'
 require 'qless/test_helpers/worker_helpers'
 require 'qless/job_reservers/ordered'
 
+RSpec.configure do |config|
+  config.mock_with :rspec do |mock|
+    mock.verify_doubled_constant_names = true
+  end
+end
+
 RSpec.describe Plines, :redis do
   include Qless::WorkerHelpers
 
