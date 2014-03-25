@@ -808,11 +808,7 @@ module Plines
         end
       end
 
-      shared_examples_for "a cancellation method" do |method|
-        define_method :cancel do
-          batch.public_send(method)
-        end
-
+      shared_examples_for "a cancellation method" do
         it 'cancels all qless jobs, including those that it thinks are complete' do
           batch.complete_job(qless_job_for jid_2)
           expect(default_queue.length).to be > 0
@@ -878,7 +874,7 @@ module Plines
         it 'raises an error if the create is currently in progress' do
           expect {
             JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
-              jb.public_send(method)
+              cancel(jb)
             end
           }.to raise_error(JobBatch::CreationInStillInProgressError)
         end
@@ -891,7 +887,7 @@ module Plines
             JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
               Timecop.freeze(one_week_into_the_future) do
                 expect {
-                  jb.public_send(method)
+                  cancel(jb)
                 }.to change { jb.cancelled? }.from(false).to(true)
               end
             end
@@ -900,7 +896,12 @@ module Plines
       end
 
       describe "#cancel!" do
-        it_behaves_like "a cancellation method", :cancel! do
+        it_behaves_like "a cancellation method" do
+          def cancel(jb = batch)
+            jb.cancel!
+            true # to satisfy `expect(cancel).to be true`
+          end
+
           it 'raises an error when the job is already complete' do
             complete_batch
             expect { batch.cancel! }.to raise_error(JobBatch::CannotCancelError)
@@ -911,7 +912,11 @@ module Plines
       end
 
       describe "cancel" do
-        it_behaves_like "a cancellation method", :cancel do
+        it_behaves_like "a cancellation method" do
+          def cancel(jb = batch)
+            jb.cancel
+          end
+
           it 'returns false and does not cancel when the jobs is already complete' do
             complete_batch
             expect(batch.cancel).to be_false

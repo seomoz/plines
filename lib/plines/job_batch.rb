@@ -230,6 +230,7 @@ module Plines
     def cancel
       return false if complete?
       perform_cancellation
+      true
     end
 
     def data
