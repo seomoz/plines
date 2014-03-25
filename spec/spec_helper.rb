@@ -2,7 +2,6 @@ require_relative '../config/setup_load_paths'
 if RUBY_ENGINE == 'ruby' && !ENV['TRAVIS']
   require 'debugger'
 end
-require 'rspec/fire'
 
 RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
   match do |_|
@@ -51,7 +50,6 @@ RSpec.configure do |config|
   config.run_all_when_everything_filtered = true
   config.filter_run :f
   config.alias_example_to :fit, :f
-  config.include RSpec::Fire
   config.include PlinesSpecHelpers
   config.extend PlinesSpecHelpers::ClassMethods
 

@@ -8,5 +8,3 @@ gem 'qless', git: 'git://github.com/seomoz/qless.git'
 group :extras do
   gem 'debugger', platform: :mri
 end
-
-gem 'rspec-fire', git: 'git://github.com/xaviershay/rspec-fire.git'
