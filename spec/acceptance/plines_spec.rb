@@ -21,6 +21,8 @@ RSpec.describe Plines, :redis do
     end
   end
 
+  GROCERIES_QUEUE_NAME_FOR = ->(family) { "groceries_for_#{family.downcase}" }
+
   before do
     module ::MakeThanksgivingDinner
       attr_accessor :redis
@@ -31,9 +33,9 @@ RSpec.describe Plines, :redis do
         extend Plines::Step
         depended_on_by_all_steps
 
-        qless_options do |q|
-          q.queue = :groceries
-          q.priority = -10
+        qless_options do |opt|
+          opt.queue = GROCERIES_QUEUE_NAME_FOR.("Smith")
+          opt.priority = -10
         end
 
         def perform
@@ -125,8 +127,8 @@ RSpec.describe Plines, :redis do
     client.queues[Plines::Pipeline::DEFAULT_QUEUE]
   end
 
-  def grocieries_queue(client = qless)
-    client.queues[:groceries]
+  def groceries_queue_for(family, client = qless)
+    client.queues[GROCERIES_QUEUE_NAME_FOR.(family)]
   end
 
   def job_reserver(client = qless)
@@ -233,8 +235,9 @@ RSpec.describe Plines, :redis do
   shared_examples_for 'plines acceptance tests' do
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
       Timecop.freeze(start_time) { enqueue_jobs }
-      expect(grocieries_queue.peek.tags).to eq(["Smith"])
-      job = grocieries_queue.peek
+      groceries_queue = groceries_queue_for("Smith")
+      expect(groceries_queue.peek.tags).to eq(["Smith"])
+      job = groceries_queue.peek
       expect(job.klass.to_s).to eq("MakeThanksgivingDinner::BuyGroceries")
       expect(job.priority).to eq(-10)
       Timecop.freeze(end_time) { process_work }
@@ -277,7 +280,7 @@ RSpec.describe Plines, :redis do
         end
       end
 
-      expect(grocieries_queue.length).to eq(1)
+      expect(groceries_queue_for("Smith").length).to eq(1)
       expect(smith_batch).not_to be_cancelled
       process_work
 
@@ -319,7 +322,7 @@ RSpec.describe Plines, :redis do
         end
       end
 
-      expect(grocieries_queue.length).to eq(1)
+      expect(groceries_queue_for("Smith").length).to eq(1)
       expect(smith_batch).not_to be_cancelled
       process_work
 
@@ -344,7 +347,7 @@ RSpec.describe Plines, :redis do
         end
       end
 
-      expect(grocieries_queue.length).to eq(1)
+      expect(groceries_queue_for("Smith").length).to eq(1)
       expect(smith_batch).not_to be_cancelled
       process_work
 
@@ -378,7 +381,7 @@ RSpec.describe Plines, :redis do
         end
       end
 
-      expect(grocieries_queue.length).to eq(1)
+      expect(groceries_queue_for("Smith").length).to eq(1)
       expect(smith_batch).not_to be_cancelled
       process_work
 
