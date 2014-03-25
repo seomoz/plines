@@ -641,7 +641,7 @@ describe Plines, :redis do
       end
     end
 
-    before(:all) do
+    before(:each) do
       pending "This platform does not support forking"
     end unless Process.respond_to?(:fork)
   end
