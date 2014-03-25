@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines'
 require 'qless/worker'
 require 'timecop'
@@ -6,7 +5,13 @@ require 'redis/list'
 require 'qless/test_helpers/worker_helpers'
 require 'qless/job_reservers/ordered'
 
-describe Plines, :redis do
+RSpec.configure do |config|
+  config.mock_with :rspec do |mock|
+    mock.verify_doubled_constant_names = true
+  end
+end
+
+RSpec.describe Plines, :redis do
   include Qless::WorkerHelpers
 
   module RedisReconnectMiddleware
@@ -143,7 +148,7 @@ describe Plines, :redis do
       actual.jobs.failed.size == 0
     end
 
-    failure_message_for_should do |actual|
+    failure_message do |actual|
       "expected no failures but got " + failure_details_for(actual)
     end
 
@@ -191,7 +196,7 @@ describe Plines, :redis do
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
 
     batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: family)
-    expect(batch).to have_at_least(10).job_jids
+    expect(batch.job_jids.size).to be >= 10
     expect(batch).not_to be_complete
 
     unless @already_enqueued_a_batch
@@ -232,7 +237,7 @@ describe Plines, :redis do
       Timecop.freeze(end_time) { process_work }
 
       steps = MakeThanksgivingDinner.performed_steps.values
-      expect(steps).to have(10).entries
+      expect(steps.entries.size).to eq(10)
 
       expect(steps.first).to eq("buy_groceries") # must always be first
       expect(steps.last).to eq("set_table") # must always be last
@@ -274,7 +279,7 @@ describe Plines, :redis do
       process_work
 
       steps = MakeThanksgivingDinner.performed_steps
-      expect(steps).to have_at_most(7).entries
+      expect(steps.entries.size).to be <= 7
 
       expect(default_queue.length).to eq(0)
       plines_keys = MakeThanksgivingDinner.redis.keys('plines:*').reject do |key|
@@ -316,7 +321,7 @@ describe Plines, :redis do
       process_work
 
       steps = MakeThanksgivingDinner.performed_steps
-      expect(steps).to have_at_most(7).entries
+      expect(steps.entries.size).to be <= 7
 
       expect(default_queue.length).to eq(0)
       expect(smith_batch).to be_cancelled
@@ -341,7 +346,7 @@ describe Plines, :redis do
       process_work
 
       steps = MakeThanksgivingDinner.performed_steps
-      expect(steps).to have(10).entries
+      expect(steps.entries.size).to eq(10)
 
       expect(smith_batch).to be_complete
       expect {
@@ -375,7 +380,7 @@ describe Plines, :redis do
       process_work
 
       steps = MakeThanksgivingDinner.performed_steps
-      expect(steps).to have_at_most(7).entries
+      expect(steps.entries.size).to be <= 7
 
       expect(default_queue.length).to eq(0)
       expect(smith_batch).to be_cancelled
@@ -409,7 +414,7 @@ describe Plines, :redis do
       steps = MakeThanksgivingDinner.performed_steps.values
       expect(steps).not_to include("pickup_small_turkey")
       expect(steps).not_to include("pickup_big_turkey")
-      expect(steps).to have(5).entries
+      expect(steps.entries.size).to eq(5)
 
       smith_batch.resolve_external_dependency "await_big_turkey_ready_call"
       process_work
@@ -421,7 +426,7 @@ describe Plines, :redis do
       process_work
 
       steps = MakeThanksgivingDinner.performed_steps.values
-      expect(steps).to have(11).entries
+      expect(steps.entries.size).to eq(11)
       expect(steps).to include("pickup_small_turkey")
 
       should_expire_keys
@@ -466,7 +471,7 @@ describe Plines, :redis do
       Timecop.freeze(Time.now)
       enqueue_jobs
       smith_batch.resolve_external_dependency "await_turkey_ready_call"
-      Plines::ExternalDependencyTimeout.stub(:perform) do
+      allow(Plines::ExternalDependencyTimeout).to receive(:perform) do
         raise "No timeout jobs should run"
       end
 

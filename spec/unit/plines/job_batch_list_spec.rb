@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/job_batch'
 require 'plines/job_batch_list'
@@ -6,7 +5,7 @@ require 'plines/enqueued_job'
 require 'plines/configuration'
 
 module Plines
-  describe JobBatchList, :redis do
+  RSpec.describe JobBatchList, :redis do
     let(:foo) { JobBatchList.new(pipeline_module, "foo") }
     let(:bar) { JobBatchList.new(pipeline_module, "bar") }
 
@@ -77,7 +76,7 @@ module Plines
     it 'can enumerate all existing job batch ids without the cost of loading them' do
       foo.create_new_batch({})
       foo.create_new_batch({})
-      JobBatch.should_not_receive(:find)
+      expect(JobBatch).not_to receive(:find)
 
       expect(foo.each_id.to_a).to eq(%w[ foo:1 foo:2 ])
     end

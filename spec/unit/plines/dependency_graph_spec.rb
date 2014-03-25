@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/job'
 require 'plines/dependency_graph'
 require 'plines/pipeline'
@@ -6,7 +5,7 @@ require 'plines/step'
 require 'plines/configuration'
 
 module Plines
-  describe DependencyGraph do
+  RSpec.describe DependencyGraph do
     describe ".new" do
       let(:graph) { DependencyGraph.new(P, a: 10) }
 
@@ -211,7 +210,7 @@ module Plines
         end
 
         it 'prints a warning when inferring the transitive dependencies' do
-          logger.should_receive(:warn).with(/transitive dependency/i)
+          expect(logger).to receive(:warn).with(/transitive dependency/i)
           graph.steps
         end
       end

@@ -1,10 +1,9 @@
-require 'spec_helper'
 require 'plines/job'
 require 'plines/pipeline'
 require 'plines/step'
 
 module Plines
-  describe Job do
+  RSpec.describe Job do
     step_class(:StepA)
     step_class(:StepB)
     step_class(:StepC)

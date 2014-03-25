@@ -1,8 +1,7 @@
-require 'spec_helper'
 require 'plines'
 
 module Plines
-  describe Step, :redis do
+  RSpec.describe Step, :redis do
     include_context "integration helpers"
 
     context "when performing the job" do

@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/step'
 require 'plines/job_enqueuer'
@@ -10,7 +9,7 @@ require 'plines/job_batch'
 require 'plines/external_dependency_timeout'
 
 module Plines
-  describe JobEnqueuer, :redis do
+  RSpec.describe JobEnqueuer, :redis do
     let(:batch_data) { { "a" => "foo", "b" => 2 } }
     let(:graph) { DependencyGraph.new(P, batch_data) }
 
@@ -78,7 +77,7 @@ module Plines
             { tags: [job.data.fetch("a")] }
           end
 
-          enqueuer.should_receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
+          expect(enqueuer).to receive(:enqueue_job_for).exactly(3).times do |job, jid, dependency_jids|
             expect(jb.job_jids).to include(jid, *dependency_jids)
           end
 
@@ -97,7 +96,7 @@ module Plines
       end
 
       def stub_now
-        Time.now.tap { |now| Time.stub(:now) { now } }
+        Time.now.tap { |now| allow(Time).to receive(:now) { now } }
       end
 
       it 'enqueues a timeout job with wait_up_to delay' do
@@ -113,10 +112,10 @@ module Plines
         expect(job.state).to eq("scheduled")
         expect(default_queue.peek).to be_nil
 
-        Time.stub(:now) { now + 2990 }
+        allow(Time).to receive(:now) { now + 2990 }
         expect(default_queue.peek).to be_nil
 
-        Time.stub(:now) { now + 3001 }
+        allow(Time).to receive(:now) { now + 3001 }
         job = default_queue.peek
         expect(job.state).to eq("waiting")
         expect(job.jid).to eq(jid)
@@ -129,10 +128,10 @@ module Plines
         step_class(:D) { has_external_dependencies 'bar', wait_up_to: 3000 }
         enqueue_the_jobs(2000)
 
-        Time.stub(:now) { now + 999 }
+        allow(Time).to receive(:now) { now + 999 }
         expect(default_queue.peek).to be_nil
 
-        Time.stub(:now) { now + 1001 }
+        allow(Time).to receive(:now) { now + 1001 }
         expect(default_queue.peek).to be_a(Qless::Job)
       end
 
@@ -162,7 +161,7 @@ module Plines
         expect(expected_nil).to be_nil
         job = job_for(jid)
         jids = job.data.fetch("jids")
-        expect(jids).to have(2).entries
+        expect(jids.entries.size).to eq(2)
         expect(jids.map { |j| job_for(j).klass.to_s }).to match_array %w[ P::C P::D ]
       end
 
@@ -172,10 +171,10 @@ module Plines
         enqueue_the_jobs
 
         scheduled_jobs = scheduled_job_jids.map { |jid| job_for(jid) }
-        expect(scheduled_jobs).to have(2).jobs
+        expect(scheduled_jobs.size).to eq(2)
         step_jobs = scheduled_jobs.map do |j|
           jids = j.data.fetch("jids")
-          expect(jids).to have(1).jid
+          expect(jids.size).to eq(1)
           job_for(jids.first)
         end
 
@@ -189,8 +188,8 @@ module Plines
         step_class(:F) { has_external_dependencies "foo", wait_up_to: 3000 }
 
         job_batch = enqueue_the_jobs
-        expect(job_batch.timeout_job_jid_sets["bar"]).to have(2).jids
-        expect(job_batch.timeout_job_jid_sets["foo"]).to have(1).jids
+        expect(job_batch.timeout_job_jid_sets["bar"].size).to eq(2)
+        expect(job_batch.timeout_job_jid_sets["foo"].size).to eq(1)
       end
     end
   end

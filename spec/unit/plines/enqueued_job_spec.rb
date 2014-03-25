@@ -1,10 +1,10 @@
-require 'spec_helper'
 require 'plines/enqueued_job'
 require 'plines/pipeline'
 require 'plines/configuration'
+require 'plines/step'
 
 module Plines
-  describe EnqueuedJob, :redis do
+  RSpec.describe EnqueuedJob, :redis do
     it 'is uniquely identified by the jid' do
       j1 = EnqueuedJob.new(qless, pipeline_module, "a")
       j2 = EnqueuedJob.new(qless, pipeline_module, "b")
@@ -82,18 +82,18 @@ module Plines
         job.timeout_external_dependency("bar")
 
         keys = job.declared_redis_object_keys
-        expect(keys).to have(3).entries
-        expect(keys.grep(/pending/)).to have(1).entry
-        expect(keys.grep(/resolved/)).to have(1).entry
-        expect(keys.grep(/timed_out/)).to have(1).entry
+        expect(keys.entries.size).to eq(3)
+        expect(keys.grep(/pending/).size).to eq(1)
+        expect(keys.grep(/resolved/).size).to eq(1)
+        expect(keys.grep(/timed_out/).size).to eq(1)
 
         expect(job.redis.keys).to include(*keys)
       end
     end
 
     def put_qless_job
-      stub_const("P::A", Class.new)
-      P::A.stub(processing_queue: "processing")
+      step_class("A")
+      allow(P::A).to receive_messages(processing_queue: "processing")
       qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].put(P::A, {})
     end
 
@@ -128,7 +128,7 @@ module Plines
           EnqueuedJob.create(qless, pipeline_module, jid)
           ej = EnqueuedJob.new(qless, pipeline_module, jid)
           expect { ej.send(meth, "bazz") { yielded = true } }.to raise_error(ArgumentError)
-          expect(yielded).to be_false
+          expect(yielded).to be false
         end
       end
     end

@@ -1,8 +1,4 @@
 require_relative '../config/setup_load_paths'
-if RUBY_ENGINE == 'ruby' && !ENV['TRAVIS']
-  require 'debugger'
-end
-require 'rspec/fire'
 
 RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
   match do |_|
@@ -47,17 +43,30 @@ module PlinesSpecHelpers
 end
 
 RSpec.configure do |config|
-  config.treat_symbols_as_metadata_keys_with_true_values = true
+  config.expose_dsl_globally = false
+  config.filter_run :focus
   config.run_all_when_everything_filtered = true
-  config.filter_run :f
-  config.alias_example_to :fit, :f
-  config.include RSpec::Fire
-  config.include PlinesSpecHelpers
-  config.extend PlinesSpecHelpers::ClassMethods
+
+  if config.files_to_run.one?
+    config.full_backtrace = true
+    config.formatter = 'doc' if config.formatters.none?
+  end
+
+  config.profile_examples = 10
+  config.order = :random
+  Kernel.srand config.seed
 
   config.expect_with :rspec do |expectations|
     expectations.syntax = :expect
   end
+
+  config.mock_with :rspec do |mocks|
+    mocks.syntax = :expect
+    mocks.verify_partial_doubles = true
+  end
+
+  config.include PlinesSpecHelpers
+  config.extend PlinesSpecHelpers::ClassMethods
 end
 
 redis_url = if File.exist?('./config/redis_connection_url.txt')
@@ -67,7 +76,7 @@ else
 end
 
 redis = nil
-shared_context "redis", :redis do
+RSpec.shared_context "redis", :redis do
   before(:all) do
     redis ||= ::Redis.new(url: redis_url)
   end
@@ -90,7 +99,7 @@ shared_context "redis", :redis do
   end
 end
 
-shared_context "integration helpers" do
+RSpec.shared_context "integration helpers" do
   def create_pipeline_with_step(&block)
     step_class(:A) do
       class_eval(&block) if block
@@ -119,7 +128,7 @@ RSpec::Matchers.define :move_job do |jid|
     qless.jobs[jid].queue_name.to_s
   end
 
-  match_for_should do |actual|
+  match do |actual|
     before_queue = current_queue
     actual.call
     after_queue = current_queue
@@ -132,7 +141,7 @@ RSpec::Matchers.define :move_job do |jid|
     end
   end
 
-  match_for_should_not do |actual|
+  match_when_negated do |actual|
     before_queue = current_queue
     actual.call
     after_queue = current_queue
@@ -140,11 +149,11 @@ RSpec::Matchers.define :move_job do |jid|
     after_queue == before_queue
   end
 
-  failure_message_for_should do
+  failure_message do
     "expected block to #{description}"
   end
 
-  failure_message_for_should_not do
+  failure_message_when_negated do
     "expected block not to #{description}"
   end
 

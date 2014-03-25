@@ -1,11 +1,10 @@
-require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/configuration'
 
 require 'plines/redis_objects'
 
 module Plines
-  describe RedisObjectsHelpers, :redis do
+  RSpec.describe RedisObjectsHelpers, :redis do
     class DefaultKeyPrefix < Struct.new(:pipeline, :id)
       include Plines::RedisObjectsHelpers
       value :a_value
@@ -32,14 +31,14 @@ module Plines
       expect(lock_options[:timeout]).to be(60)
 
       list_opions = obj.a_list.options
-      expect(list_opions[:marshal]).to be_true
+      expect(list_opions[:marshal]).to be true
     end
 
     it 'contains the pipeline name, class name, and id in the key prefix' do
       DefaultKeyPrefix.new(redis, pipeline_module, '1234')
 
       redis_keys = redis.keys
-      expect(redis_keys).to have(1).thing
+      expect(redis_keys.size).to eq(1)
 
       key_prefix_parts = redis_keys.first.split(':')
       expect(key_prefix_parts).to include('P', 'DefaultKeyPrefix', '1234')
@@ -49,7 +48,7 @@ module Plines
       DefaultKeyPrefix.new(redis, pipeline_module, '1234')
 
       redis_keys = redis.keys
-      expect(redis_keys).to have(1).thing
+      expect(redis_keys.size).to eq(1)
 
       key_prefix = redis_keys.first.split(':').first
       expect(key_prefix).to eq('plines')
@@ -59,7 +58,7 @@ module Plines
       OverrideKeyPrefix.new(redis, pipeline_module, '1234')
 
       redis_keys = redis.keys
-      expect(redis_keys).to have(1).thing
+      expect(redis_keys.size).to eq(1)
 
       key_prefix = redis_keys.first.split(':').first
       expect(key_prefix).to eq('override')
@@ -70,7 +69,7 @@ module Plines
       OverrideKeyPrefix.new(redis, pipeline_module, '1234')
 
       redis_keys = redis.keys
-      expect(redis_keys).to have(2).things
+      expect(redis_keys.size).to eq(2)
 
       key_prefixes = redis_keys.map {|key| key.split(':').first}
       expect(key_prefixes).to include('plines', 'override')

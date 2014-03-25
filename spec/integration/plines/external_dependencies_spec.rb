@@ -1,8 +1,7 @@
-require 'spec_helper'
 require 'plines'
 
 module Plines
-  describe "Resolving an external dependency", :redis do
+  RSpec.describe "Resolving an external dependency", :redis do
     include_context "integration helpers"
 
     context 'when doing so fails to move a job to its new queue' do
