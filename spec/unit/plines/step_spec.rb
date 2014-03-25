@@ -526,7 +526,7 @@ module Plines
         before do
           job_batch.pending_job_jids << qless_job.jid
           allow_any_instance_of(JobBatch).to receive(:set_expiration!)
-          Plines::EnqueuedJob.stub(new: enqueued_job)
+          allow(Plines::EnqueuedJob).to receive_messages(new: enqueued_job)
         end
 
         context "when the job batch is still being created" do
@@ -578,7 +578,7 @@ module Plines
         end
 
         it "makes the unresolved external dependencies available in the perform instance method" do
-          enqueued_job.stub(unresolved_external_dependencies: ["foo", "bar"])
+          allow(enqueued_job).to receive_messages(unresolved_external_dependencies: ["foo", "bar"])
 
           unresolved_ext_deps = []
           step_class(:A) do

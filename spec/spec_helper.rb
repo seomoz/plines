@@ -121,7 +121,7 @@ RSpec::Matchers.define :move_job do |jid|
     qless.jobs[jid].queue_name.to_s
   end
 
-  match_for_should do |actual|
+  match do |actual|
     before_queue = current_queue
     actual.call
     after_queue = current_queue
@@ -134,7 +134,7 @@ RSpec::Matchers.define :move_job do |jid|
     end
   end
 
-  match_for_should_not do |actual|
+  match_when_negated do |actual|
     before_queue = current_queue
     actual.call
     after_queue = current_queue
@@ -142,11 +142,11 @@ RSpec::Matchers.define :move_job do |jid|
     after_queue == before_queue
   end
 
-  failure_message_for_should do
+  failure_message do
     "expected block to #{description}"
   end
 
-  failure_message_for_should_not do
+  failure_message_when_negated do
     "expected block not to #{description}"
   end
 

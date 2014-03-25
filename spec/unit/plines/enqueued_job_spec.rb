@@ -93,7 +93,7 @@ module Plines
 
     def put_qless_job
       stub_const("P::A", Class.new)
-      P::A.stub(processing_queue: "processing")
+      allow(P::A).to receive_messages(processing_queue: "processing")
       qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].put(P::A, {})
     end
 

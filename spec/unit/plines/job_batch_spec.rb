@@ -64,7 +64,7 @@ module Plines
       end
 
       it 'sets the metadata atomically to ensure a partial batch does not get created' do
-        qless.stub(redis: RedisLogger.new(redis))
+        allow(qless).to receive_messages(redis: RedisLogger.new(redis))
         JobBatch.create(qless, pipeline_module, "a", { a: 5 }) { }
 
         # hmset allows atomic setting of multiple keys in bulk.
@@ -368,7 +368,7 @@ module Plines
           jb.add_job("a")
         end
 
-        qless.stub(jobs: { "a" => :the_job })
+        allow(qless).to receive_messages(jobs: { "a" => :the_job })
         expect(batch.qless_jobs).to eq([:the_job])
       end
 
@@ -378,7 +378,7 @@ module Plines
           jb.add_job("b")
         end
 
-        qless.stub(jobs: { "a" => nil, "b" => :the_job })
+        allow(qless).to receive_messages(jobs: { "a" => nil, "b" => :the_job })
         expect(batch.qless_jobs).to eq([:the_job])
       end
     end
@@ -523,7 +523,7 @@ module Plines
       end
 
       before do
-        qless.stub(jobs: { "a" => "job a", "b" => "job b", "c" => "job c" })
+        allow(qless).to receive_messages(jobs: { "a" => "job a", "b" => "job b", "c" => "job c" })
       end
 
       it "returns qless job instances" do

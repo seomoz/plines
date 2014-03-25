@@ -12,7 +12,7 @@ module Plines
 
     it 'times out the named dependency for the given jobs on the given job batch' do
       data = ExternalDependencyTimeout.job_data_for(job_batch, "foo", ["a", "b"])
-      job.stub(data: data)
+      allow(job).to receive_messages(data: data)
 
       allow(Plines::JobBatch).to receive(:find).with(qless_client, job_batch.pipeline, job_batch.id) { job_batch }
       expect(job_batch).to respond_to(:timeout_external_dependency).with(2).arguments

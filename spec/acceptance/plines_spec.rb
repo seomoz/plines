@@ -143,7 +143,7 @@ describe Plines, :redis do
       actual.jobs.failed.size == 0
     end
 
-    failure_message_for_should do |actual|
+    failure_message do |actual|
       "expected no failures but got " + failure_details_for(actual)
     end
 
