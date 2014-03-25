@@ -328,6 +328,9 @@ module Plines
     def set_expiration!
       lua.expire_job_batch(self)
     end
+    # Necessary until this rspec-mocks bug is fixed:
+    # https://github.com/rspec/rspec-mocks/issues/640
+    public :set_expiration!
 
     def external_dependency_sets
       @external_dependency_sets ||= Hash.new do |hash, dep|

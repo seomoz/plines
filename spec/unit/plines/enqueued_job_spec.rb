@@ -2,6 +2,7 @@ require 'spec_helper'
 require 'plines/enqueued_job'
 require 'plines/pipeline'
 require 'plines/configuration'
+require 'plines/step'
 
 module Plines
   describe EnqueuedJob, :redis do
@@ -92,7 +93,7 @@ module Plines
     end
 
     def put_qless_job
-      stub_const("P::A", Class.new)
+      step_class("A")
       allow(P::A).to receive_messages(processing_queue: "processing")
       qless.queues[Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE].put(P::A, {})
     end
