@@ -33,8 +33,8 @@ RSpec.describe Plines, :redis do
         extend Plines::Step
         depended_on_by_all_steps
 
-        qless_options do |opt|
-          opt.queue = GROCERIES_QUEUE_NAME_FOR.("Smith")
+        qless_options do |opt, data|
+          opt.queue = GROCERIES_QUEUE_NAME_FOR.(data.fetch :family)
           opt.priority = -10
         end
 

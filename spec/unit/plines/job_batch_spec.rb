@@ -578,7 +578,7 @@ module Plines
         end
 
         expect { update_dependency(batch, "foo") }.not_to move_job(jid)
-        expect { update_dependency(batch, "bar") }.to move_job(jid).to_queue(P::Klass.processing_queue)
+        expect { update_dependency(batch, "bar") }.to move_job(jid).to_queue(P::Klass.processing_queue_for({}))
       end
     end
 

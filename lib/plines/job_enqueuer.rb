@@ -72,7 +72,7 @@ module Plines
         job_data = ExternalDependencyTimeout.job_data_for \
           @job_batch, tk.dep_name, job_ids
 
-        jid = qless.queues[jobs.first.klass.processing_queue].put \
+        jid = qless.queues[jobs.first.processing_queue].put \
           ExternalDependencyTimeout, job_data,
           delay: tk.timeout, priority: TIMEOUT_JOB_PRIORITY
 

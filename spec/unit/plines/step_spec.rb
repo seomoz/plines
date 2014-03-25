@@ -196,7 +196,7 @@ module Plines
       expect(deps.map(&:options)).to eq([wait_up_to: 30] * 2)
     end
 
-    describe "#processing_queue", :redis do
+    describe "#processing_queue_for", :redis do
       it 'returns the configured queue name' do
         step_class(:A) do
           qless_options do |qless|
@@ -204,7 +204,27 @@ module Plines
           end
         end
 
-        expect(P::A.processing_queue).to eq("special")
+        expect(P::A.processing_queue_for({})).to eq("special")
+      end
+
+      it 'passes through the provided data to the qless_options block so that a dynamic queue name can be used' do
+        step_class(:A) do
+          qless_options do |qless, data|
+            qless.queue = "queue_for_#{data["type"]}"
+          end
+        end
+
+        expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
+      end
+
+      it 'uses an indifferent hash for the yielded data so it can be treated consistently as having symbolic keys' do
+        step_class(:A) do
+          qless_options do |qless, data|
+            qless.queue = "queue_for_#{data[:type]}"
+          end
+        end
+
+        expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
       end
     end
 
