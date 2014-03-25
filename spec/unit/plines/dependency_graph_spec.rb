@@ -211,7 +211,7 @@ module Plines
         end
 
         it 'prints a warning when inferring the transitive dependencies' do
-          logger.should_receive(:warn).with(/transitive dependency/i)
+          expect(logger).to receive(:warn).with(/transitive dependency/i)
           graph.steps
         end
       end

@@ -81,15 +81,15 @@ module Plines
         MyPipeline.configuration.qless_job_options { |job| qless_job_block_called = true; {} }
         enqueuer = instance_double("Plines::JobEnqueuer")
 
-        Plines::JobEnqueuer.should_receive(:new) do |graph, job_batch, &block|
+        expect(Plines::JobEnqueuer).to receive(:new) do |graph, job_batch, &block|
           expect(graph).to be_a(Plines::DependencyGraph)
           expect(job_batch.id).to include("foo")
           block.call(double)
-          expect(qless_job_block_called).to be_true
+          expect(qless_job_block_called).to be true
           enqueuer
         end
 
-        enqueuer.should_receive(:enqueue_jobs)
+        expect(enqueuer).to receive(:enqueue_jobs)
         MyPipeline.enqueue_jobs_for("a" => "foo")
       end
 
@@ -104,7 +104,7 @@ module Plines
         data = { "a" => 3 }
         graph = DependencyGraph.new(MyPipeline, IndifferentHash.from(data))
 
-        DependencyGraph.should_receive(:new) do |pipeline, data|
+        expect(DependencyGraph).to receive(:new) do |pipeline, data|
           expect(data).to be_an(IndifferentHash)
           graph
         end

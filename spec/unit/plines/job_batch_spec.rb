@@ -39,10 +39,10 @@ module Plines
           value_in_block = batch.creation_in_progress?
         end
 
-        expect(value_in_block).to be_true
+        expect(value_in_block).to be true
 
         batch = JobBatch.find(qless, pipeline_module, "a")
-        expect(batch.creation_in_progress?).to be_false
+        expect(batch.creation_in_progress?).to be false
       end
 
       class RedisLogger < BasicObject
@@ -213,7 +213,7 @@ module Plines
       it 'does not require a redis call for a newly created job batch' do
         created = JobBatch.create(qless, pipeline_module, "a", {},
                                   timeout_reduction: 3)
-        created.should_not_receive(:meta) # meta is how it interfaces to redis for this data
+        expect(created).not_to receive(:meta) # meta is how it interfaces to redis for this data
 
         expect(created.timeout_reduction).to eq(3)
       end
@@ -224,14 +224,14 @@ module Plines
                                     { "num" => 2, 'b' => 1 }) }
 
       it 'enqueues a new job batch with the same data as this batch' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with({ "num" => 2, 'b' => 1 }, anything)
 
         batch.spawn_copy
       end
 
       it 'merges the provided data with the batch data' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with({ "num" => 3, 'b' => 1, 'foo' => 4 }, anything)
 
         batch.spawn_copy do |options|
@@ -240,7 +240,7 @@ module Plines
       end
 
       it 'merges properly when the overrides hash uses symbols' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with({ "num" => 3, 'b' => 1, 'foo' => 4 }, anything)
 
         batch.spawn_copy do |options|
@@ -249,7 +249,7 @@ module Plines
       end
 
       it 'passes along the configured timeout reduction' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with(anything, hash_including(timeout_reduction: 23))
 
         batch.spawn_copy do |options|
@@ -258,21 +258,21 @@ module Plines
       end
 
       it 'passes along a default timeout reduction of 0 when none is set' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with(anything, hash_including(timeout_reduction: 0))
 
         batch.spawn_copy
       end
 
       it 'passes its id through as the spawned_from_id' do
-        pipeline_module.should_receive(:enqueue_jobs_for)
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with(anything, hash_including(spawned_from_id: batch.id))
 
         batch.spawn_copy
       end
 
       it 'returns the new job batch' do
-        pipeline_module.stub(:enqueue_jobs_for) { :the_new_batch }
+        allow(pipeline_module).to receive(:enqueue_jobs_for) { :the_new_batch }
         expect(batch.spawn_copy).to eq(:the_new_batch)
       end
     end
@@ -601,12 +601,12 @@ module Plines
           jidb_job = jb.add_job("jidb")
         end
 
-        EnqueuedJob.stub(:new).with(qless, pipeline_module, "jida") { jida_job }
-        EnqueuedJob.stub(:new).with(qless, pipeline_module, "jidb") { jidb_job }
+        allow(EnqueuedJob).to receive(:new).with(qless, pipeline_module, "jida") { jida_job }
+        allow(EnqueuedJob).to receive(:new).with(qless, pipeline_module, "jidb") { jidb_job }
 
         expect(jidb_job).to respond_to(:resolve_external_dependency)
-        jidb_job.should_not_receive(:resolve_external_dependency)
-        jida_job.should_receive(:resolve_external_dependency)
+        expect(jidb_job).not_to receive(:resolve_external_dependency)
+        expect(jida_job).to receive(:resolve_external_dependency)
 
         batch.resolve_external_dependency("foo")
       end
@@ -690,7 +690,7 @@ module Plines
 
         batch.timeout_external_dependency("foo", "jida")
         expect(qless.jobs[timeout_jid]).to be_a(Qless::Job)
-        expect(batch.timeout_job_jid_sets["foo"]).to have(1).jid
+        expect(batch.timeout_job_jid_sets["foo"].size).to eq(1)
       end
     end
 
@@ -731,16 +731,16 @@ module Plines
 
       it 'returns true for a cancelled job batch' do
         batch.cancel
-        expect(batch.in_terminal_state?).to be_true
+        expect(batch.in_terminal_state?).to be true
       end
 
       it 'returns true for a complete job batch' do
         batch.meta['completed_at'] = Time.now.getutc.iso8601
-        expect(batch.in_terminal_state?).to be_true
+        expect(batch.in_terminal_state?).to be true
       end
 
       it 'returns false for a job batch that is incomplete and not cancelled' do
-        expect(batch.in_terminal_state?).to be_false
+        expect(batch.in_terminal_state?).to be false
       end
     end
 
@@ -818,7 +818,7 @@ module Plines
 
         context 'if qless silently fails to cancel some jobs' do
           it 'raises an error to indicate the cancellation failure' do
-            qless.stub(:bulk_cancel) # to make it silent no-op
+            allow(qless).to receive(:bulk_cancel) # to make it silent no-op
             expect {
               cancel
             }.to raise_error(JobBatch::SomeJobsFailedToCancelError)
@@ -837,7 +837,7 @@ module Plines
         end
 
         it 'returns a truthy value' do
-          expect(cancel).to be_true
+          expect(cancel).to be true
         end
 
         it 'expires the redis keys for the batch data' do
@@ -858,7 +858,7 @@ module Plines
         end
 
         it 'returns true when it succeeds' do
-          expect(cancel).to be_true
+          expect(cancel).to be true
         end
 
         it 'is a no-op when it has already been cancelled' do
@@ -867,8 +867,8 @@ module Plines
             notified_count += 1
           end
 
-          expect { expect(cancel).to be_true }.to change { notified_count }.by(1)
-          expect { expect(cancel).to be_true }.not_to change { notified_count }
+          expect { expect(cancel).to be true }.to change { notified_count }.by(1)
+          expect { expect(cancel).to be true }.not_to change { notified_count }
         end
 
         it 'raises an error if the create is currently in progress' do
@@ -919,7 +919,7 @@ module Plines
 
           it 'returns false and does not cancel when the jobs is already complete' do
             complete_batch
-            expect(batch.cancel).to be_false
+            expect(batch.cancel).to be false
             expect(batch).to be_complete
             expect(batch).not_to be_cancelled
           end

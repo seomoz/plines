@@ -82,10 +82,10 @@ module Plines
         job.timeout_external_dependency("bar")
 
         keys = job.declared_redis_object_keys
-        expect(keys).to have(3).entries
-        expect(keys.grep(/pending/)).to have(1).entry
-        expect(keys.grep(/resolved/)).to have(1).entry
-        expect(keys.grep(/timed_out/)).to have(1).entry
+        expect(keys.entries.size).to eq(3)
+        expect(keys.grep(/pending/).size).to eq(1)
+        expect(keys.grep(/resolved/).size).to eq(1)
+        expect(keys.grep(/timed_out/).size).to eq(1)
 
         expect(job.redis.keys).to include(*keys)
       end
@@ -128,7 +128,7 @@ module Plines
           EnqueuedJob.create(qless, pipeline_module, jid)
           ej = EnqueuedJob.new(qless, pipeline_module, jid)
           expect { ej.send(meth, "bazz") { yielded = true } }.to raise_error(ArgumentError)
-          expect(yielded).to be_false
+          expect(yielded).to be false
         end
       end
     end

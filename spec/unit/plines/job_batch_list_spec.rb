@@ -77,7 +77,7 @@ module Plines
     it 'can enumerate all existing job batch ids without the cost of loading them' do
       foo.create_new_batch({})
       foo.create_new_batch({})
-      JobBatch.should_not_receive(:find)
+      expect(JobBatch).not_to receive(:find)
 
       expect(foo.each_id.to_a).to eq(%w[ foo:1 foo:2 ])
     end

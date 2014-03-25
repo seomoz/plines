@@ -14,9 +14,9 @@ module Plines
       data = ExternalDependencyTimeout.job_data_for(job_batch, "foo", ["a", "b"])
       job.stub(data: data)
 
-      Plines::JobBatch.stub(:find).with(qless_client, job_batch.pipeline, job_batch.id) { job_batch }
+      allow(Plines::JobBatch).to receive(:find).with(qless_client, job_batch.pipeline, job_batch.id) { job_batch }
       expect(job_batch).to respond_to(:timeout_external_dependency).with(2).arguments
-      job_batch.should_receive(:timeout_external_dependency).with("foo", ["a", "b"])
+      expect(job_batch).to receive(:timeout_external_dependency).with("foo", ["a", "b"])
 
       ExternalDependencyTimeout.perform(job)
     end

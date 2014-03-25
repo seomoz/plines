@@ -162,12 +162,12 @@ module Plines
     describe "#has_external_dependencies_for?" do
       it "returns true for a step class that has external dependencies" do
         step_class(:StepA) { has_external_dependencies { |deps| deps.add "foo" } }
-        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be_true
+        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be true
       end
 
       it "returns false for a step class that lacks external dependencies" do
         step_class(:StepA)
-        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be_false
+        expect(P::StepA.has_external_dependencies_for?(any: 'data')).to be false
       end
 
       context 'for a step that has external dependencies for only some instances' do
@@ -178,11 +178,11 @@ module Plines
         end
 
         it 'returns true if the block adds a dependency for the job data' do
-          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: true)).to be_true
+          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: true)).to be true
         end
 
         it 'returns false if the block does not add a dependency for the job data' do
-          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: false)).to be_false
+          expect(P::StepA.has_external_dependencies_for?(depends_on_foo: false)).to be false
         end
       end
     end
@@ -525,14 +525,14 @@ module Plines
 
         before do
           job_batch.pending_job_jids << qless_job.jid
-          JobBatch.any_instance.stub(:set_expiration!)
+          allow_any_instance_of(JobBatch).to receive(:set_expiration!)
           Plines::EnqueuedJob.stub(new: enqueued_job)
         end
 
         context "when the job batch is still being created" do
           before do
             job_batch.meta[:creation_in_progress] = 1
-            expect(job_batch.creation_in_progress?).to be_true
+            expect(job_batch.creation_in_progress?).to be true
           end
 
           it "schedules the job to be tried again later" do
@@ -607,7 +607,7 @@ module Plines
         it "does not mark the job as complete in the job batch if the job was retried" do
           expect(job_batch.pending_job_jids).to include(qless_job.jid)
           expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
-          qless_job.should_receive(:retry).and_call_original
+          expect(qless_job).to receive(:retry).and_call_original
 
           step_class(:A) do
             def perform
