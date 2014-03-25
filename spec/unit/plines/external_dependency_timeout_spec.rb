@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/external_dependency_timeout'
 require 'plines/job_batch'
 require 'plines/pipeline'

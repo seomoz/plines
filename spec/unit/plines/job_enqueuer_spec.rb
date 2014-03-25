@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/pipeline'
 require 'plines/step'
 require 'plines/job_enqueuer'

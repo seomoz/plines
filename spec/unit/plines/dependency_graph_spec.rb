@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/job'
 require 'plines/dependency_graph'
 require 'plines/pipeline'

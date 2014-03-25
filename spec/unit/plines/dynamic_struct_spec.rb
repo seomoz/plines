@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/dynamic_struct'
 
 module Plines

@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/enqueued_job'
 require 'plines/pipeline'
 require 'plines/configuration'

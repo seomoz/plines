@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/configuration'
 require 'plines/step'
 require 'plines/pipeline'

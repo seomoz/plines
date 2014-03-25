@@ -1,4 +1,3 @@
-require 'spec_helper'
 require 'plines/indifferent_hash'
 require 'securerandom'
 
