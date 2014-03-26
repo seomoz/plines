@@ -6,7 +6,7 @@ module Plines
   Job = Struct.new(:klass, :data) do
     extend Forwardable
     attr_reader :dependencies, :dependents
-    def_delegators :klass, :qless_queue, :processing_queue
+    def_delegators :klass, :qless_queue
 
     def initialize(klass, data)
       super(klass, IndifferentHash.from(data))
@@ -18,6 +18,10 @@ module Plines
     def add_dependency(step)
       dependencies << step
       step.dependents << self
+    end
+
+    def processing_queue
+      @processing_queue ||= klass.processing_queue_for(data)
     end
 
     RemoveNonexistentDependencyError = Class.new(StandardError)

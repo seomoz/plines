@@ -165,21 +165,13 @@ module Plines
       @external_dependency_definitions ||= []
     end
 
-    def qless_options
-      @qless_options ||= QlessJobOptions.new
-      yield @qless_options if block_given?
-      @qless_options
+    def qless_options(&block)
+      @qless_options_block = block
     end
 
     def enqueue_qless_job(qless, data, options = {})
-      queue_name = if has_external_dependencies_for?(data)
-        Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE
-      elsif options[:queue] && processing_queue == :plines
-        options[:queue]
-      else
-        processing_queue
-      end
-
+      qless_options = configured_qless_options_for(data)
+      queue_name = initial_queue_for(qless_options.queue, data, options)
       queue = qless.queues[queue_name]
 
       options[:priority] = qless_options.priority if qless_options.priority
@@ -189,8 +181,8 @@ module Plines
       queue.put(self, data, options)
     end
 
-    def processing_queue
-      qless_options.queue
+    def processing_queue_for(data)
+      configured_qless_options_for(data).queue
     end
 
     def pipeline
@@ -210,6 +202,29 @@ module Plines
     end
 
   private
+
+    def configured_qless_options_for(data)
+      QlessJobOptions.new.tap do |options|
+        if @qless_options_block
+          @qless_options_block.call(options, IndifferentHash.from(data))
+        end
+      end
+    end
+
+    # Returns the queue that a job should initially be put into,
+    # which will usually (but not always) be the processing queue.
+    # If it has an external dependency, it's put into a waiting
+    # queue first, then later moved into the processing queue.
+    def initial_queue_for(processing_queue, data, options = {})
+      if has_external_dependencies_for?(data)
+        return Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE
+      end
+
+      options_queue = options[:queue]
+      return options_queue if options_queue && processing_queue == :plines
+
+      processing_queue
+    end
 
     module InstanceMethods
       extend Forwardable

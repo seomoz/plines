@@ -75,14 +75,29 @@ module Plines
       expect(hash.with_indifferent_access).to be(hash)
     end
 
-    it 'does not add to the symbol table', unless: (RUBY_PLATFORM == 'java') do
-      key = SecureRandom.hex
+    it 'does not add to the symbol table' do
+      key_1 = SecureRandom.hex
+      key_2 = SecureRandom.hex
 
-      expect {
-        hash = IndifferentHash.from(key => 23)
-        expect(hash[key]).to eq(23)
-        expect(hash[SecureRandom.hex]).to eq(nil)
-      }.not_to change { Symbol.all_symbols.count }
+      value_1 = nil
+      value_2 = nil
+
+      before_symbols = Symbol.all_symbols
+
+      # between calls to `Symbol.all_symbols` we want to ONLY use
+      # our IndifferentHash, to avoid the possibility that something
+      # else we don't control (such as RSpec) could be defining a new
+      # symbol.
+      hash = IndifferentHash.from(key_1 => 23)
+      value_1 = hash[key_1]
+      value_2 = hash[key_2]
+
+      after_symbols = Symbol.all_symbols
+
+      expect(value_1).to eq(23)
+      expect(value_2).to eq(nil)
+
+      expect(after_symbols - before_symbols).to eq([])
     end
 
     let(:nested) do
@@ -146,6 +161,11 @@ module Plines
 
       expect(h2.fetch :a).to eq(4)
       expect(h2.fetch 'a').to eq(4)
+    end
+
+    it 'short-circuits the creation process if given an indifferent hash' do
+      h1 = IndifferentHash.from('a' => 3)
+      expect(IndifferentHash.from(h1)).to be h1
     end
   end
 end

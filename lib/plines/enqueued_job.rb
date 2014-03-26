@@ -95,7 +95,7 @@ module Plines
           end
 
           if job && pending_deps == [name]
-            job.move(job.klass.processing_queue)
+            job.move(job.klass.processing_queue_for(job.data))
           end
         end
 
