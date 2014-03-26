@@ -171,7 +171,7 @@ module Plines
 
     def enqueue_qless_job(qless, data, options = {})
       qless_options = configured_qless_options_for(data)
-      queue_name = enqueuement_queue_for(qless_options.queue, data, options)
+      queue_name = initial_queue_for(qless_options.queue, data, options)
       queue = qless.queues[queue_name]
 
       options[:priority] = qless_options.priority if qless_options.priority
@@ -211,7 +211,11 @@ module Plines
       end
     end
 
-    def enqueuement_queue_for(processing_queue, data, options = {})
+    # Returns the queue that a job should initially be put into,
+    # which will usually (but not always) be the processing queue.
+    # If it has an external dependency, it's put into a waiting
+    # queue first, then later moved into the processing queue.
+    def initial_queue_for(processing_queue, data, options = {})
       if has_external_dependencies_for?(data)
         return Pipeline::AWAITING_EXTERNAL_DEPENDENCY_QUEUE
       end
