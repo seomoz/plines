@@ -147,6 +147,11 @@ module Plines
       expect(h2.fetch :a).to eq(4)
       expect(h2.fetch 'a').to eq(4)
     end
+
+    it 'short-circuits the creation process if given an indifferent hash' do
+      h1 = IndifferentHash.from('a' => 3)
+      expect(IndifferentHash.from(h1)).to be h1
+    end
   end
 end
 

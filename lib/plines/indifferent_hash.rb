@@ -14,7 +14,9 @@ module Plines
     private_class_method :new
 
     def self.from(original)
-      unless original.is_a?(Hash) || original.is_a?(IndifferentHash)
+      return original if original.is_a?(IndifferentHash)
+
+      unless original.is_a?(Hash)
         raise NotAHashError, "Expected a hash, got #{original.inspect}"
       end
 
