@@ -331,6 +331,7 @@ RSpec.describe Plines, :redis do
 
       expect(default_queue.length).to eq(0)
       expect(smith_batch).to be_cancelled
+      expect(smith_batch.cancelled_at).to be_within(2).of(Time.now)
 
       cancelled_job_batch = MakeThanksgivingDinner.redis.get('make_thanksgiving_dinner:midstream_cancelled_job_batch')
       expect(cancelled_job_batch).to eq(smith_batch.to_s)

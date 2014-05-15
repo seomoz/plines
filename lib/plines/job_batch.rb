@@ -170,8 +170,12 @@ module Plines
       time_from "completed_at"
     end
 
+    def cancelled_at
+      time_from "cancelled_at"
+    end
+
     def cancelled?
-      meta["cancelled"] == "1"
+      !!cancelled_at || (meta["cancelled"] == "1")
     end
 
     def creation_in_progress?
@@ -295,7 +299,7 @@ module Plines
         cancel_timeout_job_jid_set_for(key)
       end
 
-      meta["cancelled"] = "1"
+      meta["cancelled_at"] = Time.now.getutc.iso8601
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end

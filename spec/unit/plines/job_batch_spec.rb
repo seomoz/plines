@@ -807,6 +807,14 @@ module Plines
         end
       end
 
+      describe "a job batch that has only the old cancellation state" do
+        it 'still indicates it was cancelled' do
+          expect {
+            batch.meta["cancelled"] = '1'
+          }.to change { batch.cancelled? }.from(false).to(true)
+        end
+      end
+
       shared_examples_for "a cancellation method" do
         it 'cancels all qless jobs, including those that it thinks are complete' do
           batch.complete_job(qless_job_for jid_2)
@@ -868,6 +876,12 @@ module Plines
 
           expect { expect(cancel).to be true }.to change { notified_count }.by(1)
           expect { expect(cancel).to be true }.not_to change { notified_count }
+        end
+
+        it 'sets the `cancelled_at` timestamp' do
+          expect {
+            cancel
+          }.to change { batch.cancelled_at }.from(nil).to(a_value_within(1).of(Time.now))
         end
 
         it 'raises an error if the create is currently in progress' do
