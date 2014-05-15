@@ -24,7 +24,7 @@ module Plines
 
     describe ".create" do
       it 'raises an error if a job batch with the given id has already been created' do
-        batch = JobBatch.create(qless, pipeline_module, "a", {})
+        JobBatch.create(qless, pipeline_module, "a", {})
         expect {
           JobBatch.create(qless, pipeline_module, "a", {})
         }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
@@ -166,7 +166,7 @@ module Plines
 
     describe "#timed_out_external_dependencies" do
       let(:batch) do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
           b.add_job('1234', 'foo', 'bar')
           b.add_job('2345', 'bazz')
         end
@@ -188,8 +188,8 @@ module Plines
 
     describe "#timeout_reduction" do
       it 'persists between redis roundtrips' do
-        created = JobBatch.create(qless, pipeline_module, "a", {},
-                                  timeout_reduction: 12)
+        JobBatch.create(qless, pipeline_module, "a", {},
+                        timeout_reduction: 12)
         found = JobBatch.find(qless, pipeline_module, "a")
         expect(found.timeout_reduction).to eq(12)
       end
@@ -327,7 +327,7 @@ module Plines
 
       it 'returns the newly added job' do
         job = nil
-        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           job = jb.add_job "abc", "bar", "bazz"
         end
         expect(job).to be_an(EnqueuedJob)
