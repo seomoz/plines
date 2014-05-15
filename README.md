@@ -188,12 +188,6 @@ module MakeThanksgivingDinner
         { 'pie_type' => type, 'family' => batch_data['family'] }
       end
     end
-
-    # Makes each instance of this step depend on the prior one,
-    # to ensure no two instances run in parallel. This isn't usually
-    # needed, but is occasionally useful to prevent resource contention
-    # when these jobs operate on a common resource.
-    run_jobs_in_serial
   end
 
   class AddWhipCreamToPie

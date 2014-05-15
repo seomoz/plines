@@ -62,25 +62,6 @@ module Plines
       pipeline.terminal_step = self
     end
 
-    def run_jobs_in_serial
-      depends_on step_name do |data|
-        # TODO: classes that use `run_jobs_in_serial` incur a
-        # O(n^2) penalty here for since this callback is called
-        # for each fanned-out instance, and in turn gets all fanned-out
-        # instances and iterates over them.
-        #
-        # We should find a way to do the `my_data_hashes` calculation
-        # ONCE for a given batch data hash.
-        my_data_hashes = jobs_for(data.batch_data).map(&:data)
-
-        prior_data = my_data_hashes.each_cons(2) do |(prior, current)|
-          break prior if current == data.my_data
-        end
-
-        data.their_data == prior_data
-      end
-    end
-
     def fan_out(&block)
       @fan_out_blocks ||= []
       @fan_out_blocks << block

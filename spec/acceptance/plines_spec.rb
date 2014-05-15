@@ -624,15 +624,6 @@ RSpec.describe Plines, :redis do
         j.priority = DEFAULT_DRINKS.index(j.data.fetch "drink")
       end
     end
-
-    it 'can runs jobs of a particular type in serial' do
-      MakeThanksgivingDinner::PourDrinks.run_jobs_in_serial
-      batch = enqueue_jobs(family: "Smith")
-      set_pour_drink_priorities_in_descending_order(batch)
-      process_work
-
-      expect(MakeThanksgivingDinner.poured_drinks.to_a).to eq(DEFAULT_DRINKS)
-    end
   end
 
   context 'single process tests' do

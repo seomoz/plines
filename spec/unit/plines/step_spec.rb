@@ -414,38 +414,6 @@ module Plines
         deps = P::A.inherited_dependencies_for({})
         expect(deps.map(&:klass)).to eq([P::D])
       end
-
-      it 'does not infinitely recurse when a step depends on itself using run_jobs_in_serial' do
-        step_class(:A) { run_jobs_in_serial; fan_out { [] } }
-
-        deps = P::A.inherited_dependencies_for({})
-        expect(deps).to eq([])
-      end
-    end
-
-    describe "#run_jobs_in_serial" do
-      def job_for(klass, move)
-        Plines::Job.send(:new, klass, { "move" => move })
-      end
-
-      def self_dependency_for(move)
-        dependencies = P::StepC.dependencies_for(job_for(P::StepC, move), {}).to_a
-        expect(dependencies.map(&:klass)).to eq([P::StepC] * dependencies.size)
-        expect(dependencies.size).to be < 2
-        return nil if dependencies.none?
-        dependencies.first.data.fetch "move"
-      end
-
-      it "adds dependencies to make the job instances run serially" do
-        step_class(:StepC) do
-          fan_out { %w[ rock paper scissors ].map { |move| { move: move } } }
-          run_jobs_in_serial
-        end
-
-        expect(self_dependency_for "rock").to be_nil
-        expect(self_dependency_for "paper").to eq("rock")
-        expect(self_dependency_for "scissors").to eq("paper")
-      end
     end
 
     describe "#depends_on" do
