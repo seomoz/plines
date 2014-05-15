@@ -868,6 +868,18 @@ module Plines
           expect(cancel).to be true
         end
 
+        it 'persists the provided cancellation reason' do
+          expect {
+            cancel(batch, reason: "because I said so")
+          }.to change { batch.cancellation_reason }.from(nil).to("because I said so")
+        end
+
+        it 'returns `nil` from `cancellation_reason` when none was given' do
+          expect {
+            cancel(batch)
+          }.not_to change { batch.cancellation_reason }.from(nil)
+        end
+
         it 'is a no-op when it has already been cancelled' do
           notified_count = 0
           pipeline_module.configuration.after_job_batch_cancellation do |jb|
@@ -910,8 +922,8 @@ module Plines
 
       describe "#cancel!" do
         it_behaves_like "a cancellation method" do
-          def cancel(jb = batch)
-            jb.cancel!
+          def cancel(jb = batch, *args)
+            jb.cancel!(*args)
             true # to satisfy `expect(cancel).to be true`
           end
 
@@ -926,8 +938,8 @@ module Plines
 
       describe "cancel" do
         it_behaves_like "a cancellation method" do
-          def cancel(jb = batch)
-            jb.cancel
+          def cancel(jb = batch, *args)
+            jb.cancel(*args)
           end
 
           it 'returns false and does not cancel when the jobs is already complete' do
