@@ -103,6 +103,17 @@ module Plines
       expect(j2.created_at).to eq(t1)
     end
 
+    it 'remembers the reason it was created' do
+      j1 = JobBatch.create(qless, pipeline_module, "a", {}, reason: "foobar")
+      expect(j1.creation_reason).to eq("foobar")
+      expect(j1.meta.keys).not_to include("reason")
+    end
+
+    it 'stores no creation reason when none is given' do
+      j1 = JobBatch.create(qless, pipeline_module, "a", {})
+      expect(j1.creation_reason).to eq(nil)
+    end
+
     it 'remembers the job batch data' do
       batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
@@ -261,6 +272,15 @@ module Plines
                        .with(anything, hash_including(timeout_reduction: 0))
 
         batch.spawn_copy
+      end
+
+      it 'passes a long the configured reason' do
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
+                       .with(anything, hash_including(reason: "foo"))
+
+        batch.spawn_copy do |opt|
+          opt.reason = "foo"
+        end
       end
 
       it 'passes its id through as the spawned_from_id' do

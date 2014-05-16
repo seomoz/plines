@@ -186,6 +186,10 @@ module Plines
       meta["cancellation_reason"]
     end
 
+    def creation_reason
+      meta["creation_reason"]
+    end
+
     def timeout_reduction
       @timeout_reduction ||= meta["timeout_reduction"].to_i
     end
@@ -257,7 +261,7 @@ module Plines
       end
     end
 
-    SpawnOptions = Struct.new(:data_overrides, :timeout_reduction)
+    SpawnOptions = Struct.new(:data_overrides, :timeout_reduction, :reason)
 
     def spawn_copy
       options = SpawnOptions.new({})
@@ -266,7 +270,8 @@ module Plines
 
       pipeline.enqueue_jobs_for(data.merge(overrides), {
         spawned_from_id: id,
-        timeout_reduction: options.timeout_reduction || 0
+        timeout_reduction: options.timeout_reduction || 0,
+        reason: options.reason
       })
     end
 
@@ -279,6 +284,10 @@ module Plines
         BATCH_DATA_KEY => JSON.dump(batch_data),
         creation_in_progress: 1
       }.merge(options)
+
+      if (reason = metadata.delete(:reason))
+        metadata[:creation_reason] = reason
+      end
 
       meta.bulk_set(metadata)
       @timeout_reduction = metadata.fetch(:timeout_reduction)

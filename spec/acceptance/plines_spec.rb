@@ -196,13 +196,14 @@ RSpec.describe Plines, :redis do
       plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
-    MakeThanksgivingDinner.enqueue_jobs_for(batch_data)
+    MakeThanksgivingDinner.enqueue_jobs_for(batch_data, reason: "for testing")
 
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
 
     batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: family)
     expect(batch.job_jids.size).to be >= 10
     expect(batch).not_to be_complete
+    expect(batch.creation_reason).to eq("for testing")
 
     unless @already_enqueued_a_batch
       expect(MakeThanksgivingDinner.performed_steps).to eq([])
@@ -582,6 +583,7 @@ RSpec.describe Plines, :redis do
       batch = enqueue_jobs(family: "Smith", num: 1)
       spawned = batch.spawn_copy do |options|
         options.data_overrides = { num: 2, copy: true }
+        options.reason = "because!"
       end
 
       process_work
@@ -594,6 +596,7 @@ RSpec.describe Plines, :redis do
       expect(batches.map { |b| b.data["copy"] }).to eq([nil, true])
 
       expect(spawned.spawned_from).to eq(batch)
+      expect(spawned.creation_reason).to eq("because!")
     end
 
     it 'can reduce the timeouts when spawning a copy' do
