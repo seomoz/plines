@@ -24,7 +24,7 @@ module Plines
 
     describe ".create" do
       it 'raises an error if a job batch with the given id has already been created' do
-        batch = JobBatch.create(qless, pipeline_module, "a", {})
+        JobBatch.create(qless, pipeline_module, "a", {})
         expect {
           JobBatch.create(qless, pipeline_module, "a", {})
         }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
@@ -103,6 +103,17 @@ module Plines
       expect(j2.created_at).to eq(t1)
     end
 
+    it 'remembers the reason it was created' do
+      j1 = JobBatch.create(qless, pipeline_module, "a", {}, reason: "foobar")
+      expect(j1.creation_reason).to eq("foobar")
+      expect(j1.meta.keys).not_to include("reason")
+    end
+
+    it 'stores no creation reason when none is given' do
+      j1 = JobBatch.create(qless, pipeline_module, "a", {})
+      expect(j1.creation_reason).to eq(nil)
+    end
+
     it 'remembers the job batch data' do
       batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
@@ -166,7 +177,7 @@ module Plines
 
     describe "#timed_out_external_dependencies" do
       let(:batch) do
-        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
           b.add_job('1234', 'foo', 'bar')
           b.add_job('2345', 'bazz')
         end
@@ -188,8 +199,8 @@ module Plines
 
     describe "#timeout_reduction" do
       it 'persists between redis roundtrips' do
-        created = JobBatch.create(qless, pipeline_module, "a", {},
-                                  timeout_reduction: 12)
+        JobBatch.create(qless, pipeline_module, "a", {},
+                        timeout_reduction: 12)
         found = JobBatch.find(qless, pipeline_module, "a")
         expect(found.timeout_reduction).to eq(12)
       end
@@ -263,6 +274,15 @@ module Plines
         batch.spawn_copy
       end
 
+      it 'passes a long the configured reason' do
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
+                       .with(anything, hash_including(reason: "foo"))
+
+        batch.spawn_copy do |opt|
+          opt.reason = "foo"
+        end
+      end
+
       it 'passes its id through as the spawned_from_id' do
         expect(pipeline_module).to receive(:enqueue_jobs_for)
                        .with(anything, hash_including(spawned_from_id: batch.id))
@@ -327,7 +347,7 @@ module Plines
 
       it 'returns the newly added job' do
         job = nil
-        batch = JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           job = jb.add_job "abc", "bar", "bazz"
         end
         expect(job).to be_an(EnqueuedJob)
@@ -807,6 +827,14 @@ module Plines
         end
       end
 
+      describe "a job batch that has only the old cancellation state" do
+        it 'still indicates it was cancelled' do
+          expect {
+            batch.meta["cancelled"] = '1'
+          }.to change { batch.cancelled? }.from(false).to(true)
+        end
+      end
+
       shared_examples_for "a cancellation method" do
         it 'cancels all qless jobs, including those that it thinks are complete' do
           batch.complete_job(qless_job_for jid_2)
@@ -860,6 +888,18 @@ module Plines
           expect(cancel).to be true
         end
 
+        it 'persists the provided cancellation reason' do
+          expect {
+            cancel(batch, reason: "because I said so")
+          }.to change { batch.cancellation_reason }.from(nil).to("because I said so")
+        end
+
+        it 'returns `nil` from `cancellation_reason` when none was given' do
+          expect {
+            cancel(batch)
+          }.not_to change { batch.cancellation_reason }.from(nil)
+        end
+
         it 'is a no-op when it has already been cancelled' do
           notified_count = 0
           pipeline_module.configuration.after_job_batch_cancellation do |jb|
@@ -868,6 +908,12 @@ module Plines
 
           expect { expect(cancel).to be true }.to change { notified_count }.by(1)
           expect { expect(cancel).to be true }.not_to change { notified_count }
+        end
+
+        it 'sets the `cancelled_at` timestamp' do
+          expect {
+            cancel
+          }.to change { batch.cancelled_at }.from(nil).to(a_value_within(1).of(Time.now))
         end
 
         it 'raises an error if the create is currently in progress' do
@@ -896,8 +942,8 @@ module Plines
 
       describe "#cancel!" do
         it_behaves_like "a cancellation method" do
-          def cancel(jb = batch)
-            jb.cancel!
+          def cancel(jb = batch, *args)
+            jb.cancel!(*args)
             true # to satisfy `expect(cancel).to be true`
           end
 
@@ -912,8 +958,8 @@ module Plines
 
       describe "cancel" do
         it_behaves_like "a cancellation method" do
-          def cancel(jb = batch)
-            jb.cancel
+          def cancel(jb = batch, *args)
+            jb.cancel(*args)
           end
 
           it 'returns false and does not cancel when the jobs is already complete' do

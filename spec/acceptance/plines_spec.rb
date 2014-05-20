@@ -196,13 +196,14 @@ RSpec.describe Plines, :redis do
       plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
-    MakeThanksgivingDinner.enqueue_jobs_for(batch_data)
+    MakeThanksgivingDinner.enqueue_jobs_for(batch_data, reason: "for testing")
 
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
 
     batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: family)
     expect(batch.job_jids.size).to be >= 10
     expect(batch).not_to be_complete
+    expect(batch.creation_reason).to eq("for testing")
 
     unless @already_enqueued_a_batch
       expect(MakeThanksgivingDinner.performed_steps).to eq([])
@@ -317,7 +318,7 @@ RSpec.describe Plines, :redis do
 
       MakeThanksgivingDinner::StuffTurkey.class_eval do
         def perform
-          job_batch.cancel!
+          job_batch.cancel!(reason: "for testing")
           qless_job.retry # so the worker doesn't try to complete it
         end
       end
@@ -331,6 +332,8 @@ RSpec.describe Plines, :redis do
 
       expect(default_queue.length).to eq(0)
       expect(smith_batch).to be_cancelled
+      expect(smith_batch.cancelled_at).to be_within(2).of(Time.now)
+      expect(smith_batch.cancellation_reason).to eq("for testing")
 
       cancelled_job_batch = MakeThanksgivingDinner.redis.get('make_thanksgiving_dinner:midstream_cancelled_job_batch')
       expect(cancelled_job_batch).to eq(smith_batch.to_s)
@@ -580,6 +583,7 @@ RSpec.describe Plines, :redis do
       batch = enqueue_jobs(family: "Smith", num: 1)
       spawned = batch.spawn_copy do |options|
         options.data_overrides = { num: 2, copy: true }
+        options.reason = "because!"
       end
 
       process_work
@@ -592,6 +596,7 @@ RSpec.describe Plines, :redis do
       expect(batches.map { |b| b.data["copy"] }).to eq([nil, true])
 
       expect(spawned.spawned_from).to eq(batch)
+      expect(spawned.creation_reason).to eq("because!")
     end
 
     it 'can reduce the timeouts when spawning a copy' do
@@ -623,15 +628,6 @@ RSpec.describe Plines, :redis do
         # Make the first drink's job run last and last first
         j.priority = DEFAULT_DRINKS.index(j.data.fetch "drink")
       end
-    end
-
-    it 'can runs jobs of a particular type in serial' do
-      MakeThanksgivingDinner::PourDrinks.run_jobs_in_serial
-      batch = enqueue_jobs(family: "Smith")
-      set_pour_drink_priorities_in_descending_order(batch)
-      process_work
-
-      expect(MakeThanksgivingDinner.poured_drinks.to_a).to eq(DEFAULT_DRINKS)
     end
   end
 

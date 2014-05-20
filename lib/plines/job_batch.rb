@@ -170,12 +170,24 @@ module Plines
       time_from "completed_at"
     end
 
+    def cancelled_at
+      time_from "cancelled_at"
+    end
+
     def cancelled?
-      meta["cancelled"] == "1"
+      !!cancelled_at || (meta["cancelled"] == "1")
     end
 
     def creation_in_progress?
       meta["creation_in_progress"] == "1"
+    end
+
+    def cancellation_reason
+      meta["cancellation_reason"]
+    end
+
+    def creation_reason
+      meta["creation_reason"]
     end
 
     def timeout_reduction
@@ -218,18 +230,18 @@ module Plines
 
     CannotCancelError = Class.new(StandardError)
 
-    def cancel!
+    def cancel!(options = {})
       if complete?
         raise CannotCancelError,
           "JobBatch #{id} is already complete and cannot be cancelled"
       end
 
-      perform_cancellation
+      perform_cancellation(options)
     end
 
-    def cancel
+    def cancel(options = {})
       return false if complete?
-      perform_cancellation
+      perform_cancellation(options)
       true
     end
 
@@ -249,7 +261,7 @@ module Plines
       end
     end
 
-    SpawnOptions = Struct.new(:data_overrides, :timeout_reduction)
+    SpawnOptions = Struct.new(:data_overrides, :timeout_reduction, :reason)
 
     def spawn_copy
       options = SpawnOptions.new({})
@@ -258,7 +270,8 @@ module Plines
 
       pipeline.enqueue_jobs_for(data.merge(overrides), {
         spawned_from_id: id,
-        timeout_reduction: options.timeout_reduction || 0
+        timeout_reduction: options.timeout_reduction || 0,
+        reason: options.reason
       })
     end
 
@@ -272,6 +285,10 @@ module Plines
         creation_in_progress: 1
       }.merge(options)
 
+      if (reason = metadata.delete(:reason))
+        metadata[:creation_reason] = reason
+      end
+
       meta.bulk_set(metadata)
       @timeout_reduction = metadata.fetch(:timeout_reduction)
     end
@@ -279,7 +296,7 @@ module Plines
     SomeJobsFailedToCancelError = Class.new(StandardError)
     CreationInStillInProgressError = Class.new(StandardError)
 
-    def perform_cancellation
+    def perform_cancellation(options)
       return true if cancelled?
 
       if creation_in_progress? && !creation_appears_to_be_stuck?
@@ -295,7 +312,8 @@ module Plines
         cancel_timeout_job_jid_set_for(key)
       end
 
-      meta["cancelled"] = "1"
+      meta["cancellation_reason"] = options[:reason] if options.key?(:reason)
+      meta["cancelled_at"] = Time.now.getutc.iso8601
       set_expiration!
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end
