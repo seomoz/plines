@@ -50,6 +50,7 @@ module Plines
         batch = JobBatch.find(qless, pipeline_module, "a")
         expect(batch.creation_in_progress?).to be false
 
+        expect(batch.creation_started_at).to eq(time_1)
         expect(batch.created_at).to eq(time_1)
         expect(batch.creation_completed_at).to eq(time_2)
       end
@@ -80,6 +81,32 @@ module Plines
         # hsetnx does not.
         expect(qless.redis.commands).to include(:hmset)
         expect(qless.redis.commands).not_to include(:hsetnx)
+      end
+    end
+
+    context "a JobBatch from before we changed the creation meta attributes" do
+      it 'still indicates creation is in progress when indicated by the old attributes' do
+        jb = JobBatch.send(:new, qless, pipeline_module, "a")
+        jb.meta[:created_at] = Time.now.getutc.iso8601
+        jb.meta[:creation_in_progress] = 1
+
+        expect(jb.creation_in_progress?).to be true
+      end
+
+      it 'does not indicate creation is in progress when indicated by the old attributes' do
+        jb = JobBatch.send(:new, qless, pipeline_module, "a")
+        jb.meta[:created_at] = Time.now.getutc.iso8601
+
+        expect(jb.creation_in_progress?).to be false
+      end
+
+      it 'falls back to `created_at` when `creation_started_at` is not set' do
+        jb = JobBatch.send(:new, qless, pipeline_module, "a")
+        time = Time.utc(2014, 5, 24, 12, 30, 12)
+        jb.meta[:created_at] = time.getutc.iso8601
+
+        expect(jb.creation_started_at).to eq time
+        expect(jb.created_at).to eq time
       end
     end
 
