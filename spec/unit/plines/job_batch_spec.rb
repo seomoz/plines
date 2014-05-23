@@ -23,6 +23,8 @@ module Plines
     end
 
     describe ".create" do
+      after { Timecop.return }
+
       it 'raises an error if a job batch with the given id has already been created' do
         JobBatch.create(qless, pipeline_module, "a", {})
         expect {
@@ -31,10 +33,15 @@ module Plines
       end
 
       it 'stores some state indicating the create is in progress' do
+        time_1 = Time.utc(2014, 5, 20, 12, 30, 12)
+        time_2 = Time.utc(2014, 5, 20, 12, 30, 18)
+        Timecop.freeze(time_1)
+
         value_in_block = nil
         JobBatch.create(qless, pipeline_module, "a", {}) do
           # Use a different instance to demonstrate the state is persistent
           batch = JobBatch.find(qless, pipeline_module, "a")
+          Timecop.freeze(time_2)
           value_in_block = batch.creation_in_progress?
         end
 
@@ -42,6 +49,9 @@ module Plines
 
         batch = JobBatch.find(qless, pipeline_module, "a")
         expect(batch.creation_in_progress?).to be false
+
+        expect(batch.created_at).to eq(time_1)
+        expect(batch.creation_completed_at).to eq(time_2)
       end
 
       class RedisLogger < BasicObject

@@ -60,7 +60,7 @@ module Plines
         inst.send(:populate_meta_for_create, batch_data, options)
 
         inst.populate_external_deps_meta { yield inst if block_given? }
-        inst.meta.delete(:creation_in_progress)
+        inst.meta[:creation_completed_at] = Time.now.getutc.iso8601
       end
     end
 
@@ -174,12 +174,16 @@ module Plines
       time_from "cancelled_at"
     end
 
+    def creation_completed_at
+      time_from "creation_completed_at"
+    end
+
     def cancelled?
       !!cancelled_at || (meta["cancelled"] == "1")
     end
 
     def creation_in_progress?
-      meta["creation_in_progress"] == "1"
+      !creation_completed_at
     end
 
     def cancellation_reason
@@ -281,8 +285,7 @@ module Plines
       metadata = {
         created_at: Time.now.getutc.iso8601,
         timeout_reduction: 0,
-        BATCH_DATA_KEY => JSON.dump(batch_data),
-        creation_in_progress: 1
+        BATCH_DATA_KEY => JSON.dump(batch_data)
       }.merge(options)
 
       if (reason = metadata.delete(:reason))
