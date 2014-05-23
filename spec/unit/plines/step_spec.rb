@@ -518,7 +518,7 @@ module Plines
 
         context "when the job batch is still being created" do
           before do
-            job_batch.meta[:creation_in_progress] = 1
+            job_batch.meta.delete(:creation_completed_at)
             expect(job_batch.creation_in_progress?).to be true
           end
 

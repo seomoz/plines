@@ -43,7 +43,7 @@ module PlinesSpecHelpers
 end
 
 RSpec.configure do |config|
-  config.expose_dsl_globally = false
+  config.disable_monkey_patching!
   config.filter_run :focus
   config.run_all_when_everything_filtered = true
 
@@ -56,12 +56,7 @@ RSpec.configure do |config|
   config.order = :random
   Kernel.srand config.seed
 
-  config.expect_with :rspec do |expectations|
-    expectations.syntax = :expect
-  end
-
   config.mock_with :rspec do |mocks|
-    mocks.syntax = :expect
     mocks.verify_partial_doubles = true
   end
 
@@ -120,6 +115,8 @@ RSpec.shared_context "integration helpers" do
 end
 
 RSpec::Matchers.define :move_job do |jid|
+  supports_block_expectations
+
   chain :to_queue do |queue|
     @queue = queue.to_s
   end
