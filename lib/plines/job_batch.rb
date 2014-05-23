@@ -38,7 +38,7 @@ module Plines
 
     def self.find(qless, pipeline, id)
       new(qless, pipeline, id) do |inst|
-        unless inst.created_at
+        unless inst.creation_started_at
           raise CannotFindExistingJobBatchError,
             "Cannot find an existing job batch for #{pipeline} / #{id}"
         end
@@ -52,7 +52,7 @@ module Plines
 
     def self.create(qless, pipeline, id, batch_data, options = {})
       new(qless, pipeline, id) do |inst|
-        if inst.created_at
+        if inst.creation_started_at
           raise JobBatchAlreadyCreatedError,
             "Job batch #{pipeline} / #{id} already exists"
         end
@@ -162,8 +162,14 @@ module Plines
       timed_out_external_deps.to_a
     end
 
-    def created_at
-      time_from "created_at"
+    def creation_started_at
+      time_from("creation_started_at") || time_from("created_at")
+    end
+    # Alias for backwards compatibility
+    alias created_at creation_started_at
+
+    def creation_completed_at
+      time_from "creation_completed_at"
     end
 
     def completed_at
@@ -174,16 +180,24 @@ module Plines
       time_from "cancelled_at"
     end
 
-    def creation_completed_at
-      time_from "creation_completed_at"
-    end
-
     def cancelled?
       !!cancelled_at || (meta["cancelled"] == "1")
     end
 
     def creation_in_progress?
-      !creation_completed_at
+      meta_values = meta.bulk_get(:creation_completed_at,
+                                  :created_at,
+                                  :creation_in_progress)
+
+      if meta_values[:created_at]
+        # This job batch was created before we updated how we tracked creation
+        # in progress. The old way is through the creation_in_progress flag.
+        !!meta_values[:creation_in_progress]
+      else
+        # The new way uses creation_started_at/creation_completed_at; if the
+        # latter is set then creation is complete.
+        !meta_values[:creation_completed_at]
+      end
     end
 
     def cancellation_reason
@@ -283,7 +297,7 @@ module Plines
 
     def populate_meta_for_create(batch_data, options)
       metadata = {
-        created_at: Time.now.getutc.iso8601,
+        creation_started_at: Time.now.getutc.iso8601,
         timeout_reduction: 0,
         BATCH_DATA_KEY => JSON.dump(batch_data)
       }.merge(options)
@@ -305,7 +319,7 @@ module Plines
       if creation_in_progress? && !creation_appears_to_be_stuck?
         raise CreationInStillInProgressError,
           "#{id} is still being created (started " +
-          "#{Time.now - created_at} seconds ago)"
+          "#{Time.now - creation_started_at} seconds ago)"
       end
 
       qless.bulk_cancel(job_jids)
@@ -323,7 +337,7 @@ module Plines
 
     STUCK_BATCH_CREATION_TIMEOUT = 6 * 60 * 60 # six hours
     def creation_appears_to_be_stuck?
-      age_in_seconds = Time.now - created_at
+      age_in_seconds = Time.now - creation_started_at
       age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
     end
 
