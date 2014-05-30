@@ -1,5 +1,21 @@
 require_relative '../config/setup_load_paths'
 
+require 'json'
+module JSON
+  def self.load(*args)
+    raise <<-EOS
+JSON::load has been disabled for this project, as it can cause DoS and Unsafe Object
+Creation vulnerabilities if parsing untrusted input.
+
+To deserialize untrusted JSON, use JSON::parse.
+
+See https://groups.google.com/forum/?fromgroups=#!topic/rubyonrails-security/4_YvCpLzL58
+for more details about the vulnerability.
+    EOS
+  end
+end
+
+
 RSpec::Matchers.define :have_enqueued_waiting_jobs_for do |*klasses|
   match do |_|
     jobs = Plines.default_queue.peek(klasses.size + 1)

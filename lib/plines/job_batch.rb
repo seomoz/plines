@@ -375,7 +375,7 @@ module Plines
     end
 
     def decode(string)
-      string && JSON.load(string)
+      string && JSON.parse(string)
     end
 
     def cancel_timeout_job_jid_set_for(dep_name)
