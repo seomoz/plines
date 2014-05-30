@@ -177,7 +177,7 @@ module Plines
         batch.newly_added_external_deps << 'bar' << 'bazz' << 'bat' << 'foo'
         batch.populate_external_deps_meta {}
 
-        keys = JSON.load(batch.meta[JobBatch::EXT_DEP_KEYS_KEY])
+        keys = JSON.parse(batch.meta[JobBatch::EXT_DEP_KEYS_KEY])
         expect(keys).to match_array(%w[ foo bar bat bazz ])
       end
 
