@@ -40,9 +40,6 @@ module Plines
         step.data.merge('_job_batch_id' => @job_batch.id),
         @qless_job_options_block[step].merge(depends: depends_on, jid: jid)
     end
-    # Necessary until we update to rspec-mocks 3.0.0.rc1, which will include:
-    # https://github.com/rspec/rspec-mocks/pull/615
-    public :enqueue_job_for
 
     def setup_external_dep_timeouts_for(step)
       step.external_dependencies.each do |dependency|
