@@ -190,13 +190,13 @@ RSpec.describe Plines, :redis do
 
     MakeThanksgivingDinner.configure do |plines|
       plines.batch_list_key { |d| d[:family] }
-      plines.qless_job_options do |job|
-        { tags: Array(job.data.fetch(:family)) }
+      plines.qless_job_options do |job, job_batch|
+        { tags: Array(job.data.fetch(:family)) + Array(job_batch.create_options[:tags]) }
       end
       plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
-    MakeThanksgivingDinner.enqueue_jobs_for(batch_data, reason: "for testing")
+    MakeThanksgivingDinner.enqueue_jobs_for(batch_data, reason: "for testing", tags: "create_tag")
 
     expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
 
@@ -237,7 +237,7 @@ RSpec.describe Plines, :redis do
     it 'enqueues Qless jobs and runs them in the expected order, keeping track of how long the batch took' do
       Timecop.freeze(start_time) { enqueue_jobs }
       groceries_queue = groceries_queue_for("Smith")
-      expect(groceries_queue.peek.tags).to eq(["Smith"])
+      expect(groceries_queue.peek.tags).to contain_exactly("Smith", "create_tag")
       job = groceries_queue.peek
       expect(job.klass.to_s).to eq("MakeThanksgivingDinner::BuyGroceries")
       expect(job.priority).to eq(-10)

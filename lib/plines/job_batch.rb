@@ -29,6 +29,7 @@ module Plines
 
     BATCH_DATA_KEY = "batch_data"
     EXT_DEP_KEYS_KEY = "ext_dep_keys"
+    CREATE_OPTIONS_KEY = "create_options"
 
     # We use find/create in place of new for both
     # so that the semantics of the two cases are clear.
@@ -268,6 +269,11 @@ module Plines
       data && IndifferentHash.from(data)
     end
 
+    def create_options
+      options = decode(meta[CREATE_OPTIONS_KEY])
+      options && IndifferentHash.from(options)
+    end
+
     def track_timeout_job(dep_name, jid)
       timeout_job_jid_sets[dep_name] << jid
     end
@@ -295,15 +301,25 @@ module Plines
 
   private
 
+    # we manage these keys and don't want them in `create_options`
+    SPECIAL_OPTION_KEYS = [:timeout_reduction, :spawned_from_id, :reason]
+
     def populate_meta_for_create(batch_data, options)
+      opts_to_store = options.reject { |k, v| SPECIAL_OPTION_KEYS.include?(k) }
+
       metadata = {
         creation_started_at: Time.now.getutc.iso8601,
-        timeout_reduction: 0,
-        BATCH_DATA_KEY => JSON.dump(batch_data)
-      }.merge(options)
+        timeout_reduction: options.fetch(:timeout_reduction, 0),
+        BATCH_DATA_KEY => JSON.dump(batch_data),
+        CREATE_OPTIONS_KEY => JSON.dump(opts_to_store),
+      }
 
-      if (reason = metadata.delete(:reason))
+      if (reason = options[:reason])
         metadata[:creation_reason] = reason
+      end
+
+      if (spawned_from_id = options[:spawned_from_id])
+        metadata[:spawned_from_id] = spawned_from_id
       end
 
       meta.bulk_set(metadata)
@@ -363,9 +379,6 @@ module Plines
     def set_expiration!
       lua.expire_job_batch(self)
     end
-    # Necessary until this rspec-mocks bug is fixed:
-    # https://github.com/rspec/rspec-mocks/issues/640
-    public :set_expiration!
 
     def external_dependency_sets
       @external_dependency_sets ||= Hash.new do |hash, dep|

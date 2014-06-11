@@ -55,6 +55,19 @@ module Plines
         expect(batch.creation_completed_at).to eq(time_2)
       end
 
+      it 'stores any extra options in the metadata' do
+        special_options = {
+          timeout_reduction: 10,
+          reason: "because", spawned_from_id: '23'
+        }
+
+        jb = JobBatch.create(qless, pipeline_module, "a", {}, special_options.merge("foo" => 17))
+        expect(jb.create_options).to eq("foo" => 17)
+        # check indifferent access
+        expect(jb.create_options[:foo]).to eq(17)
+        expect(jb.meta.all).not_to include("foo")
+      end
+
       class RedisLogger < BasicObject
         attr_reader :commands
 
