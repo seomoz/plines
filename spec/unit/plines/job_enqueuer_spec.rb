@@ -42,6 +42,17 @@ module Plines
         expect(jobs.map(&:tags)).to eq([["foo"]])
       end
 
+      it 'yields a job batch as a second arg so it can be used for job options' do
+        jb = yielded = nil
+
+        JobBatch.create(qless, pipeline_module, "foo:1", {}, {}) do |batch|
+          jb = batch
+          JobEnqueuer.new(graph, batch) { |*args| yielded = args; {} }.enqueue_jobs
+        end
+
+        expect(yielded).to match([an_instance_of(Plines::Job), jb])
+      end
+
       it 'sets up job dependencies correctly' do
         enqueue_the_jobs
 

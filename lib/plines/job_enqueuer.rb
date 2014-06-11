@@ -36,9 +36,11 @@ module Plines
     end
 
     def enqueue_job_for(step, jid, depends_on)
+      options = @qless_job_options_block.call(step, @job_batch)
+
       step.klass.enqueue_qless_job qless,
         step.data.merge('_job_batch_id' => @job_batch.id),
-        @qless_job_options_block[step].merge(depends: depends_on, jid: jid)
+        options.merge(depends: depends_on, jid: jid)
     end
 
     def setup_external_dep_timeouts_for(step)
