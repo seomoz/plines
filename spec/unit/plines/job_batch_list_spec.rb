@@ -58,7 +58,7 @@ module Plines
       end
 
       it 'returns the most recently created batch for the given id' do
-        b1 = foo.create_new_batch({})
+        _  = foo.create_new_batch({})
         b2 = foo.create_new_batch({})
         bar.create_new_batch({})
 
@@ -99,7 +99,7 @@ module Plines
     end
 
     it 'can return a list of batches that timed out a particular dependency' do
-      b1, b2, b3 = 3.times.map do
+      b1, _, b3 = 3.times.map do
         foo.create_new_batch({}) do |batch|
           batch.add_job("a", "foo")
         end
@@ -108,8 +108,28 @@ module Plines
       b1.timeout_external_dependency("foo", "a")
       b3.timeout_external_dependency("foo", "a")
 
-      expect(foo.all_with_external_dependency_timeout('foo')).to eq([b1, b3])
+      expect(foo.all_with_external_dependency_timeout('foo')).to contain_exactly(b1, b3)
       expect(foo.all_with_external_dependency_timeout('bar')).to eq([])
+    end
+
+    it 'can return a list of batches that timed out any dependency' do
+      b1 = foo.create_new_batch({}) { |b| b.add_job("a", "foo") }
+      _  = foo.create_new_batch({}) { |b| b.add_job("b", "bar") }
+      b3 = foo.create_new_batch({}) { |b| b.add_job("c", "baz") }
+
+      b1.timeout_external_dependency("foo", "a")
+      b3.timeout_external_dependency("baz", "c")
+
+      expect(foo.all_with_external_dependency_timeouts).to contain_exactly(b1, b3)
+    end
+
+    it 'is directly enumerable' do
+      b1 = foo.create_new_batch({})
+      b2 = foo.create_new_batch({})
+
+      expect { |b|
+        foo.select(&b)
+      }.to yield_successive_args(b1, b2)
     end
   end
 end
