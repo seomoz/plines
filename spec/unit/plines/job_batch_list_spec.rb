@@ -108,7 +108,7 @@ module Plines
       b1.timeout_external_dependency("foo", "a")
       b3.timeout_external_dependency("foo", "a")
 
-      expect(foo.all_with_external_dependency_timeout('foo')).to eq([b1, b3])
+      expect(foo.all_with_external_dependency_timeout('foo')).to contain_exactly(b1, b3)
       expect(foo.all_with_external_dependency_timeout('bar')).to eq([])
     end
 
@@ -120,7 +120,7 @@ module Plines
       b1.timeout_external_dependency("foo", "a")
       b3.timeout_external_dependency("baz", "c")
 
-      expect(foo.all_with_external_dependency_timeouts).to eq([b1, b3])
+      expect(foo.all_with_external_dependency_timeouts).to contain_exactly(b1, b3)
     end
 
     it 'is directly enumerable' do
