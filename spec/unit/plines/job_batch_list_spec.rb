@@ -111,6 +111,15 @@ module Plines
       expect(foo.all_with_external_dependency_timeout('foo')).to eq([b1, b3])
       expect(foo.all_with_external_dependency_timeout('bar')).to eq([])
     end
+
+    it 'is directly enumerable' do
+      b1 = foo.create_new_batch({})
+      b2 = foo.create_new_batch({})
+
+      expect { |b|
+        foo.select(&b)
+      }.to yield_successive_args(b1, b2)
+    end
   end
 end
 

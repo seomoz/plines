@@ -3,16 +3,18 @@ require 'plines/redis_objects'
 module Plines
   # Represents a list of job batches that are grouped by
   # some common trait (such as a user id).
-  class JobBatchList < Struct.new(:pipeline, :key)
+  class JobBatchList
+    include Enumerable
     include Plines::RedisObjectsHelpers
 
     counter :last_batch_num
-    attr_reader :qless, :redis
+    attr_reader :qless, :redis, :pipeline, :key
 
     def initialize(pipeline, key)
-      super(pipeline, key)
-      @qless = pipeline.configuration.qless_client_for(key)
-      @redis = @qless.redis
+      @pipeline = pipeline
+      @key      = key
+      @qless    = pipeline.configuration.qless_client_for(key)
+      @redis    = @qless.redis
     end
 
     def most_recent_batch
@@ -47,14 +49,21 @@ module Plines
       end
     end
 
-    def to_a
-      each.to_a
-    end
-
     def all_with_external_dependency_timeout(dep_name)
-      each.select do |batch|
+      select do |batch|
         batch.timed_out_external_deps.include?(dep_name)
       end
+    end
+
+    def ==(other)
+      other.is_a?(JobBatchList) &&
+      pipeline == other.pipeline &&
+      key == other.key
+    end
+    alias eql? ==
+
+    def hash
+      [pipeline, key].hash
     end
 
   private
