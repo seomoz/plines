@@ -58,7 +58,7 @@ module Plines
       end
 
       it 'returns the most recently created batch for the given id' do
-        b1 = foo.create_new_batch({})
+        _  = foo.create_new_batch({})
         b2 = foo.create_new_batch({})
         bar.create_new_batch({})
 
@@ -99,7 +99,7 @@ module Plines
     end
 
     it 'can return a list of batches that timed out a particular dependency' do
-      b1, b2, b3 = 3.times.map do
+      b1, _, b3 = 3.times.map do
         foo.create_new_batch({}) do |batch|
           batch.add_job("a", "foo")
         end
