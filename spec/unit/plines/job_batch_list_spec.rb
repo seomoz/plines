@@ -112,6 +112,17 @@ module Plines
       expect(foo.all_with_external_dependency_timeout('bar')).to eq([])
     end
 
+    it 'can return a list of batches that timed out any dependency' do
+      b1 = foo.create_new_batch({}) { |b| b.add_job("a", "foo") }
+      _  = foo.create_new_batch({}) { |b| b.add_job("b", "bar") }
+      b3 = foo.create_new_batch({}) { |b| b.add_job("c", "baz") }
+
+      b1.timeout_external_dependency("foo", "a")
+      b3.timeout_external_dependency("baz", "c")
+
+      expect(foo.all_with_external_dependency_timeouts).to eq([b1, b3])
+    end
+
     it 'is directly enumerable' do
       b1 = foo.create_new_batch({})
       b2 = foo.create_new_batch({})

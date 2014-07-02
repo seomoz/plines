@@ -55,6 +55,12 @@ module Plines
       end
     end
 
+    def all_with_external_dependency_timeouts
+      reject do |batch|
+        batch.timed_out_external_deps.empty?
+      end
+    end
+
     def ==(other)
       other.is_a?(JobBatchList) &&
       pipeline == other.pipeline &&
