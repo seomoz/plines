@@ -163,6 +163,11 @@ module Plines
       timed_out_external_deps.to_a
     end
 
+    def awaiting_external_dependency?(dep_name)
+      has_unresolved_external_dependency?(dep_name) &&
+      !timed_out_external_deps.include?(dep_name)
+    end
+
     def creation_started_at
       time_from("creation_started_at") || time_from("created_at")
     end

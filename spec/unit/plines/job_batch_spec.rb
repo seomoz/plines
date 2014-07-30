@@ -247,6 +247,32 @@ module Plines
       end
     end
 
+    describe "#awaiting_external_dependency?" do
+      let(:batch) do
+        JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
+          b.add_job('1234', 'resolved', 'awaiting')
+          b.add_job('2345', 'timed_out')
+        end
+      end
+
+      before do
+        batch.resolve_external_dependency('resolved')
+        batch.timeout_external_dependency('timed_out', '2345')
+      end
+
+      it 'returns true for unresolved external dependencies that have not yet timed out' do
+        expect(batch.awaiting_external_dependency?('awaiting')).to be true
+      end
+
+      it 'returns false for resolved external dependencies' do
+        expect(batch.awaiting_external_dependency?('resolved')).to be false
+      end
+
+      it 'returns false for timed out external dependencies' do
+        expect(batch.awaiting_external_dependency?('timed_out')).to be false
+      end
+    end
+
     describe "#timeout_reduction" do
       it 'persists between redis roundtrips' do
         JobBatch.create(qless, pipeline_module, "a", {},
