@@ -50,6 +50,13 @@ function PlinesJobBatch:for_each_key_and_job(key_func, job_func)
   end
 end
 
+function PlinesJobBatch:for_each_job(func)
+  for _, jid in ipairs(self:jids()) do
+    local job = Plines.enqueued_job(self.pipeline_name, jid)
+    func(job)
+  end
+end
+
 function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_iso8601)
   local job = Qless.job(jid)
   local job_meta = job:data()
@@ -67,6 +74,25 @@ function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_
     redis.call('hset', self.key .. ":meta", "completed_at", now_iso8601)
     self:expire(data_ttl_in_milliseconds)
   end
+end
+
+function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
+  local found_pending_ext_dep = false
+
+  self:for_each_job(function(job)
+    local pending_ext_deps_key   = job.key .. ":pending_ext_deps"
+
+    if redis.call('sismember', pending_ext_deps_key,   dependency_name) == 1
+    then
+      found_pending_ext_dep = true
+    end
+  end)
+
+  return found_pending_ext_dep and redis.call(
+    'sismember',
+    self.key .. ":timed_out_ext_deps",
+    dependency_name
+  )
 end
 
 function PlinesJobBatch:is_completed()

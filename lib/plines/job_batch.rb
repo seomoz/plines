@@ -164,8 +164,7 @@ module Plines
     end
 
     def awaiting_external_dependency?(dep_name)
-      has_unresolved_external_dependency?(dep_name) &&
-      !timed_out_external_deps.include?(dep_name)
+      lua.job_batch_awaiting_external_dependency?(job_batch: self, dependency_name: dep_name)
     end
 
     def creation_started_at
