@@ -76,23 +76,26 @@ function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_
   end
 end
 
+function PlinesJobBatch:timed_out_external_dependencies_set_key()
+  return self.key .. ":timed_out_external_deps"
+end
+
 function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
   local found_pending_ext_dep = false
-
   self:for_each_job(function(job)
-    local pending_ext_deps_key   = job.key .. ":pending_ext_deps"
-
-    if redis.call('sismember', pending_ext_deps_key,   dependency_name) == 1
+    if redis.call('sismember', job:pending_external_dependencies_key(), dependency_name) == 1
     then
       found_pending_ext_dep = true
     end
   end)
 
-  return found_pending_ext_dep and redis.call(
+  local dependency_is_timed_out = redis.call(
     'sismember',
-    self.key .. ":timed_out_ext_deps",
+    self:timed_out_external_dependencies_set_key(),
     dependency_name
-  )
+  ) == 1
+
+  return found_pending_ext_dep and not dependency_is_timed_out
 end
 
 function PlinesJobBatch:is_completed()
