@@ -81,21 +81,33 @@ function PlinesJobBatch:timed_out_external_dependencies_set_key()
 end
 
 function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
-  local found_pending_ext_dep = false
+  local dependency_is_pending   = false
+  local dependency_is_timed_out = false
   self:for_each_job(function(job)
-    if redis.call('sismember', job:pending_external_dependencies_key(), dependency_name) == 1
-    then
-      found_pending_ext_dep = true
+    local is_pending = redis.call(
+      'sismember', job:pending_external_dependencies_key(), dependency_name) == 1
+
+    local is_timed_out = redis.call(
+      'sismember', job:timed_out_external_dependencies_key(), dependency_name) == 1
+
+    if is_pending then
+      dependency_is_pending = true
+    end
+
+    if is_timed_out then
+      dependency_is_timed_out = true
     end
   end)
 
-  local dependency_is_timed_out = redis.call(
-    'sismember',
-    self:timed_out_external_dependencies_set_key(),
-    dependency_name
-  ) == 1
-
-  return found_pending_ext_dep and not dependency_is_timed_out
+  if dependency_is_pending then
+    if dependency_is_timed_out then
+      error("InconsistentTimeoutState: Dependency " .. dependency_name .. " partially timed out.")
+    else
+      return true
+    end
+  else
+    return false
+  end
 end
 
 function PlinesJobBatch:is_completed()

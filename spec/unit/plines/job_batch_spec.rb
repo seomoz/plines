@@ -252,12 +252,15 @@ module Plines
         JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
           b.add_job('job_1', 'resolved', 'awaiting')
           b.add_job('job_2', 'timed_out')
+          b.add_job('job_3', 'partially_timed_out')
+          b.add_job('job_4', 'partially_timed_out')
         end
       end
 
       before do
         batch.resolve_external_dependency('resolved')
         batch.timeout_external_dependency('timed_out', 'job_2')
+        batch.timeout_external_dependency('partially_timed_out', 'job_3')
       end
 
       it 'returns true for unresolved external dependencies that have not yet timed out' do
@@ -270,6 +273,12 @@ module Plines
 
       it 'returns false for timed out external dependencies' do
         expect(batch.awaiting_external_dependency?('timed_out')).to be false
+      end
+
+      it 'raises a not implemented error if the dependency is partially timed out' do
+        expect {
+          batch.awaiting_external_dependency?('partially_timed_out')
+        }.to raise_error(NotImplementedError)
       end
     end
 

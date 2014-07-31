@@ -163,8 +163,15 @@ module Plines
       timed_out_external_deps.to_a
     end
 
+    module InconsistentStateError
+      def self.===(exn)
+        Qless::LuaScriptError === exn && exn.message.include?('InconsistentTimeoutState')
+      end
+    end
     def awaiting_external_dependency?(dep_name)
       lua.job_batch_awaiting_external_dependency?(job_batch: self, dependency_name: dep_name)
+    rescue InconsistentStateError
+      raise NotImplementedError
     end
 
     def creation_started_at
