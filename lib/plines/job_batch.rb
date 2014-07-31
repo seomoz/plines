@@ -176,7 +176,10 @@ module Plines
         dependency_name: dep_name
       )
     rescue InconsistentStateError
-      raise NotImplementedError
+      raise NotImplementedError, "External dependency #{dep_name} is in a " +
+        "hybrid state in which it has timed out for some but not all jobs. " +
+        "We don't support this state yet and may change the plines data " +
+        "model so this state is no longer possible in the future."
     end
 
     def creation_started_at
