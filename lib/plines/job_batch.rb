@@ -165,11 +165,16 @@ module Plines
 
     module InconsistentStateError
       def self.===(exn)
-        Qless::LuaScriptError === exn && exn.message.include?('InconsistentTimeoutState')
+        Qless::LuaScriptError === exn &&
+          exn.message.include?('InconsistentTimeoutState')
       end
     end
+
     def awaiting_external_dependency?(dep_name)
-      lua.job_batch_awaiting_external_dependency?(job_batch: self, dependency_name: dep_name)
+      lua.job_batch_awaiting_external_dependency?(
+        job_batch: self,
+        dependency_name: dep_name
+      )
     rescue InconsistentStateError
       raise NotImplementedError
     end
