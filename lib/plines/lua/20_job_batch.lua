@@ -50,13 +50,6 @@ function PlinesJobBatch:for_each_key_and_job(key_func, job_func)
   end
 end
 
-function PlinesJobBatch:for_each_job(func)
-  for _, jid in ipairs(self:jids()) do
-    local job = Plines.enqueued_job(self.pipeline_name, jid)
-    func(job)
-  end
-end
-
 function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_iso8601)
   local job = Qless.job(jid)
   local job_meta = job:data()
@@ -80,34 +73,42 @@ function PlinesJobBatch:timed_out_external_dependencies_set_key()
   return self.key .. ":timed_out_external_deps"
 end
 
+function PlinesJobBatch:external_dependency_set_key_for(dependency_name)
+  return self.key .. ":ext_deps:" .. dependency_name
+end
+
 function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
   local dependency_is_pending   = false
   local dependency_is_timed_out = false
-  self:for_each_job(function(job)
-    local is_pending = redis.call(
-      'sismember', job:pending_external_dependencies_key(), dependency_name) == 1
+  local jids = redis.call('smembers', self:external_dependency_set_key_for(dependency_name))
 
-    local is_timed_out = redis.call(
-      'sismember', job:timed_out_external_dependencies_key(), dependency_name) == 1
+  for _, jid in ipairs(jids) do
+    local job = Plines.enqueued_job(self.pipeline_name, jid)
 
-    if is_pending then
-      dependency_is_pending = true
+    if not dependency_is_pending then
+      local is_pending = redis.call(
+        'sismember', job:pending_external_dependencies_key(), dependency_name) == 1
+
+      if is_pending then
+        dependency_is_pending = true
+      end
     end
 
-    if is_timed_out then
-      dependency_is_timed_out = true
-    end
-  end)
+    if not dependency_is_timed_out then
+      local is_timed_out = redis.call(
+        'sismember', job:timed_out_external_dependencies_key(), dependency_name) == 1
 
-  if dependency_is_pending then
-    if dependency_is_timed_out then
-      error("InconsistentTimeoutState: Dependency " .. dependency_name .. " partially timed out.")
-    else
-      return true
+      if is_timed_out then
+        dependency_is_timed_out = true
+      end
     end
-  else
-    return false
   end
+
+  if dependency_is_pending and dependency_is_timed_out then
+    error("InconsistentTimeoutState: Dependency " .. dependency_name .. " partially timed out.")
+  end
+
+  return dependency_is_pending and not dependency_is_timed_out
 end
 
 function PlinesJobBatch:is_completed()
