@@ -86,21 +86,13 @@ function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
     local job = Plines.enqueued_job(self.pipeline_name, jid)
 
     if not dependency_is_pending then
-      local is_pending = redis.call(
+      dependency_is_pending = redis.call(
         'sismember', job:pending_external_dependencies_key(), dependency_name) == 1
-
-      if is_pending then
-        dependency_is_pending = true
-      end
     end
 
     if not dependency_is_timed_out then
-      local is_timed_out = redis.call(
+      dependency_is_timed_out = redis.call(
         'sismember', job:timed_out_external_dependencies_key(), dependency_name) == 1
-
-      if is_timed_out then
-        dependency_is_timed_out = true
-      end
     end
   end
 
