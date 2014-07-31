@@ -18,6 +18,10 @@ function PlinesAPI.delete(pipeline_name, id)
   return Plines.job_batch(pipeline_name, id):delete()
 end
 
+function PlinesAPI.is_job_batch_awaiting_external_dependency(pipeline_name, id, dependency_name)
+  return Plines.job_batch(pipeline_name, id):is_awaiting_external_dependency(dependency_name)
+end
+
 -- Dispatch code. This must go last in the script.
 if #KEYS > 0 then error('No Keys should be provided') end
 

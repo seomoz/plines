@@ -163,6 +163,25 @@ module Plines
       timed_out_external_deps.to_a
     end
 
+    module InconsistentStateError
+      def self.===(exn)
+        Qless::LuaScriptError === exn &&
+          exn.message.include?('InconsistentTimeoutState')
+      end
+    end
+
+    def awaiting_external_dependency?(dep_name)
+      lua.job_batch_awaiting_external_dependency?(
+        job_batch: self,
+        dependency_name: dep_name
+      )
+    rescue InconsistentStateError
+      raise NotImplementedError, "External dependency #{dep_name} is in a " +
+        "hybrid state in which it has timed out for some but not all jobs. " +
+        "We don't support this state yet and may change the plines data " +
+        "model so this state is no longer possible in the future."
+    end
+
     def creation_started_at
       time_from("creation_started_at") || time_from("created_at")
     end

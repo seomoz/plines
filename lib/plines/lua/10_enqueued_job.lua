@@ -32,8 +32,20 @@ end
 
 function PlinesEnqueuedJob:external_dependencies()
   return redis.call('sunion',
-    self.key .. ":pending_ext_deps",
-    self.key .. ":resolved_ext_deps",
-    self.key .. ":timed_out_ext_deps"
+    self:pending_external_dependencies_key(),
+    self:resolved_external_dependencies_key(),
+    self:timed_out_external_dependencies_key()
   )
+end
+
+function PlinesEnqueuedJob:pending_external_dependencies_key()
+  return self.key .. ":pending_ext_deps"
+end
+
+function PlinesEnqueuedJob:resolved_external_dependencies_key()
+  return self.key .. ":resolved_ext_deps"
+end
+
+function PlinesEnqueuedJob:timed_out_external_dependencies_key()
+  return self.key .. ":timed_out_ext_deps"
 end

@@ -69,6 +69,40 @@ function PlinesJobBatch:complete_job(jid, data_ttl_in_milliseconds, worker, now_
   end
 end
 
+function PlinesJobBatch:timed_out_external_dependencies_set_key()
+  return self.key .. ":timed_out_external_deps"
+end
+
+function PlinesJobBatch:external_dependency_set_key_for(dependency_name)
+  return self.key .. ":ext_deps:" .. dependency_name
+end
+
+function PlinesJobBatch:is_awaiting_external_dependency(dependency_name)
+  local dependency_is_pending   = false
+  local dependency_is_timed_out = false
+  local jids = redis.call('smembers', self:external_dependency_set_key_for(dependency_name))
+
+  for _, jid in ipairs(jids) do
+    local job = Plines.enqueued_job(self.pipeline_name, jid)
+
+    if not dependency_is_pending then
+      dependency_is_pending = redis.call(
+        'sismember', job:pending_external_dependencies_key(), dependency_name) == 1
+    end
+
+    if not dependency_is_timed_out then
+      dependency_is_timed_out = redis.call(
+        'sismember', job:timed_out_external_dependencies_key(), dependency_name) == 1
+    end
+  end
+
+  if dependency_is_pending and dependency_is_timed_out then
+    error("InconsistentTimeoutState: Dependency " .. dependency_name .. " partially timed out.")
+  end
+
+  return dependency_is_pending and not dependency_is_timed_out
+end
+
 function PlinesJobBatch:is_completed()
   return redis.call('scard', self.key .. ":pending_job_jids") == 0 and
          redis.call('scard', self.key .. ":completed_job_jids") > 0
