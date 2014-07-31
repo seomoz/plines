@@ -280,6 +280,11 @@ module Plines
           batch.awaiting_external_dependency?('partially_timed_out')
         }.to raise_error(NotImplementedError)
       end
+
+      it 'returns false if the dependency is partially timed out and then resolved' do
+        batch.resolve_external_dependency('partially_timed_out')
+        expect(batch.awaiting_external_dependency?('partially_timed_out')).to be false
+      end
     end
 
     describe "#timeout_reduction" do
