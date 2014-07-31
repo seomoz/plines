@@ -250,14 +250,14 @@ module Plines
     describe "#awaiting_external_dependency?" do
       let(:batch) do
         JobBatch.create(qless, pipeline_module, "foo", {}) do |b|
-          b.add_job('1234', 'resolved', 'awaiting')
-          b.add_job('2345', 'timed_out')
+          b.add_job('job_1', 'resolved', 'awaiting')
+          b.add_job('job_2', 'timed_out')
         end
       end
 
       before do
         batch.resolve_external_dependency('resolved')
-        batch.timeout_external_dependency('timed_out', '2345')
+        batch.timeout_external_dependency('timed_out', 'job_2')
       end
 
       it 'returns true for unresolved external dependencies that have not yet timed out' do
