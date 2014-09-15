@@ -51,19 +51,9 @@ module Plines
     JobBatchAlreadyCreatedError = Class.new(StandardError)
     AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
-    def self.create(qless, pipeline, id, batch_data, options = {})
+    def self.create(qless, pipeline, id, batch_data, options = {}, &block)
       new(qless, pipeline, id) do |inst|
-        if inst.creation_started_at
-          raise JobBatchAlreadyCreatedError,
-            "Job batch #{pipeline} / #{id} already exists"
-        end
-
-        inst.send(:with_batch_creation_exception_logging) do
-          inst.send(:populate_meta_for_create, batch_data, options)
-
-          inst.populate_external_deps_meta { yield inst if block_given? }
-          inst.meta[:creation_completed_at] = Time.now.getutc.iso8601
-        end
+        inst.send(:initialize_new_batch, batch_data, options, &block)
       end
     end
 
@@ -436,6 +426,20 @@ module Plines
       )
 
       raise
+    end
+
+    def initialize_new_batch(batch_data, options)
+      if creation_started_at
+        raise JobBatchAlreadyCreatedError,
+          "Job batch #{pipeline} / #{id} already exists"
+      end
+
+      with_batch_creation_exception_logging do
+        populate_meta_for_create(batch_data, options)
+
+        populate_external_deps_meta { yield self if block_given? }
+        meta[:creation_completed_at] = Time.now.getutc.iso8601
+      end
     end
   end
 end
