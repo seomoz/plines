@@ -51,17 +51,9 @@ module Plines
     JobBatchAlreadyCreatedError = Class.new(StandardError)
     AddingExternalDependencyNotAllowedError = Class.new(StandardError)
 
-    def self.create(qless, pipeline, id, batch_data, options = {})
+    def self.create(qless, pipeline, id, batch_data, options = {}, &block)
       new(qless, pipeline, id) do |inst|
-        if inst.creation_started_at
-          raise JobBatchAlreadyCreatedError,
-            "Job batch #{pipeline} / #{id} already exists"
-        end
-
-        inst.send(:populate_meta_for_create, batch_data, options)
-
-        inst.populate_external_deps_meta { yield inst if block_given? }
-        inst.meta[:creation_completed_at] = Time.now.getutc.iso8601
+        inst.send(:initialize_new_batch, batch_data, options, &block)
       end
     end
 
@@ -370,7 +362,7 @@ module Plines
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end
 
-    STUCK_BATCH_CREATION_TIMEOUT = 6 * 60 * 60 # six hours
+    STUCK_BATCH_CREATION_TIMEOUT = 60 * 60 # 1 hour
     def creation_appears_to_be_stuck?
       age_in_seconds = Time.now - creation_started_at
       age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
@@ -423,6 +415,31 @@ module Plines
 
     def lua
       @lua ||= Plines::Lua.new(qless)
+    end
+
+    def with_batch_creation_exception_logging
+      yield
+    rescue Exception => e
+      pipeline.configuration.logger.error(
+        "Aborting creation of plines JobBatch #{pipeline.name} #{id}: " \
+        "#{e.class.name}: #{e.message} (#{e.backtrace.first})"
+      )
+
+      raise
+    end
+
+    def initialize_new_batch(batch_data, options)
+      if creation_started_at
+        raise JobBatchAlreadyCreatedError,
+          "Job batch #{pipeline} / #{id} already exists"
+      end
+
+      with_batch_creation_exception_logging do
+        populate_meta_for_create(batch_data, options)
+
+        populate_external_deps_meta { yield self if block_given? }
+        meta[:creation_completed_at] = Time.now.getutc.iso8601
+      end
     end
   end
 end
