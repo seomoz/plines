@@ -370,7 +370,7 @@ module Plines
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end
 
-    STUCK_BATCH_CREATION_TIMEOUT = 6 * 60 * 60 # six hours
+    STUCK_BATCH_CREATION_TIMEOUT = 60 * 60 # 1 hour
     def creation_appears_to_be_stuck?
       age_in_seconds = Time.now - creation_started_at
       age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
