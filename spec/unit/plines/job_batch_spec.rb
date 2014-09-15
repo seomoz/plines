@@ -25,11 +25,16 @@ module Plines
     describe ".create" do
       after { Timecop.return }
 
-      it 'raises an error if a job batch with the given id has already been created' do
+      it 'raises an error if a job batch with the given id has already been created (but does not log it)' do
+        output = StringIO.new
+        pipeline_module.configuration.logger = Logger.new(output)
+
         JobBatch.create(qless, pipeline_module, "a", {})
         expect {
           JobBatch.create(qless, pipeline_module, "a", {})
         }.to raise_error(JobBatch::JobBatchAlreadyCreatedError)
+
+        expect(output.string).to eq("")
       end
 
       it 'stores some state indicating the create is in progress' do
@@ -66,6 +71,35 @@ module Plines
         # check indifferent access
         expect(jb.create_options[:foo]).to eq(17)
         expect(jb.meta.all).not_to include("foo")
+      end
+
+      context "when an error occurs, aborting job batch creation" do
+        it 'it logs the error and re-raises' do
+          output = StringIO.new
+          pipeline_module.configuration.logger = Logger.new(output)
+
+          expect {
+            JobBatch.create(qless, pipeline_module, "a", {}) do
+              raise Exception, "boom"
+            end
+          }.to raise_error("boom")
+
+          expect(output.string).to include('Aborting creation of plines JobBatch P a: Exception: boom')
+        end
+
+        context "when logging fails" do
+          it "raises the original error rather than silencing it with the logging failure" do
+            output = instance_double(IO, close: nil)
+            expect(output).to receive(:write).and_raise("disk full")
+            pipeline_module.configuration.logger = Logger.new(output)
+
+            expect {
+              JobBatch.create(qless, pipeline_module, "a", {}) do
+                raise Exception, "boom"
+              end
+            }.to raise_error("boom").and output(/disk full/).to_stderr
+          end
+        end
       end
 
       class RedisLogger < BasicObject
@@ -1007,6 +1041,8 @@ module Plines
         end
 
         it 'raises an error if the create is currently in progress' do
+          pipeline_module.configuration.logger = Logger.new(StringIO.new)
+
           expect {
             JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
               cancel(jb)

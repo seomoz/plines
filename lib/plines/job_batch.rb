@@ -58,10 +58,12 @@ module Plines
             "Job batch #{pipeline} / #{id} already exists"
         end
 
-        inst.send(:populate_meta_for_create, batch_data, options)
+        inst.send(:with_batch_creation_exception_logging) do
+          inst.send(:populate_meta_for_create, batch_data, options)
 
-        inst.populate_external_deps_meta { yield inst if block_given? }
-        inst.meta[:creation_completed_at] = Time.now.getutc.iso8601
+          inst.populate_external_deps_meta { yield inst if block_given? }
+          inst.meta[:creation_completed_at] = Time.now.getutc.iso8601
+        end
       end
     end
 
@@ -423,6 +425,17 @@ module Plines
 
     def lua
       @lua ||= Plines::Lua.new(qless)
+    end
+
+    def with_batch_creation_exception_logging
+      yield
+    rescue Exception => e
+      pipeline.configuration.logger.error(
+        "Aborting creation of plines JobBatch #{pipeline.name} #{id}: " \
+        "#{e.class.name}: #{e.message} (#{e.backtrace.first})"
+      )
+
+      raise
     end
   end
 end
