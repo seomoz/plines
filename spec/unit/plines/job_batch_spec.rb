@@ -1097,5 +1097,52 @@ module Plines
         end
       end
     end
+
+    context 'user data handling' do
+      let(:batch) { JobBatch.create(qless, pipeline_module, "foo", {}) }
+      let(:batch_user_data) { batch.send(:user_data) }
+
+      describe "#user_data_keys" do
+        it "returns empty list by default" do
+          expect(batch.user_data_keys).to eq([])
+        end
+
+        it 'returns set keys' do
+          batch_user_data.bulk_set(a: '0', b: '1')
+
+          expect(batch.user_data_keys).to contain_exactly('a', 'b')
+        end
+      end
+
+      describe "#get_user_data" do
+        it 'returns hash of requested keys' do
+          batch_user_data.bulk_set(a: '0', b: '1', c: '2')
+
+          expect(batch.get_user_data('a', 'c')).to eq('a' => '0', 'c' => '2')
+        end
+
+        it 'returns hash of all keys if no keys specified' do
+          batch_user_data.bulk_set(a: '0', b: '1', c: '2')
+
+          expect(batch.get_user_data).to eq('a' => '0', 'b' => '1', 'c' => '2')
+        end
+      end
+
+      describe '#set_user_data' do
+        it 'sets specified keys' do
+          batch.set_user_data(a: '0', c: '2')
+
+          expect(batch_user_data.all).to eq('a' => '0', 'c' => '2')
+        end
+
+        it 'silently overrides existing keys' do
+          batch_user_data.bulk_set(a: '0', b: '1')
+
+          batch.set_user_data(a: '5', c: '6')
+
+          expect(batch_user_data.all).to eq('a' => '5', 'b' => '1', 'c' => '6')
+        end
+      end
+    end
   end
 end

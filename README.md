@@ -316,6 +316,25 @@ MakeThanksgivingDinner.configure do |config|
 end
 ```
 
+### user_data
+
+Plines has a container for user-managed information for a JobBatch. It is ignored by Plines itself, 
+but can be used for interaction between jobs.
+
+``` ruby
+# set user data
+job_batch.set_user_data 'grocery' => 'Albertson', 'car' => 'Ford Model N', 'credit card' => 'Visa'
+
+# get credit card used
+job_batch.get_user_data 'credit_card', 'grocery'
+
+# get all user data
+job_batch.get_user_data
+
+# get available keys
+job_batch.user_data_keys
+```
+
 ## External Dependency Timeouts
 
 Under normal configuration, no job will run until all of its

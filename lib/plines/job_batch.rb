@@ -17,6 +17,10 @@ module Plines
     set :timed_out_external_deps
 
     hash_key :meta
+    # user_data is a redis hash that can be updated by applications
+    # (external to plines).
+    hash_key :user_data
+    private :user_data
     attr_reader :qless, :redis
 
     def initialize(qless, pipeline, id)
@@ -308,6 +312,22 @@ module Plines
         timeout_reduction: options.timeout_reduction || 0,
         reason: options.reason
       })
+    end
+
+    def user_data_keys
+      user_data.keys
+    end
+
+    def get_user_data *keys
+      if keys.size > 0
+        user_data.bulk_get *keys
+      else
+        user_data.all
+      end
+    end
+
+    def set_user_data hash
+      user_data.bulk_set hash
     end
 
   private
