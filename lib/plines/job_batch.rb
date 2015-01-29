@@ -318,7 +318,7 @@ module Plines
       user_data.keys
     end
 
-    def user_data_get keys
+    def get_user_data *keys
       if keys.size > 0
         user_data.bulk_get *keys
       else
@@ -326,7 +326,7 @@ module Plines
       end
     end
 
-    def user_data_set hash
+    def set_user_data hash
       user_data.bulk_set hash
     end
 

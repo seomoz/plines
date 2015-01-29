@@ -323,13 +323,13 @@ but can be used for interaction between jobs.
 
 ``` ruby
 # set user data
-job_batch.user_data_set 'grocery' => 'Albertson', 'credit card' => 'Visa'
+job_batch.set_user_data 'grocery' => 'Albertson', 'car' => 'Ford Model N', 'credit card' => 'Visa'
 
 # get credit card used
-job_batch.user_data_get ['credit_card']
+job_batch.get_user_data 'credit_card', 'grocery'
 
 # get all user data
-job_batch.user_data_get []
+job_batch.get_user_data
 
 # get available keys
 job_batch.user_data_keys
