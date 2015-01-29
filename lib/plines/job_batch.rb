@@ -17,7 +17,8 @@ module Plines
     set :timed_out_external_deps
 
     hash_key :meta
-    # user_data is a redis hash that can be updated by applications (external to plines).
+    # user_data is a redis hash that can be updated by applications
+    # (external to plines).
     hash_key :user_data
     attr_reader :qless, :redis
 
