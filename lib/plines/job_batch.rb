@@ -20,6 +20,7 @@ module Plines
     # user_data is a redis hash that can be updated by applications
     # (external to plines).
     hash_key :user_data
+    private :user_data
     attr_reader :qless, :redis
 
     def initialize(qless, pipeline, id)
