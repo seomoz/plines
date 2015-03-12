@@ -1,6 +1,7 @@
 require 'plines/job'
 require 'plines/pipeline'
 require 'plines/step'
+require 'plines/configuration'
 
 module Plines
   RSpec.describe Job do
@@ -24,12 +25,18 @@ module Plines
     it 'raises an error if given data that is not a hash' do
       expect {
         Job.build(P::StepA, 5)
-      }.to raise_error(IndifferentHash::NotAHashError)
+      }.to raise_error(NotAHashError)
     end
 
-    it 'exposes #data as an indifferent hash' do
+    it 'normally exposes #data as a normal hash' do
       expect(b.data[:a]).to eq(1)
+      expect(b.data["a"]).to be_nil
+    end
+
+    it 'exposes #data as an indifferent hash if `config.expose_indifferent_hashes = true` is est' do
+      P.configuration.expose_indifferent_hashes = true
       expect(b.data["a"]).to eq(1)
+      expect(b.data[:a]).to eq(1)
     end
 
     it 'initializes #dependencies and #dependents to empty sets' do

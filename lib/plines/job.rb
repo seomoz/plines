@@ -2,6 +2,8 @@ require 'forwardable'
 require 'plines/indifferent_hash'
 
 module Plines
+  NotAHashError = Class.new(TypeError)
+
   # An instance of a Step: a step class paired with some data for the job.
   Job = Struct.new(:klass, :data) do
     extend Forwardable
@@ -9,7 +11,11 @@ module Plines
     def_delegators :klass, :qless_queue
 
     def initialize(klass, data)
-      super(klass, IndifferentHash.from(data))
+      unless (data.is_a?(Hash) || data.is_a?(IndifferentHash))
+        raise NotAHashError, "Expected a hash, got #{data.inspect}"
+      end
+
+      super(klass, klass.pipeline.configuration.exposed_hash_from(data))
       @dependencies = Set.new
       @dependents = Set.new
       yield self if block_given?

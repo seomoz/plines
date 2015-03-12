@@ -68,11 +68,11 @@ module Plines
       it 'returns one instance per array entry returned by a fan_out block' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
+            [ { "a" => data["a"] + 1 }, { "a" => data["a"] + 2 } ]
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from a: 3)
+        instances = P::A.jobs_for("a" => 3)
         expect(instances.map(&:klass)).to eq([P::A, P::A])
         expect(instances.map(&:data)).to eq([{ 'a' => 4 }, { 'a' => 5 }])
       end
@@ -80,15 +80,15 @@ module Plines
       it 'processes each fan_out block in the order they appear' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a] + 10 }, { a: data[:a] + 20 } ]
+            [ { "a" => data["a"] + 10 }, { "a" => data["a"] + 20 } ]
           end
 
           fan_out do |data|
-            [ { a: data[:a] + 100 }, { a: data[:a] + 200 } ]
+            [ { "a" => data["a"] + 100 }, { "a" => data["a"] + 200 } ]
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from 'a' => 1)
+        instances = P::A.jobs_for('a' => 1)
         expect(instances.map(&:klass)).to eq([P::A] * 4)
         expect(instances.map(&:data)).to eq([
          { 'a' => 111 }, { 'a' => 211 }, { 'a' => 121 }, { 'a' => 221 }
@@ -98,11 +98,11 @@ module Plines
       it 'allows fan_out blocks to conditionally eliminate jobs' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a], b: 0 }, { a: data[:a] + 2, c: 0 } ]
+            [ { "a" => data["a"], "b" => 0 }, { "a" => data["a"] + 2, "c" => 0 } ]
           end
 
           fan_out do |data|
-            if data.has_key?(:b)
+            if data.has_key?("b")
               []
             else
               [data]
@@ -110,7 +110,7 @@ module Plines
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from a: 1)
+        instances = P::A.jobs_for('a' => 1)
         expect(instances.map(&:klass)).to eq([P::A])
         expect(instances.map(&:data)).to eq([ 'a' => 3, 'c' => 0 ])
       end
@@ -217,14 +217,22 @@ module Plines
         expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
       end
 
-      it 'uses an indifferent hash for the yielded data so it can be treated consistently as having symbolic keys' do
-        step_class(:A) do
-          qless_options do |qless, data|
-            qless.queue = "queue_for_#{data[:type]}"
-          end
-        end
+      it 'normally exposes the data passed to `qless_options` as a normal hash' do
+        expect { |probe|
+          step_class(:A) { qless_options(&probe) }
+          P::A.processing_queue_for("type" => "thing")
+        }.to yield_with_args(anything, an_instance_of(Hash))
+      end
 
-        expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
+      context "when `config.expose_indifferent_hashes = true` is set" do
+        it 'uses an indifferent hash for the yielded data so it can be treated consistently as having symbolic keys' do
+          P.configuration.expose_indifferent_hashes = true
+
+          expect { |probe|
+            step_class(:A) { qless_options(&probe) }
+            P::A.processing_queue_for("type" => "thing")
+          }.to yield_with_args(anything, an_instance_of(IndifferentHash))
+        end
       end
     end
 
@@ -429,7 +437,7 @@ module Plines
           depends_on :StepA, :StepB
         end
 
-        dependencies = P::StepC.dependencies_for(job_for(P::StepC), { a: 1 })
+        dependencies = P::StepC.dependencies_for(job_for(P::StepC), { 'a' => 1 })
         expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
         expect(dependencies.map(&:data)).to eq([{ 'a' => 1 }, { 'a' => 1 }])
       end
@@ -456,7 +464,7 @@ module Plines
       context 'when depending on a fan_out step' do
         step_class(:StepX) do
           fan_out do |data|
-            [1, 2, 3].map { |v| { a: data[:a] + v } }
+            [1, 2, 3].map { |v| { 'a' => data['a'] + v } }
           end
         end
 
@@ -465,7 +473,7 @@ module Plines
             depends_on :StepX
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
+          dependencies = P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([
             { 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }
@@ -474,10 +482,10 @@ module Plines
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
           step_class(:StepY) do
-            depends_on(:StepX) { |data| data.their_data[:a].even? }
+            depends_on(:StepX) { |data| data.their_data['a'].even? }
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
+          dependencies = P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
@@ -486,12 +494,12 @@ module Plines
           arg = nil
 
           step_class(:StepY) do
-            fan_out { |d| ['a', 'b'].map { |v| { b: v } } }
+            fan_out { |d| ['a', 'b'].map { |v| { 'b' => v } } }
             depends_on(:StepX) { |a| arg = a }
           end
 
-          P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
-          expect(arg.batch_data).to eq(a: 17)
+          P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17).to_a
+          expect(arg.batch_data).to eq('a' => 17)
         end
       end
 

@@ -98,17 +98,26 @@ module Plines
         expect(batch.data).to eq("a" => "foo")
       end
 
-      it 'converts the data to an indifferent hash so the step callbacks ' +
-         'can uniformly access the hash using symbol keys' do
+      it 'normally does not convert the data to an indifferent hash' do
         data = { "a" => 3 }
-        graph = DependencyGraph.new(MyPipeline, IndifferentHash.from(data))
+        graph = DependencyGraph.new(MyPipeline, data)
 
-        expect(DependencyGraph).to receive(:new) do |pipeline, data|
-          expect(data).to be_an(IndifferentHash)
-          graph
-        end
+        expect(DependencyGraph).to receive(:new).with(anything, an_instance_of(Hash)).and_return(graph)
 
         MyPipeline.enqueue_jobs_for(data)
+      end
+
+      context "when `config.expose_indifferent_hashes = true` is configured" do
+        it 'converts the data to an indifferent hash so the step callbacks ' +
+           'can uniformly access the hash using symbol keys' do
+          MyPipeline.configuration.expose_indifferent_hashes = true
+          data = { "a" => 3 }
+          graph = DependencyGraph.new(MyPipeline, IndifferentHash.from(data))
+
+          expect(DependencyGraph).to receive(:new).with(anything, an_instance_of(IndifferentHash)).and_return(graph)
+
+          MyPipeline.enqueue_jobs_for(data)
+        end
       end
     end
 

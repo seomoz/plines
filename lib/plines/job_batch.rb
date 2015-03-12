@@ -281,12 +281,12 @@ module Plines
 
     def data
       data = decode(meta[BATCH_DATA_KEY])
-      data && IndifferentHash.from(data)
+      data && pipeline.configuration.exposed_hash_from(data)
     end
 
     def create_options
       options = decode(meta[CREATE_OPTIONS_KEY])
-      options && IndifferentHash.from(options)
+      options && pipeline.configuration.exposed_hash_from(options)
     end
 
     def track_timeout_job(dep_name, jid)

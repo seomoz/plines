@@ -187,7 +187,10 @@ module Plines
     def configured_qless_options_for(data)
       QlessJobOptions.new.tap do |options|
         if @qless_options_block
-          @qless_options_block.call(options, IndifferentHash.from(data))
+          @qless_options_block.call(
+            options,
+            pipeline.configuration.exposed_hash_from(data)
+          )
         end
       end
     end
