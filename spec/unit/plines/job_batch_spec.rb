@@ -912,7 +912,7 @@ module Plines
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
       let(:jid_1)  { default_queue.put(P::Foo, {}) }
-      let(:jid_2)  { default_queue.put(P::Foo, {}) }
+      let(:jid_2)  { default_queue.put(P::Foo, {}, depends: [jid_1]) }
       let!(:batch) do
         JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job(jid_1)
@@ -964,7 +964,7 @@ module Plines
       describe '#delete!' do
         it_behaves_like 'a delete method', :delete! do
           it 'cancels all qless jobs' do
-            batch.complete_job(qless_job_for jid_2)
+            batch.complete_job(qless_job_for jid_1)
             expect(default_queue.length).to be > 0
             batch.delete!
             expect(default_queue.length).to eq(0)
@@ -982,10 +982,23 @@ module Plines
 
       shared_examples_for "a cancellation method" do
         it 'cancels all qless jobs, including those that it thinks are complete' do
-          batch.complete_job(qless_job_for jid_2)
+          batch.complete_job(qless_job_for jid_1)
           expect(default_queue.length).to be > 0
           cancel
           expect(default_queue.length).to eq(0)
+        end
+
+        it 'cancels jobs in batches, using dependency order so that large batches can be deleted' do
+          jobs = batch.pending_qless_jobs
+          expect(jobs.count).to eq(2)
+
+          sorted_by_dependents = jobs.sort_by { |j| -j.dependents.count }
+          expect(sorted_by_dependents.first.dependents).to eq([sorted_by_dependents.last.jid])
+
+          stub_const("#{JobBatch.name}::CANCELLATION_BATCH_SIZE", 1)
+
+          # If it cancels in the wrong order, Qless would raise an error
+          expect { cancel }.not_to raise_error
         end
 
         it 'clears the pending job jid set since there are no longer any job jids' do
