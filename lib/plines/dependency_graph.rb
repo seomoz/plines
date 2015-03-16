@@ -12,16 +12,14 @@ module Plines
     class CircularDependencyError < StandardError; end
 
     def initialize(pipeline, batch_data)
-      step_classes = pipeline.step_classes
-
       @steps = Job.accumulate_instances do
-        step_classes.each do |step_klass|
-          step_klass.jobs_for(batch_data).each do |job|
-            job.add_dependencies_for(batch_data)
-          end
+        jobs_by_klass = self.class.jobs_by_klass_for(pipeline, batch_data)
+
+        jobs_by_klass.values.flatten.each do |job|
+          job.add_dependencies_for(batch_data, jobs_by_klass)
         end
 
-        @terminal_jobs = pipeline.terminal_step.jobs_for(batch_data)
+        @terminal_jobs = jobs_by_klass.fetch(pipeline.terminal_step)
       end
 
       setup_terminal_dependencies
@@ -29,6 +27,14 @@ module Plines
     end
 
   private
+
+    def self.jobs_by_klass_for(pipeline, batch_data)
+      pipeline.step_classes.each_with_object(
+        Pipeline::NullStep => []
+      ) do |step_klass, hash|
+        hash[step_klass] = step_klass.jobs_for(batch_data)
+      end
+    end
 
     def detect_circular_dependencies!
       @ordered_steps = tsort

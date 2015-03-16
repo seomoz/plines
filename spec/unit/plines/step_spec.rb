@@ -6,6 +6,7 @@ require 'plines/dynamic_struct'
 require 'plines/job'
 require 'plines/configuration'
 require 'plines/enqueued_job'
+require 'plines/dependency_graph'
 
 module Plines
   RSpec.describe ExternalDependencyList do
@@ -123,7 +124,7 @@ module Plines
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        expect(P::StepFoo.dependencies_for(job_for(P::StepFoo), {}).to_a).to eq([])
+        expect(dependencies_for(P::StepFoo).to_a).to eq([])
       end
 
       it "includes the inital step if there are no other declared dependencies" do
@@ -131,7 +132,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).to eq([P::Bar])
+        expect(dependencies_for(P::Foo).map(&:klass)).to eq([P::Bar])
       end
 
       it "does not include the initial step if there are other declared depenencies" do
@@ -140,7 +141,7 @@ module Plines
         step_class(:Bazz)
 
         P.initial_step = P::Bazz
-        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).not_to include(P::Bazz)
+        expect(dependencies_for(P::Foo).map(&:klass)).not_to include(P::Bazz)
       end
 
       it "does not include the initial step if it is the initial step" do
@@ -148,7 +149,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Bar.dependencies_for(job_for(P::Bar), {}).map(&:klass)).to eq([])
+        expect(dependencies_for(P::Bar).map(&:klass)).to eq([])
       end
 
       it "sets the pipeline's terminal_step to itself `#depends_on_all_steps` is declared" do
@@ -419,7 +420,7 @@ module Plines
         step_class(:C) { depends_on :D; fan_out { [] } }
         step_class(:D)
 
-        deps = P::A.inherited_dependencies_for({})
+        deps = P::A.inherited_dependencies_for({}, DependencyGraph.jobs_by_klass_for(P, {}))
         expect(deps.map(&:klass)).to eq([P::D])
       end
     end
@@ -437,7 +438,7 @@ module Plines
           depends_on :StepA, :StepB
         end
 
-        dependencies = P::StepC.dependencies_for(job_for(P::StepC), { 'a' => 1 })
+        dependencies = dependencies_for(P::StepC, { 'a' => 1 })
         expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
         expect(dependencies.map(&:data)).to eq([{ 'a' => 1 }, { 'a' => 1 }])
       end
@@ -457,7 +458,7 @@ module Plines
           depends_on :A
         end
 
-        dependencies = MySteps::B.dependencies_for(job_for(MySteps::B), {})
+        dependencies = dependencies_for(MySteps::B, {})
         expect(dependencies.map(&:klass)).to eq([MySteps::A])
       end
 
@@ -473,7 +474,7 @@ module Plines
             depends_on :StepX
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17)
+          dependencies = dependencies_for(P::StepY, 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([
             { 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }
@@ -485,7 +486,7 @@ module Plines
             depends_on(:StepX) { |data| data.their_data['a'].even? }
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17)
+          dependencies = dependencies_for(P::StepY, 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
@@ -498,7 +499,7 @@ module Plines
             depends_on(:StepX) { |a| arg = a }
           end
 
-          P::StepY.dependencies_for(job_for(P::StepY), 'a' => 17).to_a
+          dependencies_for(P::StepY, 'a' => 17).to_a
           expect(arg.batch_data).to eq('a' => 17)
         end
       end
@@ -644,6 +645,11 @@ module Plines
           expect(P::A.order).to eq([:before_2, :before_1, :perform, :after_1, :after_2])
         end
       end
+    end
+
+    def dependencies_for(klass, batch_data={})
+      jobs_by_klass = DependencyGraph.jobs_by_klass_for(klass.pipeline, batch_data)
+      klass.dependencies_for(job_for(klass), batch_data, jobs_by_klass)
     end
   end
 end

@@ -38,8 +38,8 @@ module Plines
       end
     end
 
-    def add_dependencies_for(batch_data)
-      klass.dependencies_for(self, batch_data).each do |job|
+    def add_dependencies_for(batch_data, jobs_by_klass)
+      klass.dependencies_for(self, batch_data, jobs_by_klass).each do |job|
         add_dependency(job)
       end
     end
