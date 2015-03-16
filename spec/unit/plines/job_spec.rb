@@ -9,11 +9,11 @@ module Plines
     step_class(:StepB)
     step_class(:StepC)
 
-    let(:a1_1) { Job.build(P::StepA, a: 1) }
-    let(:a1_2) { Job.build(P::StepA, a: 1) }
-    let(:a2)   { Job.build(P::StepA, a: 2) }
-    let(:b)    { Job.build(P::StepB, a: 1) }
-    let(:c)    { Job.build(P::StepC, a: 1) }
+    let(:a1_1) { Job.new(P::StepA, a: 1) }
+    let(:a1_2) { Job.new(P::StepA, a: 1) }
+    let(:a2)   { Job.new(P::StepA, a: 2) }
+    let(:b)    { Job.new(P::StepB, a: 1) }
+    let(:c)    { Job.new(P::StepC, a: 1) }
 
     it 'is uniquely identified by the class/data combination' do
       steps = Set.new
@@ -24,7 +24,7 @@ module Plines
 
     it 'raises an error if given data that is not a hash' do
       expect {
-        Job.build(P::StepA, 5)
+        Job.new(P::StepA, 5)
       }.to raise_error(NotAHashError)
     end
 
@@ -70,46 +70,8 @@ module Plines
 
     it 'yields when constructed if passed a block' do
       yielded_object = nil
-      si = Job.build(P::StepA, a: 5) { |a| yielded_object = a }
+      si = Job.new(P::StepA, a: 5) { |a| yielded_object = a }
       expect(yielded_object).to be(si)
-    end
-
-    it 'does not allow consumers to construct instances using .new (since we need accumulation behavior and we cannot override .new)' do
-      expect { Job.new(P::StepA, a: 3) }.to raise_error(NoMethodError)
-    end
-
-    describe '.accumulate_instances' do
-      it 'causes .build to return identical object instances for the same arguments for the duration of the block' do
-        expect(Job.build(P::StepA, a: 1)).not_to be(Job.build(P::StepA, a: 1))
-        s1 = s2 = nil
-
-        Job.accumulate_instances do
-          s1 = Job.build(P::StepA, a: 1)
-          s2 = Job.build(P::StepA, a: 1)
-        end
-
-        expect(s1).to be(s2)
-      end
-
-      it 'returns the accumulated instances' do
-        s1 = s2 = s3 = nil
-
-        instances = Job.accumulate_instances do
-          s1 = Job.build(P::StepA, a: 1)
-          s2 = Job.build(P::StepA, a: 1)
-          s3 = Job.build(P::StepA, a: 2)
-        end
-
-        expect(instances).to match_array [s1, s3]
-      end
-
-      it 'correctly restores the initial state if an error is raised in the block' do
-        expect {
-          Job.accumulate_instances { raise "boom" }
-        }.to raise_error("boom")
-
-        expect(Job.build(P::StepA, a: 1)).not_to be(Job.build(P::StepA, a: 1))
-      end
     end
 
     describe "#external_dependencies" do
@@ -121,7 +83,7 @@ module Plines
           end
         end
 
-        j = Job.build(P::F, a: 1)
+        j = Job.new(P::F, a: 1)
         expect(j.external_dependencies.map(&:name)).to eq(["foo", "bar"])
       end
 
@@ -133,13 +95,13 @@ module Plines
           end
         end
 
-        j = Job.build(P::F, a: 1)
+        j = Job.new(P::F, a: 1)
         expect(j.external_dependencies).to eq([])
 
-        j = Job.build(P::F, foo: true)
+        j = Job.new(P::F, foo: true)
         expect(j.external_dependencies.map(&:name)).to eq(["foo"])
 
-        j = Job.build(P::F, foo: true, bar: true)
+        j = Job.new(P::F, foo: true, bar: true)
         expect(j.external_dependencies.map(&:name)).to eq(["foo", "bar"])
       end
     end
