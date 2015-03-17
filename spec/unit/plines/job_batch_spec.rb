@@ -988,6 +988,14 @@ module Plines
           expect(default_queue.length).to eq(0)
         end
 
+        it 'clears the pending job jid set since there are no longer any job jids' do
+          batch.pending_job_jids << "a_jid"
+
+          expect {
+            cancel
+          }.to change { batch.pending_job_jids.count }.from(a_value > 0).to(0)
+        end
+
         context 'if qless silently fails to cancel some jobs' do
           it 'raises an error to indicate the cancellation failure' do
             allow(qless).to receive(:bulk_cancel) # to make it silent no-op
@@ -1018,6 +1026,20 @@ module Plines
 
           expect(redis.keys).not_to be_empty
           expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
+        end
+
+        it 'expires extenernal dependency keys as well' do
+          batch = JobBatch.create(qless, pipeline_module, "with_deps", {}) do |b|
+            b.add_job('1234', 'foo', 'bar')
+            b.add_job('2345', 'bar', 'foo', 'bazz')
+          end
+
+          expect(batch.external_deps).not_to be_empty
+          cancel(batch)
+
+          keys = redis.keys("*#{batch.id}*")
+          expect(keys).to include(a_string_matching(/ext_deps/))
+          expect(expired_keys).to include(*keys)
         end
 
         it 'notifies observers that it has been cancelled' do

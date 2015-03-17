@@ -379,6 +379,11 @@ module Plines
       meta["cancellation_reason"] = options[:reason] if options.key?(:reason)
       meta["cancelled_at"] = Time.now.getutc.iso8601
       set_expiration!
+
+      # must come after `set_expiration!`; otherwise it interferes
+      # with expiration
+      pending_job_jids.clear
+
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end
 
