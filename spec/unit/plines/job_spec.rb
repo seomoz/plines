@@ -39,9 +39,9 @@ module Plines
       expect(b.data[:a]).to eq(1)
     end
 
-    it 'initializes #dependencies and #dependents to empty sets' do
-      expect(b.dependencies).to eq(Set.new)
-      expect(b.dependents).to eq(Set.new)
+    it 'initializes #dependencies and #dependents to empty collections' do
+      expect(b.dependencies).to be_empty
+      expect(b.dependents).to be_empty
     end
 
     it 'sets up the dependency/dependent relationship when a dependency is added' do
@@ -50,22 +50,6 @@ module Plines
       a2.add_dependency(b)
       expect(a2.dependencies.to_a).to eq([b])
       expect(b.dependents.to_a).to eq([a2])
-    end
-
-    it 'modifies the dependency and dependent when a dependency is removed' do
-      a2.add_dependency(b)
-      a2.add_dependency(c)
-      c.add_dependency(b)
-      a2.remove_dependency(b)
-      expect(a2.dependencies.to_a).to eq([c])
-      expect(b.dependents.to_a).to eq([c])
-    end
-
-    it 'raises a helpful error if a nonexistent dependency is removed' do
-      expect(a2.dependencies).not_to include(b)
-      expect {
-        a2.remove_dependency(b)
-      }.to raise_error(/attempted to remove nonexistent dependency/i)
     end
 
     it 'yields when constructed if passed a block' do

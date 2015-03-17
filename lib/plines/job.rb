@@ -16,8 +16,8 @@ module Plines
       end
 
       super(klass, klass.pipeline.configuration.exposed_hash_from(data))
-      @dependencies = Set.new
-      @dependents = Set.new
+      @dependencies = []
+      @dependents   = []
       yield self if block_given?
     end
 
@@ -28,14 +28,6 @@ module Plines
 
     def processing_queue
       @processing_queue ||= klass.processing_queue_for(data)
-    end
-
-    RemoveNonexistentDependencyError = Class.new(StandardError)
-    def remove_dependency(step)
-      unless dependencies.delete?(step) && step.dependents.delete?(self)
-        raise RemoveNonexistentDependencyError,
-          "Attempted to remove nonexistent dependency #{step} from #{self}"
-      end
     end
 
     def add_dependencies_for(batch_data, jobs_by_klass)
