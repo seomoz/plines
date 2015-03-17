@@ -283,16 +283,17 @@ module Plines
       DependencyData = Struct.new(:my_data, :their_data, :batch_data)
 
       def declared_dependency_jobs
-        job.klass.dependency_filters.flat_map do |name, filter|
-          klass = pipeline.const_get(name)
-          their_jobs = jobs_by_klass.fetch(klass)
-          @zero_fan_out_dependency_steps << klass if their_jobs.none?
+        @declared_dependency_jobs ||=
+          job.klass.dependency_filters.flat_map do |name, filter|
+            klass = pipeline.const_get(name)
+            their_jobs = jobs_by_klass.fetch(klass)
+            @zero_fan_out_dependency_steps << klass if their_jobs.none?
 
-          their_jobs.select do |their_job|
-            dep_data = DependencyData.new(job.data, their_job.data, batch_data)
-            filter.call(dep_data)
+            their_jobs.select do |their_job|
+              dep = DependencyData.new(job.data, their_job.data, batch_data)
+              filter.call(dep)
+            end
           end
-        end
       end
 
       def initial_step_jobs
