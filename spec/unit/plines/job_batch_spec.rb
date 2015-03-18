@@ -60,17 +60,31 @@ module Plines
         expect(batch.creation_completed_at).to eq(time_2)
       end
 
-      it 'stores any extra options in the metadata' do
-        special_options = {
-          timeout_reduction: 10,
-          reason: "because", spawned_from_id: '23'
-        }
+      describe "#create_options" do
+        let(:special_options) do
+          {
+            timeout_reduction: 10,
+            reason: "because", spawned_from_id: '23'
+          }
+        end
 
-        jb = JobBatch.create(qless, pipeline_module, "a", {}, special_options.merge("foo" => 17))
-        expect(jb.create_options).to eq("foo" => 17)
-        # check indifferent access
-        expect(jb.create_options[:foo]).to eq(17)
-        expect(jb.meta.all).not_to include("foo")
+        let(:jb) { JobBatch.create(qless, pipeline_module, "a", {}, special_options.merge("foo" => 17)) }
+
+        it 'stores any extra options in the metadata' do
+          expect(jb.create_options).to eq("foo" => 17)
+          expect(jb.meta.all).not_to include("foo")
+        end
+
+        it 'normally exposes the create options as a normal hash' do
+          expect(jb.create_options["foo"]).to eq(17)
+          expect(jb.create_options[:foo]).to be_nil
+        end
+
+        it 'exposes the create options as an indifferent hash when `config.expose_indifferent_hashes = true` is set' do
+          pipeline_module.configuration.expose_indifferent_hashes = true
+          expect(jb.create_options[:foo]).to eq(17)
+          expect(jb.create_options["foo"]).to eq(17)
+        end
       end
 
       context "when an error occurs, aborting job batch creation" do
@@ -203,7 +217,14 @@ module Plines
       expect(batch.data).to eq("name" => "Bob", "age" => 13)
     end
 
-    it 'exposes the data as an indifferent hash' do
+    it 'normally does not expose the batch data as an indifferent hash' do
+      batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
+      expect(batch.data["name"]).to eq("Bob")
+      expect(batch.data[:name]).to be_nil
+    end
+
+    it 'exposes the data as an indifferent hash when `config.expose_indifferent_hashes = true` is set' do
+      pipeline_module.configuration.expose_indifferent_hashes = true
       batch = JobBatch.create(qless, pipeline_module, "a", "name" => "Bob", "age" => 13)
       expect(batch.data[:name]).to eq("Bob")
     end
@@ -891,7 +912,7 @@ module Plines
       step_class(:Foo)
       let(:default_queue) { qless.queues[Pipeline::DEFAULT_QUEUE] }
       let(:jid_1)  { default_queue.put(P::Foo, {}) }
-      let(:jid_2)  { default_queue.put(P::Foo, {}) }
+      let(:jid_2)  { default_queue.put(P::Foo, {}, depends: [jid_1]) }
       let!(:batch) do
         JobBatch.create(qless, pipeline_module, "foo", {}) do |jb|
           jb.add_job(jid_1)
@@ -943,7 +964,7 @@ module Plines
       describe '#delete!' do
         it_behaves_like 'a delete method', :delete! do
           it 'cancels all qless jobs' do
-            batch.complete_job(qless_job_for jid_2)
+            batch.complete_job(qless_job_for jid_1)
             expect(default_queue.length).to be > 0
             batch.delete!
             expect(default_queue.length).to eq(0)
@@ -961,10 +982,31 @@ module Plines
 
       shared_examples_for "a cancellation method" do
         it 'cancels all qless jobs, including those that it thinks are complete' do
-          batch.complete_job(qless_job_for jid_2)
+          batch.complete_job(qless_job_for jid_1)
           expect(default_queue.length).to be > 0
           cancel
           expect(default_queue.length).to eq(0)
+        end
+
+        it 'cancels jobs in batches, using dependency order so that large batches can be deleted' do
+          jobs = batch.pending_qless_jobs
+          expect(jobs.count).to eq(2)
+
+          sorted_by_dependents = jobs.sort_by { |j| -j.dependents.count }
+          expect(sorted_by_dependents.first.dependents).to eq([sorted_by_dependents.last.jid])
+
+          stub_const("#{JobBatch.name}::CANCELLATION_BATCH_SIZE", 1)
+
+          # If it cancels in the wrong order, Qless would raise an error
+          expect { cancel }.not_to raise_error
+        end
+
+        it 'clears the pending job jid set since there are no longer any job jids' do
+          batch.pending_job_jids << "a_jid"
+
+          expect {
+            cancel
+          }.to change { batch.pending_job_jids.count }.from(a_value > 0).to(0)
         end
 
         context 'if qless silently fails to cancel some jobs' do
@@ -997,6 +1039,20 @@ module Plines
 
           expect(redis.keys).not_to be_empty
           expect(expired_keys.to_a).to include(*redis.keys.grep(/JobBatch/))
+        end
+
+        it 'expires extenernal dependency keys as well' do
+          batch = JobBatch.create(qless, pipeline_module, "with_deps", {}) do |b|
+            b.add_job('1234', 'foo', 'bar')
+            b.add_job('2345', 'bar', 'foo', 'bazz')
+          end
+
+          expect(batch.external_deps).not_to be_empty
+          cancel(batch)
+
+          keys = redis.keys("*#{batch.id}*")
+          expect(keys).to include(a_string_matching(/ext_deps/))
+          expect(expired_keys).to include(*keys)
         end
 
         it 'notifies observers that it has been cancelled' do

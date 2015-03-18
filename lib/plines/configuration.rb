@@ -1,4 +1,5 @@
 require 'logger'
+require 'plines/indifferent_hash'
 
 module Plines
   # Stores global Plines configuration.
@@ -56,6 +57,18 @@ module Plines
     def notify(callback_type, *args)
       @callbacks[callback_type].each do |callback|
         callback.call(*args)
+      end
+    end
+
+    # Indifferent hashes are convenient but slow things down considerably.
+    # See `benchmarks/using_indifferent_hash`.
+    attr_accessor :expose_indifferent_hashes
+
+    def exposed_hash_from(hash)
+      if expose_indifferent_hashes
+        Plines::IndifferentHash.from(hash)
+      else
+        hash
       end
     end
   end

@@ -3,6 +3,7 @@ require 'json'
 require 'plines/redis_objects'
 require 'plines/indifferent_hash'
 require 'plines/lua'
+require 'tsort'
 
 module Plines
   # Represents a group of jobs that are enqueued together as a batch,
@@ -281,12 +282,12 @@ module Plines
 
     def data
       data = decode(meta[BATCH_DATA_KEY])
-      data && IndifferentHash.from(data)
+      data && pipeline.configuration.exposed_hash_from(data)
     end
 
     def create_options
       options = decode(meta[CREATE_OPTIONS_KEY])
-      options && IndifferentHash.from(options)
+      options && pipeline.configuration.exposed_hash_from(options)
     end
 
     def track_timeout_job(dep_name, jid)
@@ -369,7 +370,7 @@ module Plines
           "#{Time.now - creation_started_at} seconds ago)"
       end
 
-      qless.bulk_cancel(job_jids)
+      bulk_cancel_jobs_from_qless
       verify_all_jobs_cancelled
 
       external_deps.each do |key|
@@ -379,7 +380,54 @@ module Plines
       meta["cancellation_reason"] = options[:reason] if options.key?(:reason)
       meta["cancelled_at"] = Time.now.getutc.iso8601
       set_expiration!
+
+      # must come after `set_expiration!`; otherwise it interferes
+      # with expiration
+      pending_job_jids.clear
+
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
+    end
+
+    CANCELLATION_BATCH_SIZE = 1000
+
+    def bulk_cancel_jobs_from_qless
+      jobs = QlessJobsOrderedForCancellation.new(qless_jobs)
+      jobs.each_slice(CANCELLATION_BATCH_SIZE) do |slice|
+        qless.bulk_cancel(slice.map(&:jid))
+      end
+    end
+
+    # Uses TSort to sort jobs in an order they can be safely deleted in,
+    # since Qless will not let you cancel a job on which another job depends.
+    # You must first cancel the other job.
+    class QlessJobsOrderedForCancellation
+      include TSort
+      include Enumerable
+
+      def initialize(qless_jobs)
+        @qless_jobs = qless_jobs
+      end
+
+      alias each tsort_each
+
+    private
+
+      def tsort_each_node(&block)
+        @qless_jobs.each(&block)
+      end
+
+      def tsort_each_child(job)
+        job.dependents.each do |jid|
+          job = qless_jobs_by_jid[jid]
+          yield job if job
+        end
+      end
+
+      def qless_jobs_by_jid
+        @qless_jobs_by_jid ||= @qless_jobs.each_with_object({}) do |job, hash|
+          hash[job.jid] = job
+        end
+      end
     end
 
     STUCK_BATCH_CREATION_TIMEOUT = 60 * 60 # 1 hour

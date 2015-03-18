@@ -11,13 +11,8 @@ module Plines
     end
 
     def enqueue_jobs
-      @dependency_graph.ordered_steps.each do |step|
-        jid = Qless.generate_jid
-        jids[step] = jid
-        @job_batch.add_job(jid, *step.external_dependencies.map(&:name))
-
-        enqueue_job_for(step, jid, dependency_jids_for(step))
-        setup_external_dep_timeouts_for(step)
+      @dependency_graph.ordered_steps.each_slice(100) do |steps|
+        qless.redis.pipelined { enqueue_steps_slice(steps) }
       end
 
       enqueue_external_dependency_timeouts
@@ -27,12 +22,30 @@ module Plines
 
   private
 
+    def enqueue_steps_slice(steps)
+      steps.each do |step|
+        jid = Qless.generate_jid
+        jids[step] = jid
+        @job_batch.add_job(jid, *step.external_dependencies.map(&:name))
+
+        enqueue_job_for(step, jid, dependency_jids_for(step))
+        setup_external_dep_timeouts_for(step)
+      end
+    end
+
     def jids
       @jids ||= {}
     end
 
     def qless
-      @job_batch.qless
+      # Use a dup'd connection for the pipelining so that any callbacks
+      # that are triggered that hit redis don't happen in the middle of
+      # a pipeline (which has different return-value semantics)
+      @qless ||= Qless::Client.new(redis: @job_batch.qless.redis.dup).tap do |q|
+        # Qless scripts are loaded lazily, so we must ensure loaded before
+        # the `pipelined` call. This should be a very fast, lightweight call.
+        q.config["some_config"]
+      end
     end
 
     def enqueue_job_for(step, jid, depends_on)

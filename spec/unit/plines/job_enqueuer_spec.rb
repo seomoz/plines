@@ -42,6 +42,14 @@ module Plines
         expect(jobs.map(&:tags)).to eq([["foo"]])
       end
 
+      it 'works even if the qless scripts are not yet in redis' do
+        redis.script(:flush)
+        enqueue_the_jobs
+
+        jobs = default_queue.peek(2)
+        expect(jobs).to all be_a(Qless::Job)
+      end
+
       it 'yields a job batch as a second arg so it can be used for job options' do
         jb = yielded = nil
 

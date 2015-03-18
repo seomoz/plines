@@ -98,8 +98,8 @@ module Plines
       list.to_a
     end
 
-    def dependencies_for(job, batch_data)
-      DependencyEnumerator.new(job, batch_data)
+    def dependencies_for(job, batch_data, jobs_by_klass)
+      DependencyEnumerator.new(job, batch_data, jobs_by_klass)
     end
 
     # Inherited dependencies are utilitized in place of zero-fan-out
@@ -108,20 +108,28 @@ module Plines
     # not wind up with no dependencies (and thus is runnable anytime)
     # but instead "inherits" the dependencies that are implicit
     # from its dependencies.
-    def inherited_dependencies_for(batch_data)
+    def inherited_dependencies_for(batch_data, jobs_by_klass)
       dependency_filters.flat_map do |name, _|
         klass = pipeline.const_get(name)
         next [] if equal?(klass)
-        jobs = klass.jobs_for(batch_data)
-        jobs.any? ? jobs : klass.inherited_dependencies_for(batch_data)
+
+        if (jobs = jobs_by_klass.fetch(klass)).any?
+          jobs
+        else
+          klass.inherited_dependencies_for(batch_data, jobs_by_klass)
+        end
       end
     end
 
+    # Call with care. When constructing the job batch dependency graph, we
+    # want to fetch the jobs for a class from a hash of job batch lists that
+    # it prepares at the start of the proceess rather than calling this and
+    # producing new lists. Calling this can be expensive.
     def jobs_for(batch_data)
       @fan_out_blocks.inject([batch_data]) do |job_data_hashes, fan_out_block|
         job_data_hashes.flat_map { |job_data| fan_out_block.call(job_data) }
       end.map do |job_data|
-        Job.build(self, job_data)
+        Job.new(self, job_data)
       end
     end
 
@@ -187,7 +195,10 @@ module Plines
     def configured_qless_options_for(data)
       QlessJobOptions.new.tap do |options|
         if @qless_options_block
-          @qless_options_block.call(options, IndifferentHash.from(data))
+          @qless_options_block.call(
+            options,
+            pipeline.configuration.exposed_hash_from(data)
+          )
         end
       end
     end
@@ -247,12 +258,13 @@ module Plines
     class DependencyEnumerator
       include Enumerable
 
-      attr_reader :job, :batch_data, :pipeline
+      attr_reader :job, :batch_data, :pipeline, :jobs_by_klass
 
-      def initialize(job, batch_data)
-        @job        = job
-        @batch_data = batch_data
-        @pipeline   = job.klass.pipeline
+      def initialize(job, batch_data, jobs_by_klass)
+        @job           = job
+        @batch_data    = batch_data
+        @jobs_by_klass = jobs_by_klass
+        @pipeline      = job.klass.pipeline
         @zero_fan_out_dependency_steps = Set.new
       end
 
@@ -271,16 +283,17 @@ module Plines
       DependencyData = Struct.new(:my_data, :their_data, :batch_data)
 
       def declared_dependency_jobs
-        job.klass.dependency_filters.flat_map do |name, filter|
-          klass = pipeline.const_get(name)
-          their_jobs = klass.jobs_for(batch_data)
-          @zero_fan_out_dependency_steps << klass if their_jobs.none?
+        @declared_dependency_jobs ||=
+          job.klass.dependency_filters.flat_map do |name, filter|
+            klass = pipeline.const_get(name)
+            their_jobs = jobs_by_klass.fetch(klass)
+            @zero_fan_out_dependency_steps << klass if their_jobs.none?
 
-          their_jobs.select do |their_job|
-            dep_data = DependencyData.new(job.data, their_job.data, batch_data)
-            filter.call(dep_data)
+            their_jobs.select do |their_job|
+              dep = DependencyData.new(job.data, their_job.data, batch_data)
+              filter.call(dep)
+            end
           end
-        end
       end
 
       def initial_step_jobs
@@ -289,7 +302,7 @@ module Plines
         elsif declared_dependency_jobs.any?
           []
         else
-          pipeline.initial_step.jobs_for(batch_data)
+          jobs_by_klass.fetch(pipeline.initial_step)
         end
       end
 
@@ -299,7 +312,10 @@ module Plines
 
       def transitive_dependency_jobs
         @zero_fan_out_dependency_steps.flat_map do |direct_dep|
-          direct_dep.inherited_dependencies_for(batch_data).tap do |deps|
+          direct_dep.inherited_dependencies_for(
+            batch_data,
+            jobs_by_klass
+          ).tap do |deps|
             logger.warn "Inferring implicit transitive dependency from " +
                         "#{job} for 0-fan out of #{direct_dep}: #{deps}."
           end

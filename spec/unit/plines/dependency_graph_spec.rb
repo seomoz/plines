@@ -7,7 +7,12 @@ require 'plines/configuration'
 module Plines
   RSpec.describe DependencyGraph do
     describe ".new" do
-      let(:graph) { DependencyGraph.new(P, a: 10) }
+      let(:graph) do
+        P.configuration.logger = logger
+        DependencyGraph.new(P, a: 10)
+      end
+
+      let(:logger) { instance_double(Logger.name, warn: nil) }
 
       let(:steps_by) do
         Hash.new do |h, (klass, data)|
@@ -180,7 +185,6 @@ module Plines
       end
 
       context 'when a step depends on a 0-fan-out step' do
-        let(:logger) { instance_double(Logger.name, warn: nil) }
 
         before do
           step_class(:A)
@@ -192,8 +196,6 @@ module Plines
 
           # E(1) --> C(0) --> B(0) --> A(1)
           #  \-------> D(1) -------/
-
-          P.configuration.logger = logger
         end
 
         it 'treats step dependencies transitively' do
@@ -213,6 +215,36 @@ module Plines
           expect(logger).to receive(:warn).with(/transitive dependency/i)
           graph.steps
         end
+      end
+
+      it 'calls `<step_class>.jobs_for(batch_data)` only once per step class, since that can be an expensive operation' do
+        step_class(:A) { depended_on_by_all_steps }
+
+        step_class(:B) do
+          fan_out { |d| 1.upto(3).map { |i| d.merge("i" => i) } }
+        end
+
+        step_class(:C) do
+          fan_out { |d| 1.upto(3).map { |i| d.merge("i" => i) } }
+          depends_on(:B) { |d| d.my_data.fetch("i") == d.their_data.fetch("i") }
+        end
+
+        step_class(:E) do
+          depends_on :B
+          fan_out { [] }
+        end
+
+        step_class(:F) { depends_on :E }
+
+        step_class(:G) { depends_on_all_steps }
+
+        P.step_classes.each do |step|
+          allow(step).to receive(:jobs_for).and_call_original
+        end
+
+        graph.steps
+
+        expect(P.step_classes).to all have_received(:jobs_for).once
       end
     end
   end

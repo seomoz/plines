@@ -6,6 +6,7 @@ require 'plines/dynamic_struct'
 require 'plines/job'
 require 'plines/configuration'
 require 'plines/enqueued_job'
+require 'plines/dependency_graph'
 
 module Plines
   RSpec.describe ExternalDependencyList do
@@ -68,11 +69,11 @@ module Plines
       it 'returns one instance per array entry returned by a fan_out block' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a] + 1 }, { a: data[:a] + 2 } ]
+            [ { "a" => data["a"] + 1 }, { "a" => data["a"] + 2 } ]
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from a: 3)
+        instances = P::A.jobs_for("a" => 3)
         expect(instances.map(&:klass)).to eq([P::A, P::A])
         expect(instances.map(&:data)).to eq([{ 'a' => 4 }, { 'a' => 5 }])
       end
@@ -80,15 +81,15 @@ module Plines
       it 'processes each fan_out block in the order they appear' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a] + 10 }, { a: data[:a] + 20 } ]
+            [ { "a" => data["a"] + 10 }, { "a" => data["a"] + 20 } ]
           end
 
           fan_out do |data|
-            [ { a: data[:a] + 100 }, { a: data[:a] + 200 } ]
+            [ { "a" => data["a"] + 100 }, { "a" => data["a"] + 200 } ]
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from 'a' => 1)
+        instances = P::A.jobs_for('a' => 1)
         expect(instances.map(&:klass)).to eq([P::A] * 4)
         expect(instances.map(&:data)).to eq([
          { 'a' => 111 }, { 'a' => 211 }, { 'a' => 121 }, { 'a' => 221 }
@@ -98,11 +99,11 @@ module Plines
       it 'allows fan_out blocks to conditionally eliminate jobs' do
         step_class(:A) do
           fan_out do |data|
-            [ { a: data[:a], b: 0 }, { a: data[:a] + 2, c: 0 } ]
+            [ { "a" => data["a"], "b" => 0 }, { "a" => data["a"] + 2, "c" => 0 } ]
           end
 
           fan_out do |data|
-            if data.has_key?(:b)
+            if data.has_key?("b")
               []
             else
               [data]
@@ -110,7 +111,7 @@ module Plines
           end
         end
 
-        instances = P::A.jobs_for(IndifferentHash.from a: 1)
+        instances = P::A.jobs_for('a' => 1)
         expect(instances.map(&:klass)).to eq([P::A])
         expect(instances.map(&:data)).to eq([ 'a' => 3, 'c' => 0 ])
       end
@@ -123,7 +124,7 @@ module Plines
 
       it "returns an empty array for a step with no declared dependencies" do
         step_class(:StepFoo)
-        expect(P::StepFoo.dependencies_for(job_for(P::StepFoo), {}).to_a).to eq([])
+        expect(dependencies_for(P::StepFoo).to_a).to eq([])
       end
 
       it "includes the inital step if there are no other declared dependencies" do
@@ -131,7 +132,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).to eq([P::Bar])
+        expect(dependencies_for(P::Foo).map(&:klass)).to eq([P::Bar])
       end
 
       it "does not include the initial step if there are other declared depenencies" do
@@ -140,7 +141,7 @@ module Plines
         step_class(:Bazz)
 
         P.initial_step = P::Bazz
-        expect(P::Foo.dependencies_for(job_for(P::Foo), {}).map(&:klass)).not_to include(P::Bazz)
+        expect(dependencies_for(P::Foo).map(&:klass)).not_to include(P::Bazz)
       end
 
       it "does not include the initial step if it is the initial step" do
@@ -148,7 +149,7 @@ module Plines
         step_class(:Bar)
 
         P.initial_step = P::Bar
-        expect(P::Bar.dependencies_for(job_for(P::Bar), {}).map(&:klass)).to eq([])
+        expect(dependencies_for(P::Bar).map(&:klass)).to eq([])
       end
 
       it "sets the pipeline's terminal_step to itself `#depends_on_all_steps` is declared" do
@@ -217,14 +218,22 @@ module Plines
         expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
       end
 
-      it 'uses an indifferent hash for the yielded data so it can be treated consistently as having symbolic keys' do
-        step_class(:A) do
-          qless_options do |qless, data|
-            qless.queue = "queue_for_#{data[:type]}"
-          end
-        end
+      it 'normally exposes the data passed to `qless_options` as a normal hash' do
+        expect { |probe|
+          step_class(:A) { qless_options(&probe) }
+          P::A.processing_queue_for("type" => "thing")
+        }.to yield_with_args(anything, an_instance_of(Hash))
+      end
 
-        expect(P::A.processing_queue_for("type" => "thing")).to eq("queue_for_thing")
+      context "when `config.expose_indifferent_hashes = true` is set" do
+        it 'uses an indifferent hash for the yielded data so it can be treated consistently as having symbolic keys' do
+          P.configuration.expose_indifferent_hashes = true
+
+          expect { |probe|
+            step_class(:A) { qless_options(&probe) }
+            P::A.processing_queue_for("type" => "thing")
+          }.to yield_with_args(anything, an_instance_of(IndifferentHash))
+        end
       end
     end
 
@@ -411,7 +420,7 @@ module Plines
         step_class(:C) { depends_on :D; fan_out { [] } }
         step_class(:D)
 
-        deps = P::A.inherited_dependencies_for({})
+        deps = P::A.inherited_dependencies_for({}, DependencyGraph.jobs_by_klass_for(P, {}))
         expect(deps.map(&:klass)).to eq([P::D])
       end
     end
@@ -429,7 +438,7 @@ module Plines
           depends_on :StepA, :StepB
         end
 
-        dependencies = P::StepC.dependencies_for(job_for(P::StepC), { a: 1 })
+        dependencies = dependencies_for(P::StepC, { 'a' => 1 })
         expect(dependencies.map(&:klass)).to eq([P::StepA, P::StepB])
         expect(dependencies.map(&:data)).to eq([{ 'a' => 1 }, { 'a' => 1 }])
       end
@@ -449,14 +458,14 @@ module Plines
           depends_on :A
         end
 
-        dependencies = MySteps::B.dependencies_for(job_for(MySteps::B), {})
+        dependencies = dependencies_for(MySteps::B, {})
         expect(dependencies.map(&:klass)).to eq([MySteps::A])
       end
 
       context 'when depending on a fan_out step' do
         step_class(:StepX) do
           fan_out do |data|
-            [1, 2, 3].map { |v| { a: data[:a] + v } }
+            [1, 2, 3].map { |v| { 'a' => data['a'] + v } }
           end
         end
 
@@ -465,7 +474,7 @@ module Plines
             depends_on :StepX
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
+          dependencies = dependencies_for(P::StepY, 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([
             { 'a' => 18 }, { 'a' => 19 }, { 'a' => 20 }
@@ -474,10 +483,10 @@ module Plines
 
         it "depends on the the subset of instances for which the block returns true when given a block" do
           step_class(:StepY) do
-            depends_on(:StepX) { |data| data.their_data[:a].even? }
+            depends_on(:StepX) { |data| data.their_data['a'].even? }
           end
 
-          dependencies = P::StepY.dependencies_for(job_for(P::StepY), a: 17)
+          dependencies = dependencies_for(P::StepY, 'a' => 17)
           expect(dependencies.map(&:klass)).to eq([P::StepX, P::StepX])
           expect(dependencies.map(&:data)).to eq([{ 'a' => 18 }, { 'a' => 20 }])
         end
@@ -486,12 +495,12 @@ module Plines
           arg = nil
 
           step_class(:StepY) do
-            fan_out { |d| ['a', 'b'].map { |v| { b: v } } }
+            fan_out { |d| ['a', 'b'].map { |v| { 'b' => v } } }
             depends_on(:StepX) { |a| arg = a }
           end
 
-          P::StepY.dependencies_for(job_for(P::StepY), a: 17).to_a
-          expect(arg.batch_data).to eq(a: 17)
+          dependencies_for(P::StepY, 'a' => 17).to_a
+          expect(arg.batch_data).to eq('a' => 17)
         end
       end
 
@@ -636,6 +645,11 @@ module Plines
           expect(P::A.order).to eq([:before_2, :before_1, :perform, :after_1, :after_2])
         end
       end
+    end
+
+    def dependencies_for(klass, batch_data={})
+      jobs_by_klass = DependencyGraph.jobs_by_klass_for(klass.pipeline, batch_data)
+      klass.dependencies_for(job_for(klass), batch_data, jobs_by_klass)
     end
   end
 end

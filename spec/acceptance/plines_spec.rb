@@ -34,7 +34,7 @@ RSpec.describe Plines, :redis do
         depended_on_by_all_steps
 
         qless_options do |opt, data|
-          opt.queue = GROCERIES_QUEUE_NAME_FOR.(data.fetch :family)
+          opt.queue = GROCERIES_QUEUE_NAME_FOR.(data.fetch "family")
           opt.priority = -10
         end
 
@@ -88,7 +88,7 @@ RSpec.describe Plines, :redis do
 
       class PourDrinks
         extend Plines::Step
-        fan_out { |data| data[:drinks].map { |d| { drink: d, family: data[:family] } } }
+        fan_out { |data| data["drinks"].map { |d| { "drink" => d, "family" => data["family"] } } }
 
         def perform
           MakeThanksgivingDinner.poured_drinks << job_data.drink
@@ -175,32 +175,32 @@ RSpec.describe Plines, :redis do
     end.map { |k| MakeThanksgivingDinner.redis.ttl(k) }.uniq
   end
 
-  let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith") }
+  let(:smith_batch) { MakeThanksgivingDinner.most_recent_job_batch_for("family" => "Smith") }
   let(:qless) { Qless::Client.new(redis: redis) }
 
   DEFAULT_DRINKS = %w[ champagne water cider ]
 
   def enqueue_jobs(options = {})
-    family = options.fetch(:family) { "Smith" }
+    family = options.fetch("family") { "Smith" }
 
     batch_data = {
-      family: family,
-      drinks: DEFAULT_DRINKS
+      "family" => family,
+      "drinks" => DEFAULT_DRINKS
     }.merge(options)
 
     MakeThanksgivingDinner.configure do |plines|
-      plines.batch_list_key { |d| d[:family] }
+      plines.batch_list_key { |d| d["family"] }
       plines.qless_job_options do |job, job_batch|
-        { tags: Array(job.data.fetch(:family)) + Array(job_batch.create_options[:tags]) }
+        { tags: Array(job.data.fetch("family")) + Array(job_batch.create_options["tags"]) }
       end
       plines.qless_client { qless } unless options[:dont_configure_qless_client]
     end
 
     MakeThanksgivingDinner.enqueue_jobs_for(batch_data, reason: "for testing", tags: "create_tag")
 
-    expect(MakeThanksgivingDinner.most_recent_job_batch_for(family: family.next)).to be_nil
+    expect(MakeThanksgivingDinner.most_recent_job_batch_for("family" => family.next)).to be_nil
 
-    batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: family)
+    batch = MakeThanksgivingDinner.most_recent_job_batch_for("family" => family)
     expect(batch.job_jids.size).to be >= 10
     expect(batch).not_to be_complete
     expect(batch.creation_reason).to eq("for testing")
@@ -522,11 +522,11 @@ RSpec.describe Plines, :redis do
         end
       end
 
-      enqueue_jobs(family: "Smith", dont_configure_qless_client: true)
-      enqueue_jobs(family: "Jones", dont_configure_qless_client: true)
+      enqueue_jobs("family" => "Smith", dont_configure_qless_client: true)
+      enqueue_jobs("family" => "Jones", dont_configure_qless_client: true)
 
-      smith_batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: "Smith")
-      jones_batch = MakeThanksgivingDinner.most_recent_job_batch_for(family: "Jones")
+      smith_batch = MakeThanksgivingDinner.most_recent_job_batch_for("family" => "Smith")
+      jones_batch = MakeThanksgivingDinner.most_recent_job_batch_for("family" => "Jones")
 
       expect(redis.keys("*Smith*").size).to be > 0
       expect(redis.keys("*Jones*").size).to eq(0)
@@ -547,16 +547,16 @@ RSpec.describe Plines, :redis do
       end
 
       Timecop.freeze(Time.now)
-      enqueue_jobs(family: "Smith", num: 1)
-      enqueue_jobs(family: "Smith", num: 2)
+      enqueue_jobs("family" => "Smith", "num" => 1)
+      enqueue_jobs("family" => "Smith", "num" => 2)
 
       wait_for_seconds 11
       process_work # so it times out for 2 of them...
 
-      enqueue_jobs(family: "Smith", num: 3)
-      enqueue_jobs(family: "Smith", num: 4)
+      enqueue_jobs("family" => "Smith", "num" => 3)
+      enqueue_jobs("family" => "Smith", "num" => 4)
 
-      batch_list = MakeThanksgivingDinner.job_batch_list_for(family: "Smith")
+      batch_list = MakeThanksgivingDinner.job_batch_list_for("family" => "Smith")
       batch_list.each do |batch|
         # Resolve the dependency on some batches, in order to create a batch
         # in each of these 4 states
@@ -580,7 +580,7 @@ RSpec.describe Plines, :redis do
     end
 
     it 'can spawn a copy of a job batch with overrides' do
-      batch = enqueue_jobs(family: "Smith", num: 1)
+      batch = enqueue_jobs("family" => "Smith", "num" => 1)
       spawned = batch.spawn_copy do |options|
         options.data_overrides = { num: 2, copy: true }
         options.reason = "because!"
@@ -588,7 +588,7 @@ RSpec.describe Plines, :redis do
 
       process_work
 
-      batch_list = MakeThanksgivingDinner.job_batch_list_for(family: "Smith")
+      batch_list = MakeThanksgivingDinner.job_batch_list_for("family" => "Smith")
       batches = batch_list.each.to_a
 
       expect(batches.map(&:complete?)).to eq([true, true])
@@ -605,7 +605,7 @@ RSpec.describe Plines, :redis do
       end
 
       Timecop.freeze(Time.now)
-      batch = enqueue_jobs(family: "Smith")
+      batch = enqueue_jobs("family" => "Smith")
       wait_for_seconds 5
 
       spawned = batch.spawn_copy do |options|

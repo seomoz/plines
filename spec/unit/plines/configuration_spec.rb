@@ -81,6 +81,21 @@ module Plines
         expect(hook_2_batch).to be(the_job_batch)
       end
     end
+
+    describe "#exposed_hash_from" do
+      it "returns the given hash by default" do
+        hash = {}
+        expect(config.exposed_hash_from(hash)).to be(hash)
+      end
+
+      it "can return an indifferent hash when `expose_indifferent_hashes` is set to true" do
+        config.expose_indifferent_hashes = true
+        hash = { "foo" => 1 }
+        exposed = config.exposed_hash_from(hash)
+        expect(exposed[:foo]).to eq(1)
+        expect(exposed["foo"]).to eq(1)
+      end
+    end
   end
 end
 

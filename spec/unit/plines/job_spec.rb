@@ -1,6 +1,7 @@
 require 'plines/job'
 require 'plines/pipeline'
 require 'plines/step'
+require 'plines/configuration'
 
 module Plines
   RSpec.describe Job do
@@ -8,11 +9,11 @@ module Plines
     step_class(:StepB)
     step_class(:StepC)
 
-    let(:a1_1) { Job.build(P::StepA, a: 1) }
-    let(:a1_2) { Job.build(P::StepA, a: 1) }
-    let(:a2)   { Job.build(P::StepA, a: 2) }
-    let(:b)    { Job.build(P::StepB, a: 1) }
-    let(:c)    { Job.build(P::StepC, a: 1) }
+    let(:a1_1) { Job.new(P::StepA, a: 1) }
+    let(:a1_2) { Job.new(P::StepA, a: 1) }
+    let(:a2)   { Job.new(P::StepA, a: 2) }
+    let(:b)    { Job.new(P::StepB, a: 1) }
+    let(:c)    { Job.new(P::StepC, a: 1) }
 
     it 'is uniquely identified by the class/data combination' do
       steps = Set.new
@@ -23,18 +24,24 @@ module Plines
 
     it 'raises an error if given data that is not a hash' do
       expect {
-        Job.build(P::StepA, 5)
-      }.to raise_error(IndifferentHash::NotAHashError)
+        Job.new(P::StepA, 5)
+      }.to raise_error(NotAHashError)
     end
 
-    it 'exposes #data as an indifferent hash' do
+    it 'normally exposes #data as a normal hash' do
       expect(b.data[:a]).to eq(1)
-      expect(b.data["a"]).to eq(1)
+      expect(b.data["a"]).to be_nil
     end
 
-    it 'initializes #dependencies and #dependents to empty sets' do
-      expect(b.dependencies).to eq(Set.new)
-      expect(b.dependents).to eq(Set.new)
+    it 'exposes #data as an indifferent hash if `config.expose_indifferent_hashes = true` is est' do
+      P.configuration.expose_indifferent_hashes = true
+      expect(b.data["a"]).to eq(1)
+      expect(b.data[:a]).to eq(1)
+    end
+
+    it 'initializes #dependencies and #dependents to empty collections' do
+      expect(b.dependencies).to be_empty
+      expect(b.dependents).to be_empty
     end
 
     it 'sets up the dependency/dependent relationship when a dependency is added' do
@@ -45,64 +52,10 @@ module Plines
       expect(b.dependents.to_a).to eq([a2])
     end
 
-    it 'modifies the dependency and dependent when a dependency is removed' do
-      a2.add_dependency(b)
-      a2.add_dependency(c)
-      c.add_dependency(b)
-      a2.remove_dependency(b)
-      expect(a2.dependencies.to_a).to eq([c])
-      expect(b.dependents.to_a).to eq([c])
-    end
-
-    it 'raises a helpful error if a nonexistent dependency is removed' do
-      expect(a2.dependencies).not_to include(b)
-      expect {
-        a2.remove_dependency(b)
-      }.to raise_error(/attempted to remove nonexistent dependency/i)
-    end
-
     it 'yields when constructed if passed a block' do
       yielded_object = nil
-      si = Job.build(P::StepA, a: 5) { |a| yielded_object = a }
+      si = Job.new(P::StepA, a: 5) { |a| yielded_object = a }
       expect(yielded_object).to be(si)
-    end
-
-    it 'does not allow consumers to construct instances using .new (since we need accumulation behavior and we cannot override .new)' do
-      expect { Job.new(P::StepA, a: 3) }.to raise_error(NoMethodError)
-    end
-
-    describe '.accumulate_instances' do
-      it 'causes .build to return identical object instances for the same arguments for the duration of the block' do
-        expect(Job.build(P::StepA, a: 1)).not_to be(Job.build(P::StepA, a: 1))
-        s1 = s2 = nil
-
-        Job.accumulate_instances do
-          s1 = Job.build(P::StepA, a: 1)
-          s2 = Job.build(P::StepA, a: 1)
-        end
-
-        expect(s1).to be(s2)
-      end
-
-      it 'returns the accumulated instances' do
-        s1 = s2 = s3 = nil
-
-        instances = Job.accumulate_instances do
-          s1 = Job.build(P::StepA, a: 1)
-          s2 = Job.build(P::StepA, a: 1)
-          s3 = Job.build(P::StepA, a: 2)
-        end
-
-        expect(instances).to match_array [s1, s3]
-      end
-
-      it 'correctly restores the initial state if an error is raised in the block' do
-        expect {
-          Job.accumulate_instances { raise "boom" }
-        }.to raise_error("boom")
-
-        expect(Job.build(P::StepA, a: 1)).not_to be(Job.build(P::StepA, a: 1))
-      end
     end
 
     describe "#external_dependencies" do
@@ -114,7 +67,7 @@ module Plines
           end
         end
 
-        j = Job.build(P::F, a: 1)
+        j = Job.new(P::F, a: 1)
         expect(j.external_dependencies.map(&:name)).to eq(["foo", "bar"])
       end
 
@@ -126,13 +79,13 @@ module Plines
           end
         end
 
-        j = Job.build(P::F, a: 1)
+        j = Job.new(P::F, a: 1)
         expect(j.external_dependencies).to eq([])
 
-        j = Job.build(P::F, foo: true)
+        j = Job.new(P::F, foo: true)
         expect(j.external_dependencies.map(&:name)).to eq(["foo"])
 
-        j = Job.build(P::F, foo: true, bar: true)
+        j = Job.new(P::F, foo: true, bar: true)
         expect(j.external_dependencies.map(&:name)).to eq(["foo", "bar"])
       end
     end
