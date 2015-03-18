@@ -9,7 +9,7 @@ module Plines
   # use this for the data hash.
   #
   # Note: using this is convenient but can make things much slower
-  # (see `benchmarks/using_indifferent_hash.rb`) so we recomment
+  # (see `benchmarks/using_indifferent_hash.rb`) so we recommend
   # generally not using it (see `config.exposes_indifferent_hashes`).
   class IndifferentHash < DelegateClass(Hash)
     NotAHashError = Class.new(TypeError)
