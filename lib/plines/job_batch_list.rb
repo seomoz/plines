@@ -8,6 +8,7 @@ module Plines
     include Plines::RedisObjectsHelpers
 
     counter :last_batch_num
+    value :oldest_known_job_batch_num
     attr_reader :qless, :redis, :pipeline, :key
 
     def initialize(pipeline, key)
@@ -31,10 +32,21 @@ module Plines
 
     def each
       return enum_for(__method__) unless block_given?
+      seen_first_found_batch = false
 
-      each_id do |id|
+      each_id_and_num do |id, num, orig_oldest_known_job_batch_num|
         begin
-          yield JobBatch.find(qless, pipeline, id)
+          jb = JobBatch.find(qless, pipeline, id)
+
+          unless seen_first_found_batch
+            if num > orig_oldest_known_job_batch_num
+              oldest_known_job_batch_num.value = num
+            end
+
+            seen_first_found_batch = true
+          end
+
+          yield jb
         rescue JobBatch::CannotFindExistingJobBatchError
           # We can't yield a batch we can't find!
         end
@@ -43,10 +55,7 @@ module Plines
 
     def each_id
       return enum_for(__method__) unless block_given?
-
-      1.upto(last_batch_num.value) do |num|
-        yield batch_id_for(num)
-      end
+      each_id_and_num { |id, _, _| yield id }
     end
 
     def all_with_external_dependency_timeout(dep_name)
@@ -78,6 +87,19 @@ module Plines
 
     def batch_id_for(number)
       [id, number].join(':')
+    end
+
+    def each_id_and_num
+      starting_value = oldest_known_job_batch_num_as_integer
+      starting_value.upto(last_batch_num.value) do |num|
+        yield batch_id_for(num), num, starting_value
+      end
+    end
+
+    def oldest_known_job_batch_num_as_integer
+      value = oldest_known_job_batch_num.value
+      return 1 unless value
+      Integer(value)
     end
   end
 end

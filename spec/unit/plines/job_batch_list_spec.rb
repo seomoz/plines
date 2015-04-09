@@ -131,6 +131,32 @@ module Plines
         foo.select(&b)
       }.to yield_successive_args(b1, b2)
     end
+
+    context "when enumerating" do
+      it 'avoids re-enumerating from 1 when it has previously seen that early jbs no longer exist in redis' do
+        jb1, jb2, jb3, jb4 = 4.times.map { foo.create_new_batch({}) }
+        jb1.delete!; jb2.delete!
+        expect { |b| foo.each(&b) }.to yield_successive_args(jb3, jb4)
+
+        redis_logger = RedisLogger.new(redis)
+        pipeline_module.configure do |c|
+          c.qless_client { Qless::Client.new(redis: redis_logger) }
+        end
+
+        jbl = JobBatchList.new(pipeline_module, foo.key)
+        expect { |b| jbl.each(&b) }.to yield_successive_args(jb3, jb4)
+
+        queried_redis_keys = redis_logger.commands_with_args.map { |_cmd, key, *rest| key }
+
+        queried_deleted_jb_keys = queried_redis_keys.grep(
+          a_string_starting_with(jb1.key_prefix).or starting_with(jb2.key_prefix)
+        ).uniq
+
+        expect(queried_deleted_jb_keys).to eq([])
+
+        expect { |b| jbl.each(&b) }.to yield_successive_args(jb3, jb4)
+      end
+    end
   end
 end
 

@@ -175,3 +175,22 @@ RSpec::Matchers.define :move_job do |jid|
   end
 end
 
+class RedisLogger < BasicObject
+  attr_reader :commands, :commands_with_args
+
+  def initialize(redis)
+    @redis    = redis
+    @commands = []
+    @commands_with_args = []
+  end
+
+  def respond_to_missing?(name, include_private = false)
+    @redis.respond_to?(name, include_private) || super
+  end
+
+  def method_missing(name, *args, &block)
+    @commands << name
+    @commands_with_args << [name, *args]
+    @redis.public_send(name, *args, &block)
+  end
+end
