@@ -116,24 +116,6 @@ module Plines
         end
       end
 
-      class RedisLogger < BasicObject
-        attr_reader :commands
-
-        def initialize(redis)
-          @redis    = redis
-          @commands = []
-        end
-
-        def respond_to_missing?(name, include_private = false)
-          @redis.respond_to?(name, include_private) || super
-        end
-
-        def method_missing(name, *args, &block)
-          @commands << name
-          @redis.public_send(name, *args, &block)
-        end
-      end
-
       it 'sets the metadata atomically to ensure a partial batch does not get created' do
         allow(qless).to receive_messages(redis: RedisLogger.new(redis))
         JobBatch.create(qless, pipeline_module, "a", { a: 5 }) { }
