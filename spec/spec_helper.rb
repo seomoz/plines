@@ -199,3 +199,5 @@ class RedisLogger < BasicObject
     @redis.public_send(name, *args, &block)
   end
 end
+
+RSpec::Matchers.define_negated_matcher :not_have_received, :have_received

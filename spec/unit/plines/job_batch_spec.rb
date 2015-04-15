@@ -75,6 +75,11 @@ module Plines
         expect(batch).not_to be_paused
       end
 
+      it 'leaves the job batch paused if `leave_paused: true` is passed' do
+        batch = JobBatch.create(qless, pipeline_module, "a", {}, leave_paused: true)
+        expect(batch).to be_paused
+      end
+
       describe "#create_options" do
         let(:special_options) do
           {
