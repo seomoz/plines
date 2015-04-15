@@ -60,6 +60,21 @@ module Plines
         expect(batch.creation_completed_at).to eq(time_2)
       end
 
+      it 'considers the job batch paused until creation is complete' do
+        value_in_block = nil
+
+        JobBatch.create(qless, pipeline_module, "a", {}) do
+          # Use a different instance to demonstrate the state is persistent
+          batch = JobBatch.find(qless, pipeline_module, "a")
+          value_in_block = batch.paused?
+        end
+
+        expect(value_in_block).to be true
+
+        batch = JobBatch.find(qless, pipeline_module, "a")
+        expect(batch).not_to be_paused
+      end
+
       describe "#create_options" do
         let(:special_options) do
           {
@@ -1133,6 +1148,35 @@ module Plines
             expect(batch).not_to be_cancelled
           end
         end
+      end
+    end
+
+    describe "pausing" do
+      let(:batch) { JobBatch.create(qless, pipeline_module, "foo", {}) }
+
+      it "can be manually paused and unpaused" do
+        expect { batch.pause }.to change(batch, :paused?).from(false).to(true)
+        expect { batch.unpause }.to change(batch, :paused?).from(true).to(false)
+      end
+
+      it 'is idempotent' do
+        batch.pause
+        expect { batch.pause }.not_to change(batch, :paused?).from(true)
+
+        batch.unpause
+        expect { batch.unpause }.not_to change(batch, :paused?).from(false)
+      end
+
+      it 'allows the `pause` caller to specify the pause retry delay' do
+        expect {
+          batch.pause(retry_delay: 1700)
+        }.to change(batch, :paused_retry_delay).from(nil).to(1700)
+      end
+
+      it 'defaults the `paused_retry_delay`' do
+        expect {
+          batch.pause
+        }.to change(batch, :paused_retry_delay).from(nil).to(JobBatch::DEFAULT_PAUSE_RETRY_DELAY)
       end
     end
 

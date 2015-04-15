@@ -137,8 +137,8 @@ module Plines
       batch = JobBatch.find(qless_job.client, pipeline,
                             qless_job.data.fetch("_job_batch_id"))
 
-      if batch.creation_in_progress?
-        qless_job.move(qless_job.queue_name, delay: 2)
+      if (retry_delay = batch.paused_retry_delay)
+        qless_job.move(qless_job.queue_name, delay: retry_delay)
         return
       end
 
