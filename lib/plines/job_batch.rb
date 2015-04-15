@@ -321,7 +321,7 @@ module Plines
 
     def get_user_data *keys
       if keys.size > 0
-        user_data.bulk_get *keys
+        user_data.bulk_get(*keys)
       else
         user_data.all
       end
