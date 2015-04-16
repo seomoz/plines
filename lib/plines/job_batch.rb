@@ -529,7 +529,7 @@ module Plines
 
         redis.multi do
           meta[:creation_completed_at] = Time.now.getutc.iso8601
-          meta.delete(:paused_retry_delay) unless options[:leave_paused]
+          unpause unless options[:leave_paused]
         end
       end
     end
