@@ -277,8 +277,8 @@ module Plines
       lua.delete!(self)
     end
 
-    def delete!
-      cancel
+    def delete!(cancel_options = {})
+      cancel(cancel_options)
       lua.delete!(self)
     end
 

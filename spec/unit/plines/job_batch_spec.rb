@@ -971,6 +971,22 @@ module Plines
             batch.delete!
             expect(default_queue.length).to eq(0)
           end
+
+          it 'supports cancellation options' do
+            pipeline_module.configuration.logger = Logger.new(StringIO.new)
+
+            expect {
+              JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+                jb.delete!
+              end
+            }.to raise_error(JobBatch::CreationInStillInProgressError)
+
+            expect {
+              JobBatch.create(qless, pipeline_module, "baz", {}) do |jb|
+                jb.delete!(force: true)
+              end
+            }.not_to raise_error
+          end
         end
       end
 
