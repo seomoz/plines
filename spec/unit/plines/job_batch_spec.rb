@@ -979,7 +979,7 @@ module Plines
               JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
                 jb.delete!
               end
-            }.to raise_error(JobBatch::CreationInStillInProgressError)
+            }.to raise_error(JobBatch::CreationStillInProgressError)
 
             expect {
               JobBatch.create(qless, pipeline_module, "baz", {}) do |jb|
@@ -1121,7 +1121,7 @@ module Plines
             JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
               cancel(jb)
             end
-          }.to raise_error(JobBatch::CreationInStillInProgressError)
+          }.to raise_error(JobBatch::CreationStillInProgressError)
         end
 
         it 'allows a cancellation option to be passed that ignores the fact that create appears to be in progress' do
