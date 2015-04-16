@@ -525,11 +525,8 @@ module Plines
           allow(Plines::EnqueuedJob).to receive_messages(new: enqueued_job)
         end
 
-        context "when the job batch is still being created" do
-          before do
-            job_batch.meta.delete(:creation_completed_at)
-            expect(job_batch.creation_in_progress?).to be true
-          end
+        context "when the job batch is paused" do
+          before { job_batch.pause(retry_delay: 1700) }
 
           it "schedules the job to be tried again later" do
             step_class(:A) do
@@ -540,6 +537,8 @@ module Plines
             reloaded = qless.jobs[qless_job.jid]
             expect(reloaded.state).to eq("scheduled")
             expect(reloaded.queue_name).to eq(qless_job.queue_name)
+
+            expect(job_scheduled_at(reloaded)).to be_within(1).of(Time.now + 1700)
           end
         end
 

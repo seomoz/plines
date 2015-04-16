@@ -108,6 +108,11 @@ RSpec.shared_context "redis", :redis do
       expect(job.jid).to eq(jid)
     end
   end
+
+  def job_scheduled_at(job)
+    # TODO: expose this from a Qless API
+    Time.at(job.client.redis.zscore("ql:q:#{job.queue_name}-scheduled", job.jid))
+  end
 end
 
 RSpec.shared_context "integration helpers" do
@@ -194,3 +199,5 @@ class RedisLogger < BasicObject
     @redis.public_send(name, *args, &block)
   end
 end
+
+RSpec::Matchers.define_negated_matcher :not_have_received, :have_received

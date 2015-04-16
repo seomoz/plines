@@ -1,6 +1,7 @@
 require 'qless'
 require 'forwardable'
 require 'plines/indifferent_hash'
+require 'plines/atomic_job_batch_starter'
 
 module Plines
   # This module should be extended onto a class or module in order
@@ -20,6 +21,12 @@ module Plines
 
     def configure
       yield configuration
+    end
+
+    def start_job_batches_atomically
+      starter = AtomicJobBatchStarter.new(self)
+      yield starter
+      starter.atomically_start_created_batches
     end
 
     def enqueue_jobs_for(batch_data, options = {})

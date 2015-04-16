@@ -201,6 +201,25 @@ module Plines
       !!cancelled_at || (meta["cancelled"] == "1")
     end
 
+    DEFAULT_PAUSE_RETRY_DELAY = 30
+
+    def pause(retry_delay: DEFAULT_PAUSE_RETRY_DELAY)
+      meta["paused_retry_delay"] = retry_delay
+    end
+
+    def unpause
+      meta.delete("paused_retry_delay")
+    end
+
+    def paused?
+      !!paused_retry_delay
+    end
+
+    def paused_retry_delay
+      value = meta["paused_retry_delay"]
+      Integer(value) if value
+    end
+
     def creation_in_progress?
       meta_values = meta.bulk_get(:creation_completed_at,
                                   :created_at,
@@ -321,7 +340,7 @@ module Plines
 
     def get_user_data *keys
       if keys.size > 0
-        user_data.bulk_get *keys
+        user_data.bulk_get(*keys)
       else
         user_data.all
       end
@@ -344,6 +363,7 @@ module Plines
         timeout_reduction: options.fetch(:timeout_reduction, 0),
         BATCH_DATA_KEY => JSON.dump(batch_data),
         CREATE_OPTIONS_KEY => JSON.dump(opts_to_store),
+        paused_retry_delay: DEFAULT_PAUSE_RETRY_DELAY,
       }
 
       if (reason = options[:reason])
@@ -506,9 +526,12 @@ module Plines
         populate_meta_for_create(batch_data, options)
 
         populate_external_deps_meta { yield self if block_given? }
-        meta[:creation_completed_at] = Time.now.getutc.iso8601
+
+        redis.multi do
+          meta[:creation_completed_at] = Time.now.getutc.iso8601
+          unpause unless options[:leave_paused]
+        end
       end
     end
   end
 end
-
