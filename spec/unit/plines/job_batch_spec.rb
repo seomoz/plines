@@ -1108,6 +1108,19 @@ module Plines
           }.to raise_error(JobBatch::CreationInStillInProgressError)
         end
 
+        it 'allows a cancellation option to be passed that ignores the fact that create appears to be in progress' do
+          before_value, after_value = nil
+
+          JobBatch.create(qless, pipeline_module, "bar", {}) do |jb|
+            before_value = jb.cancelled?
+            cancel(jb, :force => true)
+            after_value = jb.cancelled?
+          end
+
+          expect(before_value).to eq(false)
+          expect(after_value).to eq(true)
+        end
+
         it 'allows cancellation of a job batch that appears to have gotten stuck while being created' do
           job_batch_creation_time = Date.iso8601('2013-01-01').to_time
           one_week_into_the_future = job_batch_creation_time + 7 * 24 * 60 * 60
