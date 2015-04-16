@@ -7,12 +7,16 @@ module Plines
     end
 
     def enqueue_jobs_for(batch_data, options = {}, &block)
-      @created_batches << @pipeline.enqueue_jobs_for(
+      @pipeline.send(:enqueue_jobs_for,
         batch_data, options.merge(leave_paused: true), &block
-      )
+      ).tap do |jb|
+        @created_batches << jb
+      end
     end
 
     def atomically_start_created_batches
+      return if @created_batches.empty?
+
       redises = @created_batches.map(&:redis).uniq
       if redises.one?
         redises.first.multi do

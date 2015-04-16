@@ -384,7 +384,9 @@ module Plines
     def perform_cancellation(options)
       return true if cancelled?
 
-      if creation_in_progress? && !creation_appears_to_be_stuck?
+      if !options[:force] &&
+         creation_in_progress? &&
+         !creation_appears_to_be_stuck?
         raise CreationInStillInProgressError,
           "#{id} is still being created (started " +
           "#{Time.now - creation_started_at} seconds ago)"

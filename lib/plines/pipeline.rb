@@ -25,8 +25,9 @@ module Plines
 
     def start_job_batches_atomically
       starter = AtomicJobBatchStarter.new(self)
-      yield starter
-      starter.atomically_start_created_batches
+      yield(starter).tap do
+        starter.atomically_start_created_batches
+      end
     end
 
     def enqueue_jobs_for(batch_data, options = {})
