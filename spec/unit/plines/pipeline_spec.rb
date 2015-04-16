@@ -36,6 +36,13 @@ module Plines
       end
     end
 
+    describe ".start_job_batches_atomically" do
+      it "returns the block's return value" do
+        value = MyPipeline.start_job_batches_atomically { :return_value }
+        expect(value).to eq :return_value
+      end
+    end
+
     describe ".most_recent_job_batch_for", :redis do
       it 'returns a job batch using the configured key' do
         MyPipeline.configuration.batch_list_key { |data| data["a"] }
