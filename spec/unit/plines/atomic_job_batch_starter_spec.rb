@@ -1,4 +1,5 @@
 require 'plines/atomic_job_batch_starter'
+require 'plines/pipeline'
 
 module Plines
   RSpec.describe AtomicJobBatchStarter do
@@ -11,6 +12,17 @@ module Plines
         allow(pipeline).to receive(:enqueue_jobs_for).and_return(jb)
 
         expect(starter.enqueue_jobs_for({})).to be jb
+      end
+
+      it "works on a pipeline that has privatized `enqueue_jobs_for` in order to make a more domain-specific public API" do
+        starter = described_class.new(pipeline_module)
+
+        pipeline_module.module_exec do
+          private_class_method :enqueue_jobs_for
+        end
+
+        expect(pipeline_module).to receive(:enqueue_jobs_for)
+        expect { starter.enqueue_jobs_for({}) }.not_to raise_error
       end
     end
 
