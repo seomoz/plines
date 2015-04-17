@@ -277,8 +277,8 @@ module Plines
       lua.delete!(self)
     end
 
-    def delete!
-      cancel
+    def delete!(cancel_options = {})
+      cancel(cancel_options)
       lua.delete!(self)
     end
 
@@ -379,7 +379,7 @@ module Plines
     end
 
     SomeJobsFailedToCancelError = Class.new(StandardError)
-    CreationInStillInProgressError = Class.new(StandardError)
+    CreationStillInProgressError = Class.new(StandardError)
 
     def perform_cancellation(options)
       return true if cancelled?
@@ -387,7 +387,7 @@ module Plines
       if !options[:force] &&
          creation_in_progress? &&
          !creation_appears_to_be_stuck?
-        raise CreationInStillInProgressError,
+        raise CreationStillInProgressError,
           "#{id} is still being created (started " +
           "#{Time.now - creation_started_at} seconds ago)"
       end
