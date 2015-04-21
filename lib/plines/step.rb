@@ -41,7 +41,6 @@ module Plines
             "declared within pipeline modules."
         end
 
-        fan_out { |d| [d] } # default to one step instance
         pipeline.step_classes << self
       end
     end
@@ -63,8 +62,11 @@ module Plines
     end
 
     def fan_out(&block)
+      fan_out_blocks << block
+    end
+
+    def fan_out_blocks
       @fan_out_blocks ||= []
-      @fan_out_blocks << block
     end
 
     def has_external_dependencies(*args, &block)
@@ -126,7 +128,7 @@ module Plines
     # it prepares at the start of the proceess rather than calling this and
     # producing new lists. Calling this can be expensive.
     def jobs_for(batch_data)
-      @fan_out_blocks.inject([batch_data]) do |job_data_hashes, fan_out_block|
+      fan_out_blocks.inject([batch_data]) do |job_data_hashes, fan_out_block|
         job_data_hashes.flat_map { |job_data| fan_out_block.call(job_data) }
       end.map do |job_data|
         Job.new(self, job_data)
