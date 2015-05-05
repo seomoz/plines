@@ -350,6 +350,12 @@ module Plines
       user_data.bulk_set hash
     end
 
+    STUCK_BATCH_CREATION_TIMEOUT = 60 * 60 # 1 hour
+    def creation_appears_to_be_stuck?
+      age_in_seconds = Time.now - creation_started_at
+      age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
+    end
+
   private
 
     # we manage these keys and don't want them in `create_options`
@@ -450,12 +456,6 @@ module Plines
           hash[job.jid] = job
         end
       end
-    end
-
-    STUCK_BATCH_CREATION_TIMEOUT = 60 * 60 # 1 hour
-    def creation_appears_to_be_stuck?
-      age_in_seconds = Time.now - creation_started_at
-      age_in_seconds >= STUCK_BATCH_CREATION_TIMEOUT
     end
 
     def verify_all_jobs_cancelled
