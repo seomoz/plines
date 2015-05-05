@@ -503,146 +503,146 @@ module Plines
           expect(arg.batch_data).to eq('a' => 17)
         end
       end
+    end
 
-      describe "#perform", :redis do
-        step_class(:Other)
+    describe "#perform", :redis do
+      step_class(:Other)
 
-        let(:qless_job) do
-          qless.queues["jobs"].put(P::Other,
-            { "foo" => "bar", "_job_batch_id" => job_batch.id },
-            jid: "my-jid"
-          )
+      let(:qless_job) do
+        qless.queues["jobs"].put(P::Other,
+          { "foo" => "bar", "_job_batch_id" => job_batch.id },
+          jid: "my-jid"
+        )
 
-          qless.queues["jobs"].pop
-        end
+        qless.queues["jobs"].pop
+      end
 
-        let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
-        let(:enqueued_job) { instance_double("Plines::EnqueuedJob") }
+      let(:job_batch) { JobBatch.create(qless, pipeline_module, "abc:1", {}) }
+      let(:enqueued_job) { instance_double("Plines::EnqueuedJob") }
 
-        before do
-          job_batch.pending_job_jids << qless_job.jid
-          allow_any_instance_of(JobBatch).to receive(:set_expiration!)
-          allow(Plines::EnqueuedJob).to receive_messages(new: enqueued_job)
-        end
+      before do
+        job_batch.pending_job_jids << qless_job.jid
+        allow_any_instance_of(JobBatch).to receive(:set_expiration!)
+        allow(Plines::EnqueuedJob).to receive_messages(new: enqueued_job)
+      end
 
-        context "when the job batch is paused" do
-          before { job_batch.pause(retry_delay: 1700) }
+      context "when the job batch is paused" do
+        before { job_batch.pause(retry_delay: 1700) }
 
-          it "schedules the job to be tried again later" do
-            step_class(:A) do
-              def perform; raise "should not be called"; end
-            end
-
-            P::A.perform(qless_job)
-            reloaded = qless.jobs[qless_job.jid]
-            expect(reloaded.state).to eq("scheduled")
-            expect(reloaded.queue_name).to eq(qless_job.queue_name)
-
-            expect(job_scheduled_at(reloaded)).to be_within(1).of(Time.now + 1700)
-          end
-        end
-
-        it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
-          foo = nil
+        it "schedules the job to be tried again later" do
           step_class(:A) do
-            define_method(:perform) do
-              foo = job_data.foo
-            end
+            def perform; raise "should not be called"; end
           end
 
           P::A.perform(qless_job)
-          expect(foo).to eq("bar")
+          reloaded = qless.jobs[qless_job.jid]
+          expect(reloaded.state).to eq("scheduled")
+          expect(reloaded.queue_name).to eq(qless_job.queue_name)
+
+          expect(job_scheduled_at(reloaded)).to be_within(1).of(Time.now + 1700)
+        end
+      end
+
+      it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
+        foo = nil
+        step_class(:A) do
+          define_method(:perform) do
+            foo = job_data.foo
+          end
         end
 
-        it "makes the job_batch and qless_job available in the perform instance method" do
-          j_batch = data_hash = nil
-          qljob = nil
-          step_class(:A) do
-            define_method(:perform) do
-              j_batch = self.job_batch
-              data_hash = job_data.to_hash
-              qljob = qless_job
+        P::A.perform(qless_job)
+        expect(foo).to eq("bar")
+      end
+
+      it "makes the job_batch and qless_job available in the perform instance method" do
+        j_batch = data_hash = nil
+        qljob = nil
+        step_class(:A) do
+          define_method(:perform) do
+            j_batch = self.job_batch
+            data_hash = job_data.to_hash
+            qljob = qless_job
+          end
+        end
+
+        P::A.perform(qless_job)
+        expect(j_batch).to eq(job_batch)
+        expect(data_hash).to have_key("_job_batch_id")
+
+        expect(qljob).to eq(qless_job)
+      end
+
+      it "makes the unresolved external dependencies available in the perform instance method" do
+        allow(enqueued_job).to receive_messages(unresolved_external_dependencies: ["foo", "bar"])
+
+        unresolved_ext_deps = []
+        step_class(:A) do
+          define_method(:perform) do
+            unresolved_ext_deps = unresolved_external_dependencies
+          end
+        end
+
+        P::A.perform(qless_job)
+        expect(unresolved_ext_deps).to eq(["foo", "bar"])
+      end
+
+      it "marks the job as complete in the job batch" do
+        expect(job_batch.pending_job_jids).to include(qless_job.jid)
+        expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
+
+        step_class(:A) do
+          def perform; end
+        end
+
+        P::A.perform(qless_job)
+        expect(job_batch.pending_job_jids.to_a).not_to include(qless_job.jid)
+        expect(job_batch.completed_job_jids.to_a).to include(qless_job.jid)
+      end
+
+      it "does not mark the job as complete in the job batch if the job was retried" do
+        expect(job_batch.pending_job_jids).to include(qless_job.jid)
+        expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
+        expect(qless_job).to receive(:retry).and_call_original
+
+        step_class(:A) do
+          def perform
+            qless_job.retry
+          end
+        end
+
+        P::A.perform(qless_job)
+        expect(job_batch.pending_job_jids).to include(qless_job.jid)
+        expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
+      end
+
+      it "supports #around_perform middleware modules" do
+        step_class(:A) do
+          def self.order
+            @order ||= []
+          end
+
+          include Module.new {
+            def around_perform
+              self.class.order << :before_1
+              super
+              self.class.order << :after_1
             end
-          end
+          }
 
-          P::A.perform(qless_job)
-          expect(j_batch).to eq(job_batch)
-          expect(data_hash).to have_key("_job_batch_id")
-
-          expect(qljob).to eq(qless_job)
-        end
-
-        it "makes the unresolved external dependencies available in the perform instance method" do
-          allow(enqueued_job).to receive_messages(unresolved_external_dependencies: ["foo", "bar"])
-
-          unresolved_ext_deps = []
-          step_class(:A) do
-            define_method(:perform) do
-              unresolved_ext_deps = unresolved_external_dependencies
+          include Module.new {
+            def around_perform
+              self.class.order << :before_2
+              super
+              self.class.order << :after_2
             end
-          end
+          }
 
-          P::A.perform(qless_job)
-          expect(unresolved_ext_deps).to eq(["foo", "bar"])
+          define_method(:perform) { self.class.order << :perform }
         end
 
-        it "marks the job as complete in the job batch" do
-          expect(job_batch.pending_job_jids).to include(qless_job.jid)
-          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
-
-          step_class(:A) do
-            def perform; end
-          end
-
-          P::A.perform(qless_job)
-          expect(job_batch.pending_job_jids.to_a).not_to include(qless_job.jid)
-          expect(job_batch.completed_job_jids.to_a).to include(qless_job.jid)
-        end
-
-        it "does not mark the job as complete in the job batch if the job was retried" do
-          expect(job_batch.pending_job_jids).to include(qless_job.jid)
-          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
-          expect(qless_job).to receive(:retry).and_call_original
-
-          step_class(:A) do
-            def perform
-              qless_job.retry
-            end
-          end
-
-          P::A.perform(qless_job)
-          expect(job_batch.pending_job_jids).to include(qless_job.jid)
-          expect(job_batch.completed_job_jids).not_to include(qless_job.jid)
-        end
-
-        it "supports #around_perform middleware modules" do
-          step_class(:A) do
-            def self.order
-              @order ||= []
-            end
-
-            include Module.new {
-              def around_perform
-                self.class.order << :before_1
-                super
-                self.class.order << :after_1
-              end
-            }
-
-            include Module.new {
-              def around_perform
-                self.class.order << :before_2
-                super
-                self.class.order << :after_2
-              end
-            }
-
-            define_method(:perform) { self.class.order << :perform }
-          end
-
-          P::A.perform(qless_job)
-          expect(P::A.order).to eq([:before_2, :before_1, :perform, :after_1, :after_2])
-        end
+        P::A.perform(qless_job)
+        expect(P::A.order).to eq([:before_2, :before_1, :perform, :after_1, :after_2])
       end
     end
 
