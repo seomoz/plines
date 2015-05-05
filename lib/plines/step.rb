@@ -135,13 +135,20 @@ module Plines
       end
     end
 
+    JobBatchCreationAborted = Class.new(StandardError)
+
     def perform(qless_job)
       batch = JobBatch.find(qless_job.client, pipeline,
                             qless_job.data.fetch("_job_batch_id"))
 
       if (retry_delay = batch.paused_retry_delay)
-        qless_job.move(qless_job.queue_name, delay: retry_delay)
-        return
+        if batch.creation_appears_to_be_stuck?
+          raise JobBatchCreationAborted,
+            "#{batch.inspect} appears to have been aborted during creation"
+        else
+          qless_job.move(qless_job.queue_name, delay: retry_delay)
+          return
+        end
       end
 
       job_data = DynamicStruct.new(qless_job.data)

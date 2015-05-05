@@ -543,6 +543,23 @@ module Plines
         end
       end
 
+      context "when it appears the job batch was aborted during creation" do
+        before do
+          job_batch.pause
+          job_batch.meta["creation_started_at"] = (Time.now - (24 * 3600)).iso8601
+          job_batch.meta.delete("creation_completed_at")
+          expect(job_batch.creation_appears_to_be_stuck?).to be true
+        end
+
+        it 'raises an error since we do not want to endlessly retry' do
+          step_class(:A) do
+            def perform; raise "should not be called"; end
+          end
+
+          expect { P::A.perform(qless_job) }.to raise_error(Plines::Step::JobBatchCreationAborted)
+        end
+      end
+
       it "creates an instance and calls #perform, with the job data available as a DynamicStruct from an instance method" do
         foo = nil
         step_class(:A) do
