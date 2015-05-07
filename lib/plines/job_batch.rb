@@ -427,7 +427,8 @@ module Plines
 
     def bulk_cancel_with_retry(jids, tries=4, delay=0.25)
       qless.bulk_cancel(jids)
-    rescue Redis::BaseConnectionError # base class of TimeoutError and ConnectionError
+    rescue Redis::BaseConnectionError # base class of TimeoutError
+                                      # and ConnectionError
       raise if (tries -= 1).zero?
       sleep(delay *= 2)
       retry
