@@ -1151,6 +1151,48 @@ module Plines
             end
           end
         end
+
+        context "when the `bulk_cancel` call hits a redis connection error (such as a timeeout)" do
+          before do
+            allow(batch).to receive(:sleep) # speed things up by not actually sleeping
+          end
+
+          it 'retries to avoid re-doing the cancellation prep work (which can be significant for large batches)' do
+            call_count = 0
+
+            allow(qless).to receive(:bulk_cancel).and_wrap_original do |original, *args|
+              call_count += 1
+              if call_count.odd?
+                raise Redis::TimeoutError
+              else
+                original.call(*args)
+              end
+            end
+
+            expect {
+              cancel(batch)
+            }.to change(default_queue, :length).from(a_value > 0).to(0)
+          end
+
+          it 'stops retrying if the connection errors persist' do
+            allow(qless).to receive(:bulk_cancel).and_raise(Redis::ConnectionError)
+
+            expect {
+              cancel(batch)
+            }.to raise_error(Redis::ConnectionError)
+
+            expect(qless).to have_received(:bulk_cancel).exactly(4).times
+          end
+
+          it 'uses a simple exponential backoff strategy for retries' do
+            allow(qless).to receive(:bulk_cancel).and_raise(Redis::ConnectionError)
+            expect { cancel(batch) }.to raise_error(Redis::ConnectionError)
+
+            expect(batch).to have_received(:sleep).with(0.5).ordered
+            expect(batch).to have_received(:sleep).with(1.0).ordered
+            expect(batch).to have_received(:sleep).with(2.0).ordered
+          end
+        end
       end
 
       describe "#cancel!" do
