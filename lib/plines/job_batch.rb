@@ -416,13 +416,21 @@ module Plines
       pipeline.configuration.notify(:after_job_batch_cancellation, self)
     end
 
-    CANCELLATION_BATCH_SIZE = 1000
+    CANCELLATION_BATCH_SIZE = 200
 
     def bulk_cancel_jobs_from_qless
       jobs = QlessJobsOrderedForCancellation.new(qless_jobs)
       jobs.each_slice(CANCELLATION_BATCH_SIZE) do |slice|
-        qless.bulk_cancel(slice.map(&:jid))
+        bulk_cancel_with_retry(slice.map(&:jid))
       end
+    end
+
+    def bulk_cancel_with_retry(jids, tries=4, delay=0.25)
+      qless.bulk_cancel(jids)
+    rescue Redis::BaseConnectionError # base class of TimeoutError and ConnectionError
+      raise if (tries -= 1).zero?
+      sleep(delay *= 2)
+      retry
     end
 
     # Uses TSort to sort jobs in an order they can be safely deleted in,
