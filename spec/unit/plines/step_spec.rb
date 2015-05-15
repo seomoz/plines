@@ -116,13 +116,13 @@ module Plines
         expect(instances.map(&:data)).to eq([ 'a' => 3, 'c' => 0 ])
       end
 
-      it 'allows run_if? blocks to conditionally eliminate jobs' do
+      it 'allows skip_if blocks to conditionally eliminate jobs' do
         step_class(:A) do
           fan_out do |data|
             [ { "a" => data["a"], "b" => 0 }, { "a" => data["a"] + 2, "c" => 0 } ]
           end
 
-          run_if? { |data| data.has_key?("b") }
+          skip_if { |data| data.has_key?("c") }
         end
 
         instances = P::A.jobs_for('a' => 1)
