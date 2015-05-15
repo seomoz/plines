@@ -65,6 +65,10 @@ module Plines
       fan_out_blocks << block
     end
 
+    def skip_if(&block)
+      fan_out_blocks << Proc.new { |data| block.call(data) ? [] : [data] }
+    end
+
     def fan_out_blocks
       @fan_out_blocks ||= []
     end
